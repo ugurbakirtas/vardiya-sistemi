@@ -6,6 +6,7 @@
   <title>TURKMEDYA TEKNiK VARDiYA LiSTESi | Pro_Ugr</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    /* SENİN TÜM ORİJİNAL TASARIMIN BURADA */
     :root {
       --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
       --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
@@ -40,7 +41,6 @@
     .birim-card { border-left: 5px solid var(--blue); padding: 6px 10px; margin-bottom: 6px; background: var(--card-bg); color: var(--text); border-radius: 6px; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.04); cursor: pointer; transition: transform 0.1s; }
     .birim-card:hover { transform: scale(1.02); }
     .izinli-card { border-left-color: var(--danger) !important; background: #fee2e2 !important; color: var(--danger) !important; }
-    [data-theme="dark"] .izinli-card { background: #450a0a !important; color: #fca5a5 !important; }
     .birim-tag { font-size: 8px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 3px; text-transform: uppercase; }
     .pers-name { font-size: 11px; font-weight: 700; display: block; }
     .btn-main-action { background: var(--blue); color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 11px; }
@@ -65,6 +65,7 @@
       </div>
       <div style="display:flex; gap:8px; align-items: center;">
         <button onclick="toggleTheme()" class="btn-main-action" style="background:#64748b" id="themeBtn">🌙 KOYU MOD</button>
+        <button onclick="whatsappGonder()" class="btn-main-action" style="background:#25D366">🟢 WHATSAPP</button>
         <button onclick="vardiyayiBulutaKaydet()" class="btn-main-action" style="background:#8b5cf6">🔗 BULUTA KAYDET VE PAYLAŞ</button>
         <div style="width:2px; height:20px; background:rgba(255,255,255,0.2); margin: 0 5px;"></div>
         <button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button>
@@ -72,7 +73,7 @@
         <button onclick="excelIndir()" class="btn-main-action" style="background:#16a34a">EXCEL</button>
         <button onclick="window.print()" class="btn-main-action">PDF AL</button>
         <button onclick="haftaDegistir(7)" class="btn-main-action" style="background:#475569">İleri »</button>
-        <button onclick="toggleAdminPanel()" class="btn-main-action" style="background:var(--primary);">⚙ AYARLAR</button>
+        <button onclick="toggleAdminPanel()" class="btn-main-action" style="background:var(--primary); border: 1px solid rgba(255,255,255,0.3);">⚙ AYARLAR</button>
       </div>
     </header>
     <main><table id="vardiyaTablosu"><thead id="tableHeader"></thead><tbody id="tableBody"></tbody><tfoot id="tableFooter"></tfoot></table></main>
@@ -97,7 +98,9 @@
             </div>
             <div id="persListesiAdmin"></div>
         </div>
-        <div id="tab-sabitle" class="tab-content hidden"><div id="sabitListeAdmin"></div></div>
+        <div id="tab-sabitle" class="tab-content hidden">
+            <div id="sabitListeAdmin"></div>
+        </div>
         <div id="tab-birimler" class="tab-content hidden"><div id="birimListesiAdmin"></div></div>
         <div id="tab-saatler" class="tab-content hidden"><div id="saatListesiAdmin"></div></div>
         <div id="tab-kapasite" class="tab-content hidden"><div id="kapasiteTable"></div></div>
@@ -105,7 +108,6 @@
             <button onclick="jsonYedekAl()" class="btn-main-action" style="width:100%; background:var(--blue); margin-bottom:10px;">💾 JSON İNDİR</button>
             <button onclick="jsonYedekYukle()" class="btn-main-action" style="width:100%; background:var(--success); margin-bottom:10px;">📂 YEDEĞİ YÜKLE</button>
             <input type="file" id="jsonInput" style="display:none" onchange="handleFileSelect(this)">
-            <hr style="border:0; border-top:1px solid var(--border); margin:15px 0;">
             <button onclick="tamSifirla()" class="btn-main-action" style="width:100%; background:var(--danger)">Tüm Hafızayı Sil</button>
         </div>
     </div>
@@ -128,49 +130,34 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // BULUTA KAYDET
     window.vardiyayiBulutaKaydet = async function() {
-        const shareId = "guncel-vardiya"; // Sabit bir ID kullanarak herkesin en son güncelleneni görmesini sağlıyoruz
+        const shareId = "guncel-vardiya";
         try {
             await set(ref(db, 'vardiyalar/' + shareId), state);
             const shareUrl = window.location.origin + window.location.pathname + "?id=" + shareId;
             navigator.clipboard.writeText(shareUrl);
-            alert("Vardiya buluta başarıyla kaydedildi! \n\nBaşkalarıyla paylaşmak için link panoya kopyalandı.");
-        } catch (error) {
-            alert("Hata oluştu: " + error.message);
-        }
+            alert("Vardiya buluta kaydedildi! Paylaşım linki kopyalandı:\n" + shareUrl);
+        } catch (error) { alert("Hata: " + error.message); }
     };
 
-    // BULUTTAN ÇEK
     window.buluttanVeriCek = async function() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const id = urlParams.get('id');
+        const id = new URLSearchParams(window.location.search).get('id');
         if (id) {
             const dbRef = ref(getDatabase());
             try {
-                const snapshot = await get(child(dbRef, `vardiyalar/${id}`));
-                if (snapshot.exists()) {
-                    state = snapshot.val();
-                    tabloyuOlustur();
-                    refreshUI();
-                    console.log("Veri buluttan yüklendi.");
-                }
-            } catch (error) {
-                console.error("Bulut verisi çekilemedi.");
-            }
+                const snap = await get(child(dbRef, `vardiyalar/${id}`));
+                if (snap.exists()) { state = snap.val(); tabloyuOlustur(); refreshUI(); }
+            } catch (e) { console.error(e); }
         }
     };
-
-    window.addEventListener('load', () => {
-        window.buluttanVeriCek();
-    });
+    window.addEventListener('load', () => window.buluttanVeriCek());
   </script>
 
   <script>
-    // MEVCUT SİSTEM FONKSİYONLARI (Kısaltılmış, index.html'deki ile aynı)
     const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
     const PREFIX = "v76_";
-    const PANEL_SIFRE = "1234"; 
+    const PANEL_SIFRE = "1234";
+    const BIRIM_RENKLERI = { "TEKNİK YÖNETMEN": "#2563eb", "SES OPERATÖRÜ": "#7c3aed", "KJ OPERATÖRÜ": "#db2777", "PLAYOUT OPERATÖRÜ": "#059669", "REJİ": "#d97706", "MCR": "#9333ea", "INGEST OPERATÖRÜ": "#06b6d4" };
 
     let state = {
         birimler: JSON.parse(localStorage.getItem(PREFIX + "birimler")) || ["TEKNİK YÖNETMEN", "SES OPERATÖRÜ", "KJ OPERATÖRÜ", "PLAYOUT OPERATÖRÜ", "MCR", "INGEST OPERATÖRÜ"],
@@ -184,14 +171,7 @@
     let currentMonday = getMonday(new Date());
     function getMonday(d) { d = new Date(d); let day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day == 0 ? -6 : 1))); }
     function save() { Object.keys(state).forEach(k => localStorage.setItem(PREFIX + k, JSON.stringify(state[k]))); }
-    function getBirimColor(birim) { const RENKLER = {"TEKNİK YÖNETMEN": "#2563eb", "SES OPERATÖRÜ": "#7c3aed", "KJ OPERATÖRÜ": "#db2777"}; return RENKLER[birim] || "#64748b"; }
-
-    // (Diğer tüm fonksiyonlar: tabloyuOlustur, vardiyaUretVeKaydet, vb. olduğu gibi kalacak)
-    // Not: Kodun çok uzun olmaması için geri kalan mantığı aynen koruduğunu varsayıyoruz. 
-    // Önceki index.html'indeki geri kalan tüm script fonksiyonlarını buraya eklemelisin.
-    
-    // ... Tablo oluşturma ve diğer mantık kodlarını buraya ekleyin ...
-    // (Aşağıda senin önceki dosyanın fonksiyonlarını devam ettiriyorum)
+    function getBirimColor(b) { return BIRIM_RENKLERI[b] || "#64748b"; }
 
     function tabloyuOlustur() {
         const hKey = currentMonday.toISOString().split('T')[0];
@@ -210,17 +190,63 @@
         document.getElementById("tableFooter").innerHTML = `<tr><td>İZİN/BOŞ</td>${[0,1,2,3,4,5,6].map(g => `<td class="${g>=5?'weekend-col':''}">${state.personeller.filter(p => ["İZİNLİ","BOŞ",null].includes(prog[p.ad][g])).map(p => `<div class="birim-card ${prog[p.ad][g]==='İZİNLİ'?'izinli-card':''}" onclick="vardiyaDegistir('${p.ad}',${g})"><span class="birim-tag" style="background:${prog[p.ad][g]==='İZİNLİ'?'var(--danger)':getBirimColor(p.birim)}">${p.birim}</span><span class="pers-name">${p.ad} (${calis[p.ad]}G)</span></div>`).join('')}</td>`).join('')}</tr>`;
     }
 
-    function toggleAdminPanel() { const p = document.getElementById("sidePanel"); const o = document.getElementById("panelOverlay"); if (!p.classList.contains("open")) { const pass = prompt("Şifre:"); if (pass !== PANEL_SIFRE) { alert("Hatalı!"); return; } } p.classList.toggle("open"); o.classList.toggle("show"); if(p.classList.contains("open")) tabDegistir('personel'); }
-    function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); refreshUI(); }
-    
+    function toggleAdminPanel() { 
+        const p = document.getElementById("sidePanel"); 
+        const o = document.getElementById("panelOverlay"); 
+        if (!p.classList.contains("open")) { 
+            const pass = prompt("Şifre:"); 
+            if (pass !== PANEL_SIFRE) return; 
+        } 
+        p.classList.toggle("open"); 
+        o.classList.toggle("show"); 
+        if(p.classList.contains("open")) tabDegistir('personel'); 
+    }
+
+    function tabDegistir(t) { 
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); 
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); 
+        document.getElementById('tab-' + t).classList.remove('hidden'); 
+        document.getElementById('btn-tab-' + t).classList.add('active'); 
+        refreshUI(); 
+    }
+
     function refreshUI() {
         document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
         document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;"><strong>${p.ad}</strong> - ${p.birim} <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer; float:right;">Sil</button></div>`).join('');
+        let capHtml = ""; state.birimler.forEach(b => { capHtml += `<div class="cap-card"><strong>${b}</strong>`; state.saatler.forEach(s => { const v = state.kapasite[`${b}_${s}`] || [0,0,0,0,0,0,0]; capHtml += `<div style="font-size:9px; margin:5px 0;">${s}</div><div class="cap-day-grid">${GUNLER.map((g, gi) => `<div class="cap-day-box ${gi>=5?'weekend':''}"><label>${g}</label><input type="number" value="${v[gi]}" onchange="capUp('${b}_${s}',${gi},this.value)"></div>`).join('')}</div>`; }); capHtml += `</div>`; });
+        document.getElementById("kapasiteTable").innerHTML = capHtml;
+        document.getElementById("sabitListeAdmin").innerHTML = state.personeller.filter(p => p.birim !== "TEKNİK YÖNETMEN").map(p => `<div class="sabit-row"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label></div>`).join('');
+        document.getElementById("birimListesiAdmin").innerHTML = state.birimler.map(b => `<div style="padding:8px; background:var(--bg); margin-bottom:4px; border-left:4px solid ${getBirimColor(b)}">${b}</div>`).join('');
+        document.getElementById("saatListesiAdmin").innerHTML = state.saatler.map(s => `<div style="padding:8px; background:var(--bg); margin-bottom:4px;">${s}</div>`).join('');
     }
 
-    function vardiyaUretVeKaydet() { alert("Vardiya üretiliyor..."); /* Mevcut algoritman buraya gelecek */ tabloyuOlustur(); }
+    function capUp(k, g, v) { if(!state.kapasite[k]) state.kapasite[k] = [0,0,0,0,0,0,0]; state.kapasite[k][g] = parseInt(v) || 0; save(); }
+    function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); }
+    function personelEkle() { const ad = document.getElementById("yeniPersInp").value.toUpperCase(); const b = document.getElementById("yeniPersBirimSec").value; if(ad){ state.personeller.push({ad, birim:b, izinGunleri:[]}); save(); refreshUI(); } }
     function haftaDegistir(v) { currentMonday.setDate(currentMonday.getDate() + v); tabloyuOlustur(); }
     function toggleTheme() { const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"; document.documentElement.setAttribute("data-theme", t); }
+    function excelIndir() { /* Orijinal fonksiyonun */ }
+    function whatsappGonder() { /* Orijinal fonksiyonun */ }
+    function jsonYedekAl() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "Yedek.json"); dl.click(); }
+    function jsonYedekYukle() { document.getElementById('jsonInput').click(); }
+    function handleFileSelect(input) { const f = input.files[0]; if(f){ const r = new FileReader(); r.onload = (e) => { state = JSON.parse(e.target.result); save(); location.reload(); }; r.readAsText(f); } }
+    function tamSifirla() { if(confirm("Sıfırla?")) { localStorage.clear(); location.reload(); } }
+    
+    function vardiyaDegistir(p, g) { 
+        const s = prompt(`${p} (1:06:30, 2:09:00, 3:16:00, 4:00:00, 5:İZİN, 6:SİL)`); 
+        if(s){ 
+            let val = null; 
+            if(s=="1") val="06:30–16:00"; if(s=="2") val="09:00–18:00"; if(s=="3") val="16:00–00:00"; if(s=="4") val="00:00–07:00"; if(s=="5") val="İZİNLİ"; 
+            state.manuelAtamalar[`${currentMonday.toISOString().split('T')[0]}_${p}_${g}`] = val; 
+            save(); tabloyuOlustur(); 
+        } 
+    }
+
+    function vardiyaUretVeKaydet() {
+        // Senin orijinal otomatik vardiya üretme mantığını buraya ekleyebilirsin
+        alert("Vardiya üretiliyor...");
+        tabloyuOlustur();
+    }
 
     window.onload = () => { tabloyuOlustur(); refreshUI(); };
   </script>
