@@ -12,7 +12,6 @@
       --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
       --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
       --warning: #f59e0b; --weekend-bg: #fff1f2; --table-head: #f8fafc;
-      /* Saat Renkleri */
       --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed;
       --izin-bg: #fef2f2;
     }
@@ -25,14 +24,10 @@
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
     .app-wrapper { padding: 10px; }
     .main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; }
-    
-    /* Mobil Kaydırma */
     .table-container { overflow-x: auto; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); }
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
     th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); }
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
-
-    /* Renkli Sütun ve Satırlar */
     .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; }
     .row-saat-0 { background-color: var(--saat1); }
     .row-saat-1 { background-color: var(--saat2); }
@@ -40,46 +35,30 @@
     .row-saat-3 { background-color: var(--saat4); }
     .row-izin { background-color: var(--izin-bg) !important; }
     .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
-    
     .weekend-col { background-color: var(--weekend-bg) !important; }
     .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; }
     .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
     .pers-name { font-size: 10px; font-weight: 700; display: block; }
-
-    /* Yan Panel */
     .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: var(--card-bg); z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); }
     .side-panel.open { right: 0; }
     .panel-header { padding: 15px; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; }
     .panel-content { padding: 15px; overflow-y: auto; flex: 1; }
-    
-    /* Panel İçi Buton Grubu */
     .panel-action-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; background: var(--bg); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
-
     .btn-main-action { padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: white; }
     .hidden { display: none; }
     .tab-btn { flex: 1; padding: 8px; border: none; background: #e2e8f0; cursor: pointer; font-size: 10px; font-weight: 700; border-radius: 4px; color: #64748b; }
     .tab-btn.active { background: var(--blue); color: white; }
-    
     .izin-gun-pill { padding: 4px 6px; background: var(--bg); border-radius: 4px; margin: 2px; font-size: 9px; cursor: pointer; display: inline-block; font-weight: 700; border: 1px solid var(--border); }
     .izin-gun-pill.active { background: var(--danger); color: white; }
-
-    @media (max-width: 600px) {
-      .side-panel { width: 100%; right: -100%; }
-      .main-header { flex-direction: column; text-align: center; }
-    }
   </style>
 </head>
 <body>
   <div id="panelOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; display:none;" onclick="toggleAdminPanel()"></div>
-  
   <div class="app-wrapper">
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;">
         <img src="logo.png" alt="Logo" style="height: 35px;">
-        <div>
-          <h1 style="margin:0; font-size:16px;">TEKNiK VARDiYA</h1>
-          <p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p>
-        </div>
+        <div><h1 style="margin:0; font-size:16px;">TEKNiK VARDiYA</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
       </div>
       <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;">
         <button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button>
@@ -91,29 +70,19 @@
         <button onclick="toggleAdminPanel()" class="btn-main-action" style="background:var(--primary); border: 1px solid #475569;">⚙ AYARLAR</button>
       </div>
     </header>
-
     <main class="table-container">
-        <table id="vardiyaTablosu">
-            <thead id="tableHeader"></thead>
-            <tbody id="tableBody"></tbody>
-            <tfoot id="tableFooter"></tfoot>
-        </table>
+        <table id="vardiyaTablosu"><thead id="tableHeader"></thead><tbody id="tableBody"></tbody><tfoot id="tableFooter"></tfoot></table>
     </main>
   </div>
 
   <div id="sidePanel" class="side-panel no-print">
-    <div class="panel-header">
-        <h2 style="margin:0; font-size:16px;">Yönetim Paneli</h2>
-        <button onclick="toggleAdminPanel()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
-    </div>
-    
+    <div class="panel-header"><h2 style="margin:0; font-size:16px;">Yönetim Paneli</h2><button onclick="toggleAdminPanel()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button></div>
     <div class="panel-content">
         <div class="panel-action-group">
             <button onclick="vardiyaUretVeKaydet()" class="btn-main-action" style="background:var(--success); grid-column: span 2; padding: 15px; font-size: 13px;">✨ VARDİYA OLUŞTUR</button>
             <button onclick="bulutaKaydet()" class="btn-main-action" style="background:#ea4335">☁️ BULUTA KAYDET</button>
             <button onclick="whatsappGonder()" class="btn-main-action" style="background:#25D366">🟢 WHATSAPP</button>
         </div>
-
         <div class="admin-tabs" style="display:flex; gap:2px; margin-bottom:15px;">
           <button id="btn-tab-personel" class="tab-btn active" onclick="tabDegistir('personel')">Personel</button>
           <button id="btn-tab-birimler" class="tab-btn" onclick="tabDegistir('birimler')">Birimler</button>
@@ -122,46 +91,19 @@
           <button id="btn-tab-kapasite" class="tab-btn" onclick="tabDegistir('kapasite')">Kapasite</button>
           <button id="btn-tab-sistem" class="tab-btn" onclick="tabDegistir('sistem')">Sistem</button>
         </div>
-
-        <div id="tab-personel" class="tab-content">
-            <div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;">
-              <input type="text" id="yeniPersInp" placeholder="Ad Soyad" style="width:95%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);">
-              <select id="yeniPersBirimSec" style="width:100%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"></select>
-              <button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success)">PERSONEL EKLE</button>
-            </div>
-            <div id="persListesiAdmin"></div>
-        </div>
+        <div id="tab-personel" class="tab-content"><div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;"><input type="text" id="yeniPersInp" placeholder="Ad Soyad" style="width:95%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"><select id="yeniPersBirimSec" style="width:100%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"></select><button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success)">PERSONEL EKLE</button></div><div id="persListesiAdmin"></div></div>
         <div id="tab-birimler" class="tab-content hidden"><div id="birimListesiAdmin"></div></div>
         <div id="tab-saatler" class="tab-content hidden"><div id="saatListesiAdmin"></div></div>
         <div id="tab-sabitle" class="tab-content hidden"><div id="sabitListeAdmin"></div></div>
         <div id="tab-kapasite" class="tab-content hidden"><div id="kapasiteTable"></div></div>
-        <div id="tab-sistem" class="tab-content hidden">
-            <button onclick="jsonYedekAl()" class="btn-main-action" style="width:100%; background:var(--blue); margin-bottom:10px;">💾 JSON İNDİR</button>
-            <button onclick="jsonYedekYukle()" class="btn-main-action" style="width:100%; background:var(--success); margin-bottom:10px;">📂 YEDEĞİ YÜKLE</button>
-            <input type="file" id="jsonInput" style="display:none" onchange="handleFileSelect(this)">
-            <button onclick="vardiyaSifirla()" class="btn-main-action" style="width:100%; background:var(--warning); margin-bottom:10px;">Bu Haftayı Temizle</button>
-            <button onclick="tamSifirla()" class="btn-main-action" style="width:100%; background:var(--danger)">Tüm Hafızayı Sil</button>
-        </div>
+        <div id="tab-sistem" class="tab-content hidden"><button onclick="jsonYedekAl()" class="btn-main-action" style="width:100%; background:var(--blue); margin-bottom:10px;">💾 JSON İNDİR</button><button onclick="jsonYedekYukle()" class="btn-main-action" style="width:100%; background:var(--success); margin-bottom:10px;">📂 YEDEĞİ YÜKLE</button><input type="file" id="jsonInput" style="display:none" onchange="handleFileSelect(this)"><button onclick="vardiyaSifirla()" class="btn-main-action" style="width:100%; background:var(--warning); margin-bottom:10px;">Bu Haftayı Temizle</button><button onclick="tamSifirla()" class="btn-main-action" style="width:100%; background:var(--danger)">Tüm Hafızayı Sil</button></div>
     </div>
   </div>
 
   <script>
-    // --- FIREBASE KONFİGÜRASYONU (ORİJİNAL) ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M",
-      authDomain: "teknik-vardiya-listesi.firebaseapp.com",
-      databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "teknik-vardiya-listesi",
-      storageBucket: "teknik-vardiya-listesi.firebasestorage.app",
-      messagingSenderId: "900931844150",
-      appId: "1:900931844150:web:41c799492e85d62df8c097"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-
-    const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
-    const PREFIX = "v76_";
-    const PANEL_SIFRE = "6161"; 
+    const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
+    firebase.initializeApp(firebaseConfig); const database = firebase.database();
+    const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = "v76_"; const PANEL_SIFRE = "6161"; 
     const BIRIM_RENKLERI = { "TEKNİK YÖNETMEN": "#2563eb", "SES OPERATÖRÜ": "#7c3aed", "KJ OPERATÖRÜ": "#db2777", "PLAYOUT OPERATÖRÜ": "#059669", "REJİ": "#d97706", "MCR": "#9333ea", "INGEST OPERATÖRÜ": "#06b6d4" };
 
     let state = {
@@ -182,7 +124,6 @@
         const hKey = currentMonday.toISOString().split('T')[0];
         document.getElementById("tarihAraligi").innerText = `${currentMonday.toLocaleDateString('tr-TR')} Haftası`;
         document.getElementById("tableHeader").innerHTML = `<tr><th style="width:100px;">SAAT</th>${GUNLER.map((g,i)=>`<th class="${i>=5?'weekend-col':''}">${g}</th>`).join('')}</tr>`;
-        
         let prog = {}; let calis = {};
         state.personeller.forEach(p => { 
             prog[p.ad] = Array(7).fill(null); calis[p.ad] = 0;
@@ -192,31 +133,22 @@
                 if(prog[p.ad][i] && !["İZİNLİ","BOŞ",null].includes(prog[p.ad][i])) calis[p.ad]++;
             }
         });
-
         document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => `
-            <tr class="row-saat-${sIdx}">
-                <td class="saat-col">${s}</td>
+            <tr class="row-saat-${sIdx}"><td class="saat-col">${s}</td>
                 ${[0,1,2,3,4,5,6].map(g => `<td class="${g>=5?'weekend-col':''}" ondragover="event.preventDefault()" ondrop="drop(event, '${s}', ${g})">
                     ${state.personeller.filter(p => prog[p.ad][g] === s).map(p => `<div class="birim-card" style="border-left-color:${getBirimColor(p.birim)}; background-color:${getBirimColor(p.birim)}15;" draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, '${s}')" onclick="vardiyaDegistir('${p.ad}',${g})"><span class="birim-tag" style="background:${getBirimColor(p.birim)}">${p.birim}</span><span class="pers-name">${p.ad}</span></div>`).join('')}
-                </td>`).join('')}
-            </tr>
-        `).join('');
-
+                </td>`).join('')}</tr>`).join('');
         document.getElementById("tableFooter").innerHTML = `
-            <tr class="row-izin">
-                <td class="saat-col">İZİN / BOŞ</td>
+            <tr class="row-izin"><td class="saat-col">İZİN / BOŞ</td>
                 ${[0,1,2,3,4,5,6].map(g => `<td class="${g>=5?'weekend-col':''}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">
                     ${state.personeller.filter(p => ["İZİNLİ","BOŞ",null].includes(prog[p.ad][g])).map(p => `<div class="birim-card" style="border-left-color:${getBirimColor(p.birim)};" draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, 'BOŞ')" onclick="vardiyaDegistir('${p.ad}',${g})"><span class="birim-tag" style="background:${prog[p.ad][g]==='İZİNLİ'?'var(--danger)':getBirimColor(p.birim)}">${prog[p.ad][g]==='İZİNLİ'?'İZİNLİ':p.birim}</span><span class="pers-name">${p.ad} (${calis[p.ad]}G)</span></div>`).join('')}
-                </td>`).join('')}
-            </tr>`;
+                </td>`).join('')}</tr>`;
     }
 
-    // --- TÜM KOŞULLARIN KORUNDUĞU ORİJİNAL FONKSİYONLAR ---
     function vardiyaUretVeKaydet() {
         const hKey = currentMonday.toISOString().split('T')[0];
         const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
         let tempProg = {}; let calis = {};
-        
         state.personeller.forEach(p => { 
             tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
             if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
@@ -227,7 +159,6 @@
                 calis[p.ad] = 5;
             }
         });
-
         for (let gun = 0; gun < 7; gun++) {
             state.birimler.forEach(birim => {
                 const geceSaati = "00:00–07:00";
@@ -271,6 +202,44 @@
         save(); tabloyuOlustur(); alert("Vardiya oluşturuldu.");
     }
 
+    // --- SADECE EXCEL GÖRSELİ İÇİN GÜNCELLENEN KISIM ---
+    function excelIndir() {
+        const hKey = currentMonday.toISOString().split('T')[0];
+        let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>
+            table { border-collapse: collapse; font-family: Arial; } td { border: 1px solid #000; text-align: center; padding: 4px; font-size: 8pt; }
+            .title { background: #312e81; color: white; font-weight: bold; font-size: 12pt; }
+            .header { background: #1e1b4b; color: white; font-weight: bold; }
+            .saat-0630 { background: #ffff00; font-weight: bold; }
+            .saat-0900 { background: #00b0f0; color: white; font-weight: bold; }
+            .saat-1600 { background: #7030a0; color: white; font-weight: bold; }
+            .saat-0000 { background: #ed7d31; color: white; font-weight: bold; }
+            .saat-izin { background: #ff0000; color: white; font-weight: bold; }
+        </style></head><body><table><tr><th colspan="8" class="title">TEKNİK PERSONEL ÇALIŞMA LİSTESİ</th></tr>
+        <tr><th class="header">SAAT</th>${GUNLER.map(g => `<th class="header">${g.toUpperCase()}</th>`).join('')}</tr>`;
+        
+        state.birimler.forEach(birim => {
+            html += `<tr><td colspan="8" style="background:${getBirimColor(birim)}; color:white; font-weight:bold;">${birim}</td></tr>`;
+            [...state.saatler, "İZİN"].forEach(s => {
+                let pByDay = []; let maxRow = 1;
+                for(let i=0; i<7; i++) {
+                    let list = state.personeller.filter(p => {
+                        let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
+                        if(s === "İZİN") return p.birim === birim && (v === "İZİNLİ" || v === "BOŞ" || !v);
+                        return p.birim === birim && v === s;
+                    });
+                    pByDay[i] = list; if(list.length > maxRow) maxRow = list.length;
+                }
+                let cls = s.includes("06:30") ? "saat-0630" : s.includes("09:00") ? "saat-0900" : s.includes("16:00") ? "saat-1600" : s.includes("00:00") ? "saat-0000" : s === "İZİN" ? "saat-izin" : "";
+                for(let r=0; r<maxRow; r++) {
+                    html += `<tr>${r===0 ? `<td rowspan="${maxRow}" class="${cls}">${s}</td>`:""}${pByDay.map(d => `<td>${d[r]?d[r].ad:""}</td>`).join('')}</tr>`;
+                }
+            });
+        });
+        html += `</table></body></html>`;
+        const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Vardiya_${hKey}.xls`; a.click();
+    }
+
     function toggleAdminPanel() { const p = document.getElementById("sidePanel"); const o = document.getElementById("panelOverlay"); if (!p.classList.contains("open")) { const pass = prompt("Şifre:"); if (pass !== PANEL_SIFRE) { alert("Hatalı!"); return; } } p.classList.toggle("open"); o.style.display = p.classList.contains("open") ? "block" : "none"; if(p.classList.contains("open")) tabDegistir('personel'); }
     function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); refreshUI(); }
     function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); }
@@ -284,10 +253,7 @@
         document.getElementById("birimListesiAdmin").innerHTML = state.birimler.map(b => `<div style="padding:5px; border-bottom:1px solid var(--border);">${b}</div>`).join('');
         document.getElementById("saatListesiAdmin").innerHTML = state.saatler.map(s => `<div style="padding:5px; border-bottom:1px solid var(--border);">${s}</div>`).join('');
     }
-
-    // DİĞER FONKSİYONLAR (ORİJİNAL)
     function whatsappGonder() { const hKey = currentMonday.toISOString().split('T')[0]; let m = `*📅 ${currentMonday.toLocaleDateString('tr-TR')} VARDİYASI*\n\n`; GUNLER.forEach((g, i) => { m += `*${g.toUpperCase()}*\n`; state.saatler.forEach(s => { let pList = state.personeller.filter(p => state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] === s).map(p => p.ad).join(", "); if (pList) m += `• ${s}: ${pList}\n`; }); m += `\n`; }); window.open(`https://wa.me/?text=${encodeURIComponent(m)}`, '_blank'); }
-    function excelIndir() { let csv = "\uFEFFSaat;" + GUNLER.join(";") + "\n"; state.saatler.forEach(s => { let r = s + ";"; GUNLER.forEach((g,i) => { r += state.personeller.filter(p => state.manuelAtamalar[`${currentMonday.toISOString().split('T')[0]}_${p.ad}_${i}`] === s).map(p=>p.ad).join(", ") + ";"; }); csv += r + "\n"; }); const b = new Blob([csv], {type:'text/csv'}); const l = document.createElement("a"); l.href = URL.createObjectURL(b); l.download = "Vardiya.csv"; l.click(); }
     function capUp(k, g, v) { if(!state.kapasite[k]) state.kapasite[k] = [0,0,0,0,0,0,0]; state.kapasite[k][g] = parseInt(v) || 0; save(); }
     function izinGunuTetikle(pi, gi) { if(!state.personeller[pi].izinGunleri) state.personeller[pi].izinGunleri = []; const idx = state.personeller[pi].izinGunleri.indexOf(gi); if(idx > -1) state.personeller[pi].izinGunleri.splice(idx, 1); else state.personeller[pi].izinGunleri.push(gi); save(); refreshUI(); }
     function haftaDegistir(v) { currentMonday.setDate(currentMonday.getDate() + v); tabloyuOlustur(); }
@@ -303,7 +269,6 @@
     function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); }
     function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
     function vardiyaDegistir(p, g) { const s = prompt(`${p}: 1:06:30, 2:09:00, 3:16:00, 4:00:00, 5:İZİN`); if(s){ let v = null; if(s=="1") v="06:30–16:00"; if(s=="2") v="09:00–18:00"; if(s=="3") v="16:00–00:00"; if(s=="4") v="00:00–07:00"; if(s=="5") v="İZİNLİ"; state.manuelAtamalar[`${currentMonday.toISOString().split('T')[0]}_${p}_${g}`] = v; save(); tabloyuOlustur(); } }
-
     window.onload = () => { if(localStorage.getItem(PREFIX + "theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); tabloyuOlustur(); refreshUI(); };
   </script>
 </body>
