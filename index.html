@@ -6,7 +6,6 @@
   <title>TURKMEDYA TEKNiK VARDiYA LiSTESi | Pro_Ugr</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    /* SENİN TÜM CSS TASARIMIN DOKUNULMADAN BURADA */
     :root {
       --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
       --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
@@ -188,18 +187,14 @@
 
     function refreshUI() {
         document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
-        // İZİN PİLLERİ GERİ GELDİ
         document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;"><strong>${p.ad}</strong> - ${p.birim} <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer; float:right;">Sil</button><div style="margin-top:5px;">${GUNLER.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div></div>`).join('');
         let capHtml = ""; state.birimler.forEach(b => { capHtml += `<div class="cap-card"><strong>${b}</strong>`; state.saatler.forEach(s => { const v = state.kapasite[`${b}_${s}`] || [0,0,0,0,0,0,0]; capHtml += `<div style="font-size:9px; margin:5px 0;">${s}</div><div class="cap-day-grid">${GUNLER.map((g, gi) => `<div class="cap-day-box ${gi>=5?'weekend':''}"><label>${g}</label><input type="number" value="${v[gi]}" onchange="capUp('${b}_${s}',${gi},this.value)"></div>`).join('')}</div>`; }); capHtml += `</div>`; });
         document.getElementById("kapasiteTable").innerHTML = capHtml;
-        // SABİT SAAT SEÇİCİLER GERİ GELDİ
         document.getElementById("sabitListeAdmin").innerHTML = state.personeller.filter(p => p.birim !== "TEKNİK YÖNETMEN").map(p => `<div class="sabit-row"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
-        // BİRİM VE SAAT SİL BUTONLARI GERİ GELDİ
         document.getElementById("birimListesiAdmin").innerHTML = state.birimler.map((b,i) => `<div style="padding:8px; background:var(--bg); margin-bottom:4px;">${b} <button onclick="state.birimler.splice(${i},1); save(); refreshUI();" style="float:right; border:none; color:var(--danger);">Sil</button></div>`).join('');
         document.getElementById("saatListesiAdmin").innerHTML = state.saatler.map((s,i) => `<div style="padding:8px; background:var(--bg); margin-bottom:4px;">${s} <button onclick="state.saatler.splice(${i},1); save(); refreshUI();" style="float:right; border:none; color:var(--danger);">Sil</button></div>`).join('');
     }
 
-    // ALGORİTMA: GECE VARDİYASI VE DİNLENME KURALI (SENİN ÖZEL MANTIĞIN)
     function vardiyaUretVeKaydet() {
         const hKey = currentMonday.toISOString().split('T')[0];
         let tempProg = {}; let calis = {};
@@ -212,7 +207,6 @@
                 tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
             }
         });
-
         for (let gun = 0; gun < 7; gun++) {
             state.saatler.forEach(saat => {
                 state.birimler.forEach(birim => {
@@ -224,8 +218,6 @@
                         for (let p of adaylar) {
                             if (mevcut >= hedef) break;
                             if (calis[p.ad] >= 6) continue;
-                            
-                            // GECE KOŞULU (00:00–07:00) VE DİNLENME KURALI
                             if (saat === "00:00–07:00") {
                                 if (gun < 6) tempProg[p.ad][gun+1] = "BOŞ"; 
                                 tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++;
@@ -242,7 +234,6 @@
         save(); tabloyuOlustur(); alert("Vardiya üretildi.");
     }
 
-    // YARDIMCI FONKSİYONLARIN
     function izinGunuTetikle(pi, gi) { if(!state.personeller[pi].izinGunleri) state.personeller[pi].izinGunleri = []; const idx = state.personeller[pi].izinGunleri.indexOf(gi); if(idx > -1) state.personeller[pi].izinGunleri.splice(idx, 1); else state.personeller[pi].izinGunleri.push(gi); save(); refreshUI(); }
     function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); }
     function sabitSaatGuncelle(ad, s) { state.haftaIciSabitler[ad] = s; save(); }
