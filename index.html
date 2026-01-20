@@ -195,6 +195,51 @@
         document.getElementById("saatListesiAdmin").innerHTML = state.saatler.map((s,i) => `<div style="padding:8px; background:var(--bg); margin-bottom:4px;">${s} <button onclick="state.saatler.splice(${i},1); save(); refreshUI();" style="float:right; border:none; color:var(--danger);">Sil</button></div>`).join('');
     }
 
+    // ALGORİTMA (GECE KOŞULU VE TÜM KURALLAR GERİ GELDİ)
+    function vardiyaUretVeKaydet() {
+        const hKey = currentMonday.toISOString().split('T')[0];
+        let tempProg = {}; let calis = {};
+        state.personeller.forEach(p => { 
+            tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
+            if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
+            if (state.haftaIciSabitler[p.ad] && p.birim !== "TEKNİK YÖNETMEN") {
+                const s = state.haftaIciSabitler[p.ad];
+                for(let i=0; i<5; i++) { tempProg[p.ad][i] = s; calis[p.ad]++; }
+                tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
+            }
+        });
+
+        for (let gun = 0; gun < 7; gun++) {
+            state.saatler.forEach(saat => {
+                state.birimler.forEach(birim => {
+                    const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
+                    let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
+                    if (mevcut < hedef) {
+                        let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null);
+                        adaylar.sort((a,b) => calis[a.ad] - calis[b.ad]);
+                        for (let p of adaylar) {
+                            if (mevcut >= hedef) break;
+                            if (calis[p.ad] >= 6) continue;
+                            
+                            // GECE KOŞULU (00:00–07:00) VE DİNLENME KURALI
+                            if (saat === "00:00–07:00") {
+                                if (gun < 6) tempProg[p.ad][gun+1] = "BOŞ"; // Gece gelirse ertesi gün boş
+                                tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++;
+                            } else {
+                                // Eğer personel bir önceki gece çalıştıysa, bugün çalışamaz
+                                if (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00") continue;
+                                tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++;
+                            }
+                        }
+                    }
+                });
+            });
+        }
+        state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
+        save(); tabloyuOlustur(); alert("Vardiya üretildi (Gece kuralları uygulandı).");
+    }
+
+    // DİĞER FONKSİYONLARIN AYNI KALDI
     function izinGunuTetikle(pi, gi) { if(!state.personeller[pi].izinGunleri) state.personeller[pi].izinGunleri = []; const idx = state.personeller[pi].izinGunleri.indexOf(gi); if(idx > -1) state.personeller[pi].izinGunleri.splice(idx, 1); else state.personeller[pi].izinGunleri.push(gi); save(); refreshUI(); }
     function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); }
     function sabitSaatGuncelle(ad, s) { state.haftaIciSabitler[ad] = s; save(); }
@@ -214,39 +259,6 @@
     function handleFileSelect(input) { const f = input.files[0]; if(f){ const r = new FileReader(); r.onload = (e) => { state = JSON.parse(e.target.result); save(); location.reload(); }; r.readAsText(f); } }
     function excelIndir() { let csv = "\uFEFFSaat;" + GUNLER.join(";") + "\n"; state.saatler.forEach(s => { let r = s + ";"; GUNLER.forEach((g,i) => { r += state.personeller.filter(p => state.manuelAtamalar[`${currentMonday.toISOString().split('T')[0]}_${p.ad}_${i}`] === s).map(p=>p.ad).join(", ") + ";"; }); csv += r + "\n"; }); const b = new Blob([csv], {type:'text/csv'}); const l = document.createElement("a"); l.href = URL.createObjectURL(b); l.download = "Vardiya.csv"; l.click(); }
     function whatsappGonder() { const hKey = currentMonday.toISOString().split('T')[0]; let m = `*📅 ${currentMonday.toLocaleDateString('tr-TR')} VARDİYASI*\n\n`; GUNLER.forEach((g, i) => { m += `*${g.toUpperCase()}*\n`; state.saatler.forEach(s => { let pList = state.personeller.filter(p => state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] === s).map(p => p.ad).join(", "); if (pList) m += `• ${s}: ${pList}\n`; }); m += `\n`; }); window.open(`https://wa.me/?text=${encodeURIComponent(m)}`, '_blank'); }
-
-    // OTOMATİK ÜRETİM ALGORİTMASI (ORİJİNAL)
-    function vardiyaUretVeKaydet() {
-        const hKey = currentMonday.toISOString().split('T')[0];
-        let tempProg = {}; let calis = {};
-        state.personeller.forEach(p => { 
-            tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
-            if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
-            if (state.haftaIciSabitler[p.ad] && p.birim !== "TEKNİK YÖNETMEN") {
-                const s = state.haftaIciSabitler[p.ad];
-                for(let i=0; i<5; i++) tempProg[p.ad][i] = s;
-                tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
-                calis[p.ad] = 5;
-            }
-        });
-        for (let gun = 0; gun < 7; gun++) {
-            state.saatler.forEach(saat => {
-                state.birimler.forEach(birim => {
-                    const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
-                    let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
-                    if (mevcut < hedef) {
-                        let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null);
-                        adaylar.sort((a,b) => calis[a.ad] - calis[b.ad]);
-                        for (let p of adaylar) {
-                            if (mevcut < hedef && calis[p.ad] < 6) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; }
-                        }
-                    }
-                });
-            });
-        }
-        state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); tabloyuOlustur(); alert("Vardiya üretildi.");
-    }
 
     window.onload = () => { if(localStorage.getItem(PREFIX + "theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); tabloyuOlustur(); refreshUI(); };
   </script>
