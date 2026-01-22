@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -38,13 +37,7 @@
     .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
     .weekend-col { background-color: var(--weekend-bg) !important; }
     .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; }
-    
-    .birim-ayirici {
-      border-top: 5px solid #1e293b !important;
-      margin-top: 8px !important;
-      padding-top: 8px !important;
-    }
-
+    .birim-ayirici { border-top: 5px solid #1e293b !important; margin-top: 8px !important; padding-top: 8px !important; }
     .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
     .pers-name { font-size: 10px; font-weight: 700; display: block; }
     .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: var(--card-bg); z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); }
@@ -178,54 +171,83 @@
                 }).join('')}</tr>`;
     }
 
-    // --- YENİ: ÇAKIŞMA VE DİNLENME KONTROL FONKSİYONU ---
     function cakismaKontrol(personelAd, hedefGun, hedefSaat) {
         const hKey = currentMonday.toISOString().split('T')[0];
-        
-        // Sadece çalışılan vardiyalar için kontrol yap (İzinli/Boş değilse)
         if (["İZİNLİ", "BOŞ", null].includes(hedefSaat)) return;
-
-        // 1. DÜNÜ KONTROL ET (Dün akşam/gece ise bugün sabah uyarı ver)
         if (hedefGun > 0) {
             let dunKey = `${hKey}_${personelAd}_${hedefGun - 1}`;
             let dunVardiya = state.manuelAtamalar[dunKey];
             let sabahVardiyalari = ["06:30–16:00", "09:00–18:00"];
             let aksamVardiyalari = ["16:00–00:00", "00:00–07:00"];
-
             if (aksamVardiyalari.includes(dunVardiya) && sabahVardiyalari.includes(hedefSaat)) {
                 alert(`⚠️ DİKKAT: ${personelAd} dün AKŞAM/GECE vardiyasındaydı. Bugün SABAH vardiyasına yazıyorsunuz. Dinlenme süresi yetersiz olabilir!`);
             }
         }
-
-        // 2. YARINI KONTROL ET (Bugün akşam/gece ise yarın sabah için uyar)
         if (hedefGun < 6) {
             let yarinKey = `${hKey}_${personelAd}_${hedefGun + 1}`;
             let yarinVardiya = state.manuelAtamalar[yarinKey];
             let sabahVardiyalari = ["06:30–16:00", "09:00–18:00"];
             let aksamVardiyalari = ["16:00–00:00", "00:00–07:00"];
-
             if (aksamVardiyalari.includes(hedefSaat) && sabahVardiyalari.includes(yarinVardiya)) {
                 alert(`⚠️ DİKKAT: ${personelAd} yarın SABAH vardiyasında görünüyor. Bugün AKŞAM/GECE vardiyasına yazıyorsunuz. Dinlenme süresi yetersiz olabilir!`);
             }
         }
     }
 
+    // --- ÖZEL EKLENTİ: MCR 8 GÜNLÜK DÖNGÜ HESAPLAYICI ---
+    function getMCRVardiya(personelAd, tarih) {
+        const referansTarih = new Date("2025-01-06"); // Herhangi bir Pazartesi
+        const diffTime = tarih.getTime() - referansTarih.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        // Personellere farklı başlangıç indexleri vererek döngüyü yayıyoruz
+        const mcrPersonelleri = state.personeller
+            .filter(p => p.birim.includes("MCR"))
+            .map(p => p.ad);
+        const pIndex = mcrPersonelleri.indexOf(personelAd);
+        if (pIndex === -1) return null;
+
+        // Her personel döngüye 2 gün arayla başlar (yayılım için)
+        const offset = pIndex * 2;
+        const döngüGünü = (diffDays + offset) % 8;
+        const normalizeDöngü = döngüGünü < 0 ? döngüGünü + 8 : döngüGünü;
+
+        if (normalizeDöngü < 2) return "06:30–16:00"; // 2 Gün Sabah
+        if (normalizeDöngü < 4) return "16:00–00:00"; // 2 Gün Akşam
+        if (normalizeDöngü < 6) return "00:00–07:00"; // 2 Gün Gece
+        return "İZİNLİ"; // 2 Gün İzin
+    }
+
     function vardiyaUretVeKaydet() {
         const hKey = currentMonday.toISOString().split('T')[0];
         const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
         let tempProg = {}; let calis = {};
+        
         state.personeller.forEach(p => { 
             tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
-            if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
-            if (state.haftaIciSabitler[p.ad] && p.birim !== "TEKNİK YÖNETMEN") {
-                const sabitSaat = state.haftaIciSabitler[p.ad];
-                for(let i=0; i<5; i++) tempProg[p.ad][i] = sabitSaat;
-                tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
-                calis[p.ad] = 5;
+
+            // --- YENİ MCR MANTIĞI ---
+            if(p.birim.includes("MCR")) {
+                for(let g=0; g<7; g++) {
+                    let d = new Date(currentMonday);
+                    d.setDate(d.getDate() + g);
+                    tempProg[p.ad][g] = getMCRVardiya(p.ad, d);
+                }
+            } else {
+                // Standart algoritma (MCR olmayanlar için)
+                if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
+                if (state.haftaIciSabitler[p.ad] && p.birim !== "TEKNİK YÖNETMEN") {
+                    const sabitSaat = state.haftaIciSabitler[p.ad];
+                    for(let i=0; i<5; i++) tempProg[p.ad][i] = sabitSaat;
+                    tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
+                    calis[p.ad] = 5;
+                }
             }
         });
+
+        // Mevcut Kapasite Algoritması (Sadece MCR olmayanlar için çalışır hale getirildi)
         for (let gun = 0; gun < 7; gun++) {
-            state.birimler.forEach(birim => {
+            state.birimler.filter(b => !b.includes("MCR")).forEach(birim => {
                 const geceSaati = "00:00–07:00";
                 const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
                 let atanan = 0;
@@ -241,8 +263,9 @@
                     for (let p of adaylar) { if (atanan < hedef && calis[p.ad] < 6) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++; } }
                 }
             });
+
             state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
-                state.birimler.forEach(birim => {
+                state.birimler.filter(b => !b.includes("MCR")).forEach(birim => {
                     const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
                     let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
                     if (mevcut < hedef) {
@@ -264,7 +287,7 @@
             });
         }
         state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu.");
+        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (MCR Döngüsü Dahil).");
     }
 
     function excelIndir() {
@@ -324,15 +347,11 @@
     function personelEkle() { const ad = document.getElementById("yeniPersInp").value.toUpperCase(); const b = document.getElementById("yeniPersBirimSec").value; if(ad){ state.personeller.push({ad, birim:b, izinGunleri:[]}); save(); refreshUI(); document.getElementById("yeniPersInp").value=""; } }
     function drag(e, p, g, s) { e.dataTransfer.setData("p", p); e.dataTransfer.setData("oldG", g); }
     
-    // --- GÜNCELLENEN DROP VE VARDİYA DEĞİŞTİRME ---
     function drop(e, ns, ng) { 
         e.preventDefault(); 
         const p = e.dataTransfer.getData("p"); 
         const hKey = currentMonday.toISOString().split('T')[0];
-        
-        // Kontrol yap
         cakismaKontrol(p, ng, ns);
-        
         state.manuelAtamalar[`${hKey}_${p}_${ng}`] = ns === 'BOŞ' ? null : ns; 
         save(); 
         tabloyuOlustur(); 
@@ -347,10 +366,7 @@
             if(s=="3") v="16:00–00:00"; 
             if(s=="4") v="00:00–07:00"; 
             if(s=="5") v="İZİNLİ"; 
-            
-            // Kontrol yap
             cakismaKontrol(p, g, v);
-            
             state.manuelAtamalar[`${currentMonday.toISOString().split('T')[0]}_${p}_${g}`] = v; 
             save(); 
             tabloyuOlustur(); 
