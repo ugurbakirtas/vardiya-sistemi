@@ -37,7 +37,13 @@
     .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
     .weekend-col { background-color: var(--weekend-bg) !important; }
     .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; }
-    .birim-ayirici { border-top: 5px solid #1e293b !important; margin-top: 8px !important; padding-top: 8px !important; }
+    
+    .birim-ayirici {
+      border-top: 5px solid #1e293b !important;
+      margin-top: 8px !important;
+      padding-top: 8px !important;
+    }
+
     .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
     .pers-name { font-size: 10px; font-weight: 700; display: block; }
     .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: var(--card-bg); z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); }
@@ -51,6 +57,7 @@
     .tab-btn.active { background: var(--blue); color: white; }
     .izin-gun-pill { padding: 4px 6px; background: var(--bg); border-radius: 4px; margin: 2px; font-size: 9px; cursor: pointer; display: inline-block; font-weight: 700; border: 1px solid var(--border); }
     .izin-gun-pill.active { background: var(--danger); color: white; }
+    .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -113,7 +120,8 @@
         personeller: JSON.parse(localStorage.getItem(PREFIX + "personeller")) || [],
         kapasite: JSON.parse(localStorage.getItem(PREFIX + "kapasite")) || {},
         manuelAtamalar: JSON.parse(localStorage.getItem(PREFIX + "manuelAtamalar")) || {},
-        haftaIciSabitler: JSON.parse(localStorage.getItem(PREFIX + "haftaIciSabitler")) || {}
+        haftaIciSabitler: JSON.parse(localStorage.getItem(PREFIX + "haftaIciSabitler")) || {},
+        mcrAyarlari: JSON.parse(localStorage.getItem(PREFIX + "mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
     };
 
     let currentMonday = getMonday(new Date());
@@ -194,49 +202,46 @@
         }
     }
 
-    // --- ÖZEL EKLENTİ: MCR 8 GÜNLÜK DÖNGÜ HESAPLAYICI ---
-    function getMCRVardiya(personelAd, tarih) {
-        const referansTarih = new Date("2025-01-06"); // Herhangi bir Pazartesi
-        const diffTime = tarih.getTime() - referansTarih.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
-        // Personellere farklı başlangıç indexleri vererek döngüyü yayıyoruz
-        const mcrPersonelleri = state.personeller
-            .filter(p => p.birim.includes("MCR"))
-            .map(p => p.ad);
-        const pIndex = mcrPersonelleri.indexOf(personelAd);
-        if (pIndex === -1) return null;
-
-        // Her personel döngüye 2 gün arayla başlar (yayılım için)
-        const offset = pIndex * 2;
-        const döngüGünü = (diffDays + offset) % 8;
-        const normalizeDöngü = döngüGünü < 0 ? döngüGünü + 8 : döngüGünü;
-
-        if (normalizeDöngü < 2) return "06:30–16:00"; // 2 Gün Sabah
-        if (normalizeDöngü < 4) return "16:00–00:00"; // 2 Gün Akşam
-        if (normalizeDöngü < 6) return "00:00–07:00"; // 2 Gün Gece
-        return "İZİNLİ"; // 2 Gün İzin
-    }
-
     function vardiyaUretVeKaydet() {
         const hKey = currentMonday.toISOString().split('T')[0];
         const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
         let tempProg = {}; let calis = {};
         
+        const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
+        const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
+        const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
+
         state.personeller.forEach(p => { 
             tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
-
-            // --- YENİ MCR MANTIĞI ---
+            
             if(p.birim.includes("MCR")) {
+                const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
                 for(let g=0; g<7; g++) {
                     let d = new Date(currentMonday);
                     d.setDate(d.getDate() + g);
-                    tempProg[p.ad][g] = getMCRVardiya(p.ad, d);
+                    const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
+                    const donguIndex = (diffDays + persOfset) % 8;
+                    const modIndex = donguIndex < 0 ? donguIndex + 8 : donguIndex;
+                    tempProg[p.ad][g] = mcrDongu[modIndex];
+                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
                 }
-            } else {
-                // Standart algoritma (MCR olmayanlar için)
+            } 
+            else if(p.birim.includes("INGEST")) {
+                const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
+                for(let g=0; g<7; g++) {
+                    let d = new Date(currentMonday);
+                    d.setDate(d.getDate() + g);
+                    const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
+                    const donguIndex = (diffDays + persOfset) % 6; 
+                    const modIndex = donguIndex < 0 ? donguIndex + 6 : donguIndex;
+                    tempProg[p.ad][g] = ingestDongu[modIndex];
+                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
+                }
+            }
+            else {
                 if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
-                if (state.haftaIciSabitler[p.ad] && p.birim !== "TEKNİK YÖNETMEN") {
+                // Teknik Yönetmen kısıtlaması algoritma içinde de kaldırıldı:
+                if (state.haftaIciSabitler[p.ad]) {
                     const sabitSaat = state.haftaIciSabitler[p.ad];
                     for(let i=0; i<5; i++) tempProg[p.ad][i] = sabitSaat;
                     tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
@@ -245,9 +250,8 @@
             }
         });
 
-        // Mevcut Kapasite Algoritması (Sadece MCR olmayanlar için çalışır hale getirildi)
         for (let gun = 0; gun < 7; gun++) {
-            state.birimler.filter(b => !b.includes("MCR")).forEach(birim => {
+            state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
                 const geceSaati = "00:00–07:00";
                 const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
                 let atanan = 0;
@@ -263,9 +267,8 @@
                     for (let p of adaylar) { if (atanan < hedef && calis[p.ad] < 6) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++; } }
                 }
             });
-
             state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
-                state.birimler.filter(b => !b.includes("MCR")).forEach(birim => {
+                state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
                     const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
                     let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
                     if (mevcut < hedef) {
@@ -287,7 +290,7 @@
             });
         }
         state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (MCR Döngüsü Dahil).");
+        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu.");
     }
 
     function excelIndir() {
@@ -331,15 +334,39 @@
     function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); refreshUI(); }
     function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); }
     function buluttanYukle() { database.ref('vardiya_data').once('value').then(snap => { if(snap.exists()){ state = snap.val(); save(); location.reload(); } }); }
+    
     function refreshUI() {
         document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
-        document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;"><strong>${p.ad}</strong> <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer; float:right;">Sil</button><div style="margin-top:5px;">${GUNLER.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div></div>`).join('');
+        document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => {
+            let mcrHtml = "";
+            if(p.birim.includes("MCR") || p.birim.includes("INGEST")) {
+                mcrHtml = `<div class="mcr-ayarlar">
+                    <span>${p.birim.includes("INGEST") ? 'INGEST' : 'MCR'} Döngü Ofseti: </span>
+                    <input type="number" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:40px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)">
+                </div>`;
+            }
+            return `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;">
+                <strong>${p.ad}</strong> <small>(${p.birim})</small>
+                <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer; float:right;">Sil</button>
+                <div style="margin-top:5px;">${GUNLER.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div>
+                ${mcrHtml}
+            </div>`;
+        }).join('');
+        
         let capHtml = ""; state.birimler.forEach(b => { capHtml += `<div style="margin-bottom:15px; background:var(--bg); padding:10px; border-radius:8px;"><strong>${b}</strong>`; state.saatler.forEach(s => { const v = state.kapasite[`${b}_${s}`] || [0,0,0,0,0,0,0]; capHtml += `<div style="font-size:9px; margin-top:5px;">${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">${GUNLER.map((g, gi) => `<input type="number" value="${v[gi]}" style="width:100%; text-align:center;" onchange="capUp('${b}_${s}',${gi},this.value)">`).join('')}</div>`; }); capHtml += `</div>`; });
         document.getElementById("kapasiteTable").innerHTML = capHtml;
-        document.getElementById("sabitListeAdmin").innerHTML = state.personeller.filter(p => p.birim !== "TEKNİK YÖNETMEN").map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--bg); padding:5px; border-radius:5px;"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
+        
+        let mcrSistemHtml = `<div style="background:#e0f2fe; padding:10px; border-radius:8px; margin-bottom:10px;">
+            <strong>MCR/INGEST Döngü Başlangıç Tarihi:</strong><br>
+            <input type="date" value="${state.mcrAyarlari.baslangicTarihi}" onchange="state.mcrAyarlari.baslangicTarihi = this.value; save();" style="width:100%; padding:5px; margin-top:5px;">
+        </div>`;
+        
+        document.getElementById("sabitListeAdmin").innerHTML = mcrSistemHtml + state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--bg); padding:5px; border-radius:5px;"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
         document.getElementById("birimListesiAdmin").innerHTML = state.birimler.map(b => `<div style="padding:5px; border-bottom:1px solid var(--border);">${b}</div>`).join('');
         document.getElementById("saatListesiAdmin").innerHTML = state.saatler.map(s => `<div style="padding:5px; border-bottom:1px solid var(--border);">${s}</div>`).join('');
     }
+
+    function mcrOfsetGuncelle(ad, val) { if(!state.mcrAyarlari.ofsetler) state.mcrAyarlari.ofsetler = {}; state.mcrAyarlari.ofsetler[ad] = parseInt(val); save(); }
     function whatsappGonder() { const hKey = currentMonday.toISOString().split('T')[0]; let m = `*📅 ${currentMonday.toLocaleDateString('tr-TR')} VARDİYASI*\n\n`; GUNLER.forEach((g, i) => { m += `*${g.toUpperCase()}*\n`; state.saatler.forEach(s => { let pList = state.personeller.filter(p => state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] === s).map(p => p.ad).join(", "); if (pList) m += `• ${s}: ${pList}\n`; }); m += `\n`; }); window.open(`https://wa.me/?text=${encodeURIComponent(m)}`, '_blank'); }
     function capUp(k, g, v) { if(!state.kapasite[k]) state.kapasite[k] = [0,0,0,0,0,0,0]; state.kapasite[k][g] = parseInt(v) || 0; save(); }
     function izinGunuTetikle(pi, gi) { if(!state.personeller[pi].izinGunleri) state.personeller[pi].izinGunleri = []; const idx = state.personeller[pi].izinGunleri.indexOf(gi); if(idx > -1) state.personeller[pi].izinGunleri.splice(idx, 1); else state.personeller[pi].izinGunleri.push(gi); save(); refreshUI(); }
