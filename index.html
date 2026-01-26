@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -8,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <style>
     :root {
       --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
@@ -77,7 +79,76 @@
     .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
     
     .admin-only { display: none; } 
-  </style>
+
+/* MOBİL UYUMLULUK AYARLARI */
+@media screen and (max-width: 768px) { 
+/* Tablo yapısını dikey karta çevir */
+    #vardiyaTablosu, #vardiyaTablosu thead, #vardiyaTablosu tbody, #vardiyaTablosu th, #vardiyaTablosu td, #vardiyaTablosu tr {
+        display: block;
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+
+    /* Başlıkları gizle (kart içinde göstereceğiz) */
+    #tableHeader { display: none; }
+
+    /* Her satırı (saat dilimini) bir kart gibi yap */
+    #tableBody tr, #tableFooter tr {
+        margin-bottom: 20px;
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--card-bg);
+    }
+
+    /* Saat hücresini kart başlığına çevir */
+    .saat-col {
+        display: block;
+        width: 100% !important;
+        background: var(--primary);
+        color: white !important;
+        padding: 10px;
+        text-align: left !important;
+        border-left: none !important;
+        font-size: 14px;
+    }
+
+    /* Gün hücrelerini belirginleştir */
+    td:not(.saat-col)::before {
+    content: attr(data-label);
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 12px;
+    display: block;
+    margin-bottom: 10px;
+    color: var(--blue);
+    background: var(--bg); /* Arka plan ekleyerek netliği artırır */
+    padding: 4px;
+    border-radius: 4px;
+    text-align: center;
+    }
+
+    /* Hücrenin hangi güne ait olduğunu sol üste ekle */
+    td:not(.saat-col) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* Kartlar arası boşluk */
+    height: auto !important; /* Sabit yüksekliği kaldır */
+    min-height: 50px;
+    }
+
+    /* Yan paneli mobilde tam ekran yap */
+    .side-panel {
+        width: 100%;
+        right: -100%;
+    }
+    
+    .main-header {
+        flex-direction: column;
+        text-align: center;
+    }
+}  
+</style>
 </head>
 <body>
 
@@ -169,8 +240,8 @@
 
   <script>
     // --- TELEGRAM AYARLARI (YENİ) ---
-    const TELEGRAM_API = "8509542541:AAFu-iDK85iELZQmImCWSZRi3_eWzUyyCiM";
-    const TELEGRAM_ID = "859235247";
+    let TELEGRAM_API = ""; 
+    let TELEGRAM_ID = "";
 
     const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
     firebase.initializeApp(firebaseConfig); const database = firebase.database();
@@ -192,15 +263,37 @@
     let currentMonday = getMonday(new Date());
 
     // --- GİRİŞ FONKSİYONU (GÜNCELLENDİ) ---
-    function enterSystem(role) {
+    // --- GÜVENLİ GİRİŞ VE AYAR YÜKLEME ---
+    async function hassasAyarlariYukle() {
+        try {
+            const snap = await database.ref('config').once('value');
+            if (snap.exists()) {
+                const config = snap.val();
+                TELEGRAM_API = config.telegram_api;
+                TELEGRAM_ID = config.telegram_id;
+                console.log("Sistem: Güvenli ayarlar yüklendi.");
+            }
+        } catch (error) {
+            console.error("Ayarlar yüklenirken hata oluştu:", error);
+        }
+    }
+
+    async function enterSystem(role) {
         if (role === 'admin') {
-            const pass = prompt("Yönetici Şifresi:");
-            if (pass === PANEL_SIFRE) {
+            const email = prompt("Yönetici E-posta:");
+            const password = prompt("Yönetici Şifresi:");
+            
+            if (!email || !password) return;
+
+            try {
+                const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
                 isAdmin = true;
+                await hassasAyarlariYukle(); 
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
                 document.getElementById('persTalepArea').style.display = 'none';
-            } else {
-                alert("Hatalı Şifre!");
+                alert("Yönetici girişi başarılı!");
+            } catch (error) {
+                alert("Hatalı giriş: " + error.message);
                 return;
             }
         } else {
@@ -208,6 +301,7 @@
             document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
             document.getElementById('persTalepArea').style.display = 'block';
         }
+        
         document.getElementById('loginOverlay').style.opacity = '0';
         setTimeout(() => {
             document.getElementById('loginOverlay').style.display = 'none';
@@ -215,6 +309,7 @@
             tabloyuOlustur();
         }, 500);
     }
+      
 
     // --- TALEP SİSTEMİ FONKSİYONLARI (YENİ) ---
     function talepModalAc() {
@@ -341,7 +436,7 @@ function talepIslem(id, tip) {
                     cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(p.birim)}; background-color:${getBirimColor(p.birim)}15;" ${dragAttr} ${clickAttr}><span class="birim-tag" style="background:${getBirimColor(p.birim)}">${p.birim}</span><span class="pers-name">${p.ad}</span></div>`;
                     lastBirim = p.birim;
                 });
-                rowHtml += `<td class="${g>=5?'weekend-col':''}" ondragover="event.preventDefault()" ondrop="drop(event, '${s}', ${g})">${cellContent}</td>`;
+      rowHtml += `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, '${s}', ${g})">${cellContent}</td>`;
             }
             return rowHtml + "</tr>";
         }).join('');
@@ -362,7 +457,7 @@ function talepIslem(id, tip) {
                         cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(p.birim)};" ${dragAttr} ${clickAttr}><span class="birim-tag" style="background:${prog[p.ad][g]==='İZİNLİ'?'var(--danger)':getBirimColor(p.birim)}">${prog[p.ad][g]==='İZİNLİ'?'İZİNLİ':p.birim}</span><span class="pers-name">${p.ad} (${calis[p.ad]}G)</span></div>`;
                         lastBirim = p.birim;
                     });
-                    return `<td class="${g>=5?'weekend-col':''}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">${cellContent}</td>`;
+                    return `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">${cellContent}</td>`;
                 }).join('')}</tr>`;
     }
 
@@ -624,12 +719,36 @@ function talepIslem(id, tip) {
 }
     function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); }
     function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
-
-    window.onload = () => { 
-        if(localStorage.getItem(PREFIX + "theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); 
-        refreshUI();
-        talepleriYukle(); 
-    };
+// Bu fonksiyonu mevcut olanla değiştir veya üzerine yaz
+function anlikSenkronizasyonBaslat() {
+    // .once yerine .on kullanarak veritabanını canlı takibe alıyoruz
+    database.ref('vardiya_data').on('value', (snap) => {
+        if (snap.exists()) {
+            const bulutVerisi = snap.val();
+            // Yerel durumu (state) buluttan gelen veriyle güncelle
+            state = bulutVerisi;
+            // Tarayıcı hafızasına yedekle
+            save(); 
+            // Tabloyu ve arayüzü personelin ekranında anında yeniden çiz
+            tabloyuOlustur();
+            // Eğer yönetici panelindeyse oradaki listeleri de tazele
+            if(isAdmin) refreshUI(); 
+            console.log("Sistem: Veriler buluttan anlık güncellendi.");
+        }
+    });
+}
+        window.onload = () => { 
+    // Mevcut tema ayarını uygula
+    if(localStorage.getItem(PREFIX + "theme") === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+    }
+    
+    // CANLI SENKRONİZASYONU BAŞLAT
+    anlikSenkronizasyonBaslat();
+    
+    // Talep listesini yükle
+    talepleriYukle(); 
+};
   </script>
 </body>
 </html>
