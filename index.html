@@ -514,28 +514,46 @@ function talepIslem(id, tip) {
             
             if(p.birim.includes("MCR")) {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
-                for(let g=0; g<7; g++) {
+               // Bu satırın altındaki for döngüsünü tamamen silip bunu yapıştır
+            for(let g=0; g<7; g++) {
+                // 1. ADIM: Manuel Atama/İzin Kontrolü
+                const mKey = `${currentHaftaKey}_${p.ad}_${g}`;
+                let onayliVardiya = (state.manuelAtamalar && state.manuelAtamalar[mKey]) ? state.manuelAtamalar[mKey] : null;
+
+                // 2. ADIM: Kuralları Hesapla (Döngü bozulmasın diye hep çalışır)
+                if(p.birim.includes("MCR")) {
+                    const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
                     let d = new Date(currentMonday);
                     d.setDate(d.getDate() + g);
                     const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
                     const donguIndex = (diffDays + persOfset) % 8;
                     const modIndex = donguIndex < 0 ? donguIndex + 8 : donguIndex;
+                    
                     tempProg[p.ad][g] = mcrDongu[modIndex];
-                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
+
+                } else if(p.birim.includes("INGEST")) {
+                    // INGEST ve diğerleri için sabit saati ata
+                    tempProg[p.ad][g] = state.haftaIciSabitler[p.ad] || state.saatler[0];
+                    
+                } else {
+                    // Genel Varsayılan (Hafta içi sabit, hafta sonu ilk saat)
+                    if(g < 5) {
+                        tempProg[p.ad][g] = state.haftaIciSabitler[p.ad] || state.saatler[0];
+                    } else {
+                        tempProg[p.ad][g] = state.saatler[0];
+                    }
                 }
-            } 
-            else if(p.birim.includes("INGEST")) {
-                const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
-                for(let g=0; g<7; g++) {
-                    let d = new Date(currentMonday);
-                    d.setDate(d.getDate() + g);
-                    const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                    const donguIndex = (diffDays + persOfset) % 6; 
-                    const modIndex = donguIndex < 0 ? donguIndex + 6 : donguIndex;
-                    tempProg[p.ad][g] = ingestDongu[modIndex];
-                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
+
+                // 3. ADIM: EĞER MANUEL ONAY VARSA HESAPLANANI EZ
+                if (onayliVardiya) {
+                    tempProg[p.ad][g] = onayliVardiya;
                 }
-            }
+
+                // 4. ADIM: Sayacı Güncelle
+                if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) {
+                    calis[p.ad]++;
+                }
+            } // for döngüsü sonu
             else {
                 if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
                 if (state.haftaIciSabitler[p.ad]) {
