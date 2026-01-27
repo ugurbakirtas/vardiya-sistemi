@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -737,16 +738,17 @@ function anlikSenkronizasyonBaslat() {
         }
     });
 }
-        window.onload = () => { 
-    // Mevcut tema ayarını uygula
+       window.onload = async () => { 
+    // Tema ayarını uygula
     if(localStorage.getItem(PREFIX + "theme") === "dark") {
         document.documentElement.setAttribute("data-theme", "dark");
     }
     
-    // CANLI SENKRONİZASYONU BAŞLAT
-    anlikSenkronizasyonBaslat();
+    // ÖNEMLİ: Hassas ayarları (Telegram API vb.) giriş yapmadan önce yükle
+    await hassasAyarlariYukle(); 
     
-    // Talep listesini yükle
+    // Canlı senkronizasyonu ve talepleri başlat
+    anlikSenkronizasyonBaslat();
     talepleriYukle(); 
 };
   </script>
