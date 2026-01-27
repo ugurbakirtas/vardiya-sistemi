@@ -407,18 +407,32 @@ function talepIslem(id, tip) {
     function getBirimColor(birim) { return BIRIM_RENKLERI[birim] || "#64748b"; }
 
     function tabloyuOlustur() {
-        const hKey = currentMonday.toISOString().split('T')[0];
-        document.getElementById("tarihAraligi").innerText = `${currentMonday.toLocaleDateString('tr-TR')} Haftası`;
-        document.getElementById("tableHeader").innerHTML = `<tr><th style="width:100px;">SAAT</th>${GUNLER.map((g,i)=>`<th class="${i>=5?'weekend-col':''}">${g}</th>`).join('')}</tr>`;
-        let prog = {}; let calis = {};
-        state.personeller.forEach(p => { 
-            prog[p.ad] = Array(7).fill(null); calis[p.ad] = 0;
-            for(let i=0; i<7; i++) {
-                let mKey = `${hKey}_${p.ad}_${i}`;
-                if(state.manuelAtamalar[mKey]) prog[p.ad][i] = state.manuelAtamalar[mKey];
-                if(prog[p.ad][i] && !["İZİNLİ","BOŞ",null].includes(prog[p.ad][i])) calis[p.ad]++;
+    const tableBody = document.querySelector('#vardiyaTable body'); // Kendi ID'nize göre seçin
+    // ... tablo temizleme işlemleri ...
+
+    state.personeller.forEach(personel => {
+        // Her personel için satır oluştur
+        let row = `<tr><td>${personel}</td>`;
+        
+        for (let i = 0; i < 7; i++) { // Haftalık 7 gün için
+            const gunKey = `${currentHaftaKey}_${personel}_${i}`; // Telegram'ın oluşturduğu mKey formatı
+            
+            // KRİTİK NOKTA: Manuel atama var mı kontrol et
+            let vardiyaSaati = "";
+            if (state.manuelAtamalar && state.manuelAtamalar[gunKey]) {
+                // Eğer manuel atama varsa onu kullan
+                vardiyaSaati = state.manuelAtamalar[gunKey];
+            } else {
+                // Yoksa normal vardiya algoritmanı çalıştır
+                vardiyaSaati = normalVardiyaHesapla(personel, i); 
             }
-        });
+            
+            row += `<td>${vardiyaSaati}</td>`;
+        }
+        row += `</tr>`;
+        // ... tabloya ekleme ...
+    });
+}
 
         document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => {
             let rowHtml = `<tr class="row-saat-${sIdx}"><td class="saat-col">${s}</td>`;
