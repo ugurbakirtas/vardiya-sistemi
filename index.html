@@ -722,19 +722,26 @@ function talepIslem(id, tip) {
     function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
 // Bu fonksiyonu mevcut olanla değiştir veya üzerine yaz
 function anlikSenkronizasyonBaslat() {
-    // .once yerine .on kullanarak veritabanını canlı takibe alıyoruz
-    database.ref('vardiya_data').on('value', (snap) => {
+    // Sadece 'vardiya_data' değil, tüm veritabanını dinleyerek 
+    // hem vardiya değişimlerini hem de yeni gelen talepleri anında yakalarız.
+    database.ref().on('value', (snap) => {
         if (snap.exists()) {
-            const bulutVerisi = snap.val();
-            // Yerel durumu (state) buluttan gelen veriyle güncelle
-            state = bulutVerisi;
-            // Tarayıcı hafızasına yedekle
-            save(); 
-            // Tabloyu ve arayüzü personelin ekranında anında yeniden çiz
-            tabloyuOlustur();
-            // Eğer yönetici panelindeyse oradaki listeleri de tazele
-            if(isAdmin) refreshUI(); 
-            console.log("Sistem: Veriler buluttan anlık güncellendi.");
+            const data = snap.val();
+            
+            // 1. Vardiya Verilerini Güncelle
+            if(data.vardiya_data) {
+                state = data.vardiya_data;
+                save();
+                tabloyuOlustur();
+                if(isAdmin) refreshUI();
+            }
+            
+            // 2. Bekleyen Talepleri Güncelle (Yönetici Paneli İçin)
+            if(isAdmin) {
+                talepleriYukle(); 
+            }
+            
+            console.log("Sistem: Tüm veriler (vardiya ve talepler) güncellendi.");
         }
     });
 }
