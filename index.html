@@ -532,7 +532,51 @@ function talepIslem(id, tip) {
                 }
             }
         });
+// 1. ADIM: Kapasiteye Göre İzinleri Önceden Rezerve Et
+state.personeller.forEach(p => {
+    // Sadece MCR, INGEST ve Sabit personeller HARİÇ olanlar etkilensin
+    if (!p.birim.includes("MCR") && !p.birim.includes("INGEST") && !state.haftaIciSabitler[p.ad]) {
+        
+        let atananIzinSayisi = 0;
+        
+        for (let g = 0; g < 7; g++) {
+            if (atananIzinSayisi >= 2) break; // Bir personelde 2 günden fazla izin verme
 
+            // O birimdeki o günkü toplam kapasite ihtiyacını hesapla
+            let toplamIhtiyac = 0;
+            state.saatler.forEach(s => {
+                toplamIhtiyac += (state.kapasite[`${p.birim}_${s}`] || [0,0,0,0,0,0,0])[g];
+            });
+
+            // O birimdeki toplam personel sayısını bul
+            let birimdekiToplamKisi = state.personeller.filter(pers => pers.birim === p.birim).length;
+
+            // KAPASİTE UYGUNLUK KONTROLÜ:
+            // Eğer personel ihtiyacı, birimdeki toplam kişinin %60'ından az ise izin verilebilir
+            if (toplamIhtiyac <= (birimdekiToplamKisi * 0.6)) {
+                
+                // İzin ata
+                tempProg[p.ad][g] = "İZİNLİ";
+                atananIzinSayisi++;
+
+                // PEŞ PEŞE İZİN KONTROLÜ:
+                // Eğer ilk izni verdiysek ve yarın da kapasite müsaitse 2. izni de ver
+                if (atananIzinSayisi === 1 && g < 6) {
+                    let yarinIhtiyac = 0;
+                    state.saatler.forEach(s => {
+                        yarinIhtiyac += (state.kapasite[`${p.birim}_${s}`] || [0,0,0,0,0,0,0])[g + 1];
+                    });
+
+                    if (yarinIhtiyac <= (birimdekiToplamKisi * 0.6)) {
+                        tempProg[p.ad][g + 1] = "İZİNLİ";
+                        atananIzinSayisi++;
+                        g++; // Yarın zaten izinli oldu, döngüde bir gün atla
+                    }
+                }
+            }
+        }
+    }
+});
         for (let gun = 0; gun < 7; gun++) {
             state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
                 const geceSaati = "00:00–07:00";
