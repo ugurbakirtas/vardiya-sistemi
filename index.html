@@ -492,7 +492,7 @@ function vardiyaUretVeKaydet() {
     const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
     const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
 
-    // 1. ADIM: MCR, INGEST ve Sabitler
+    // 1. ADIM: MCR, INGEST ve Manuel Sabitleri Ata
     state.personeller.forEach(p => { 
         tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
         
@@ -531,69 +531,85 @@ function vardiyaUretVeKaydet() {
         }
     });
 
-    // 2. ADIM: DİNAMİK DAĞITIM (TY, MCR, INGEST HARİÇ)
-    for (let gun = 0; gun < 7; gun++) {
-        // Gece Vardiyası (00:00-07:00)
-        state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST") && b !== "TEKNİK YÖNETMEN").forEach(birim => {
-            const geceSaati = "00:00–07:00";
-            const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
-            let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === geceSaati).length;
-            
-            if (hedef > 0 && mevcut < hedef) {
-                const adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null)
-                    .sort((a, b) => (calis[a.ad]) - (calis[b.ad])); // Az çalışanı öne al
-                
-                // Önce 5 günden az çalışanları dene (2 gün izin hedefi)
-                for (let p of adaylar) { 
-                    if (mevcut >= hedef) break;
-                    if (calis[p.ad] < 5) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; mevcut++; } 
-                }
-                // Yetmezse 6 günden az çalışanları dene (1 gün izin hedefi)
-                if(mevcut < hedef) {
-                     for (let p of adaylar) { 
-                        if (mevcut >= hedef) break;
-                        if (tempProg[p.ad][gun] === null && calis[p.ad] < 6) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; mevcut++; } 
-                    }
-                }
-            }
-        });
+    // 2. ADIM: DİĞER BİRİMLER İÇİN İZİN ŞABLONLARI OLUŞTUR (TY, MCR, INGEST HARİÇ)
+    // Kural: Pazartesi İzinli -> 2. gün Cumartesi veya Pazar
+    // Kural: Diğerleri -> Peş peşe 2 gün izin
+    
+    // İşlem yapılacak birimler (Teknik Yönetmen HARİÇ)
+    const patternUnits = state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST") && b !== "TEKNİK YÖNETMEN");
 
-        // Diğer Saatler
-        state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
-            state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST") && b !== "TEKNİK YÖNETMEN").forEach(birim => {
+    patternUnits.forEach(birim => {
+        let adaylar = state.personeller.filter(p => p.birim === birim && !state.haftaIciSabitler[p.ad] && !p.izinGunleri.length);
+        
+        // Pazartesi Günü Kapasitesi
+        let pztGerekli = 0;
+        state.saatler.forEach(s => {
+             pztGerekli += (state.kapasite[`${birim}_${s}`] || [0,0,0,0,0,0,0])[0];
+        });
+        
+        // Pazartesi izin yapması gereken kişi sayısı
+        let pztIzinSayisi = Math.max(0, adaylar.length - pztGerekli);
+        
+        // Rastgele karıştır (Adil dağılım için)
+        adaylar.sort(() => Math.random() - 0.5);
+        
+        // A) PAZARTESİ İZİNLİ GRUBU
+        for(let i=0; i < pztIzinSayisi; i++) {
+            let p = adaylar[i];
+            tempProg[p.ad][0] = "İZİNLİ"; // Pazartesi
+            // İkinci izin günü: Cumartesi veya Pazar
+            let ikinciGun = (i % 2 === 0) ? 5 : 6; 
+            tempProg[p.ad][ikinciGun] = "İZİNLİ";
+        }
+
+        // B) PEŞ PEŞE İZİN GRUBU (Geriye Kalanlar)
+        let kalanlar = adaylar.slice(pztIzinSayisi);
+        let pairs = [[1,2], [2,3], [3,4], [4,5], [5,6]]; // Sal-Çar, Çar-Per, ...
+        
+        kalanlar.forEach((p, idx) => {
+            let pair = pairs[idx % 5];
+            tempProg[p.ad][pair[0]] = "İZİNLİ";
+            tempProg[p.ad][pair[1]] = "İZİNLİ";
+        });
+    });
+
+    // 3. ADIM: VARDİYA SAATLERİNİ DOLDUR (BOŞ OLAN GÜNLERE)
+    // Tüm birimler (TY Dahil, MCR/Ingest Hariç) döngüye girer.
+    // Ancak yukarıda "İZİNLİ" atananlar o günleri pas geçer, sadece çalışma günlerine saat alır.
+    
+    const hedefBirimler = state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST"));
+
+    for (let gun = 0; gun < 7; gun++) {
+        state.saatler.forEach(saat => {
+            hedefBirimler.forEach(birim => {
                 const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
                 let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
                 
                 if (mevcut < hedef) {
                     let adaylar = state.personeller.filter(p => {
-                        let basic = p.birim === birim && tempProg[p.ad][gun] === null;
+                        let bos = p.birim === birim && tempProg[p.ad][gun] === null; // Sadece henüz bir şey atanmamışsa
                         let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
-                        // Dün gece çalışıp sabah gelmesin kontrolü
-                        return basic && !(dunGece && saat === "06:30–16:00");
+                        let sabahKisit = (saat.includes("06:30") || saat.includes("09:00")) && dunGece;
+                        return bos && !sabahKisit;
                     });
                     
-                    // Sıralama: Çalışma günü az olan öncelikli
+                    // Teknik Yönetmenler için eski mantık (çalışma sayısına göre)
+                    // Diğerleri zaten izin günlerini aldı, sadece boş günlerini dolduruyoruz.
                     adaylar.sort((a, b) => (calis[a.ad]) - (calis[b.ad]));
 
-                     // Önce 5 günden az çalışanları dene
                     for (let p of adaylar) {
-                         if (mevcut >= hedef) break;
-                         if (calis[p.ad] < 5) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; }
-                    }
-                    // Yetmezse 6 günden az çalışanları dene
-                    if(mevcut < hedef) {
-                         for (let p of adaylar) {
-                            if (mevcut >= hedef) break;
-                            if (tempProg[p.ad][gun] === null && calis[p.ad] < 6) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; }
-                        }
+                        if (mevcut >= hedef) break;
+                        tempProg[p.ad][gun] = saat;
+                        calis[p.ad]++;
+                        mevcut++;
                     }
                 }
             });
         });
     }
-    
+
     state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-    save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (TY, MCR, INGEST hariç, 5-6 gün kuralı uygulandı).");
+    save(); tabloyuOlustur(); alert("Vardiya oluşturuldu!\n\nKurallar:\n1. MCR/Ingest: Döngüsel\n2. Teknik Yön: Kapasiteye göre\n3. Diğerleri: Pzt İzin -> Haftasonu İzin / Diğerleri -> Peş Peşe");
 }
 
     function excelIndir() {
