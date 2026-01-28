@@ -1,6 +1,3 @@
-
-
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -485,140 +482,119 @@ function talepIslem(id, tip) {
         }
     }
 
-    function vardiyaUretVeKaydet() {
-        if(!isAdmin) return;
-        const hKey = currentMonday.toISOString().split('T')[0];
-        const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
-        let tempProg = {}; let calis = {};
-        
-        const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
-        const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
-        const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
+function vardiyaUretVeKaydet() {
+    if(!isAdmin) return;
+    const hKey = currentMonday.toISOString().split('T')[0];
+    const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
+    let tempProg = {}; let calis = {};
+    
+    const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
+    const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
+    const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
 
-        state.personeller.forEach(p => { 
-            tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
-            
-            if(p.birim.includes("MCR")) {
-                const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
-                for(let g=0; g<7; g++) {
-                    let d = new Date(currentMonday);
-                    d.setDate(d.getDate() + g);
-                    const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                    const donguIndex = (diffDays + persOfset) % 8;
-                    const modIndex = donguIndex < 0 ? donguIndex + 8 : donguIndex;
-                    tempProg[p.ad][g] = mcrDongu[modIndex];
-                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
-                }
-            } 
-            else if(p.birim.includes("INGEST")) {
-                const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
-                for(let g=0; g<7; g++) {
-                    let d = new Date(currentMonday);
-                    d.setDate(d.getDate() + g);
-                    const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                    const donguIndex = (diffDays + persOfset) % 6; 
-                    const modIndex = donguIndex < 0 ? donguIndex + 6 : donguIndex;
-                    tempProg[p.ad][g] = ingestDongu[modIndex];
-                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
-                }
+    // 1. ADIM: MCR, INGEST ve Sabitler
+    state.personeller.forEach(p => { 
+        tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
+        
+        if(p.birim.includes("MCR")) {
+            const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
+            for(let g=0; g<7; g++) {
+                let d = new Date(currentMonday);
+                d.setDate(d.getDate() + g);
+                const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
+                const donguIndex = (diffDays + persOfset) % 8;
+                const modIndex = donguIndex < 0 ? donguIndex + 8 : donguIndex;
+                tempProg[p.ad][g] = mcrDongu[modIndex];
+                if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
             }
-            else {
-                if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
-                if (state.haftaIciSabitler[p.ad]) {
-                    const sabitSaat = state.haftaIciSabitler[p.ad];
-                    for(let i=0; i<5; i++) tempProg[p.ad][i] = sabitSaat;
-                    tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
-                    calis[p.ad] = 5;
+        } 
+        else if(p.birim.includes("INGEST")) {
+            const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
+            for(let g=0; g<7; g++) {
+                let d = new Date(currentMonday);
+                d.setDate(d.getDate() + g);
+                const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
+                const donguIndex = (diffDays + persOfset) % 6; 
+                const modIndex = donguIndex < 0 ? donguIndex + 6 : donguIndex;
+                tempProg[p.ad][g] = ingestDongu[modIndex];
+                if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
+            }
+        }
+        else {
+            if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
+            if (state.haftaIciSabitler[p.ad]) {
+                const sabitSaat = state.haftaIciSabitler[p.ad];
+                for(let i=0; i<5; i++) tempProg[p.ad][i] = sabitSaat;
+                tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
+                calis[p.ad] = 5;
+            }
+        }
+    });
+
+    // 2. ADIM: DİNAMİK DAĞITIM (TY, MCR, INGEST HARİÇ)
+    for (let gun = 0; gun < 7; gun++) {
+        // Gece Vardiyası (00:00-07:00)
+        state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST") && b !== "TEKNİK YÖNETMEN").forEach(birim => {
+            const geceSaati = "00:00–07:00";
+            const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
+            let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === geceSaati).length;
+            
+            if (hedef > 0 && mevcut < hedef) {
+                const adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null)
+                    .sort((a, b) => (calis[a.ad]) - (calis[b.ad])); // Az çalışanı öne al
+                
+                // Önce 5 günden az çalışanları dene (2 gün izin hedefi)
+                for (let p of adaylar) { 
+                    if (mevcut >= hedef) break;
+                    if (calis[p.ad] < 5) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; mevcut++; } 
+                }
+                // Yetmezse 6 günden az çalışanları dene (1 gün izin hedefi)
+                if(mevcut < hedef) {
+                     for (let p of adaylar) { 
+                        if (mevcut >= hedef) break;
+                        if (tempProg[p.ad][gun] === null && calis[p.ad] < 6) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; mevcut++; } 
+                    }
                 }
             }
         });
-// 1. ADIM: Kapasiteye Göre İzinleri Önceden Rezerve Et
-state.personeller.forEach(p => {
-    // Sadece MCR, INGEST ve Sabit personeller HARİÇ olanlar etkilensin
-    if (!p.birim.includes("MCR") && !p.birim.includes("INGEST") && !state.haftaIciSabitler[p.ad]) {
-        
-        let atananIzinSayisi = 0;
-        
-        for (let g = 0; g < 7; g++) {
-            if (atananIzinSayisi >= 2) break; // Bir personelde 2 günden fazla izin verme
 
-            // O birimdeki o günkü toplam kapasite ihtiyacını hesapla
-            let toplamIhtiyac = 0;
-            state.saatler.forEach(s => {
-                toplamIhtiyac += (state.kapasite[`${p.birim}_${s}`] || [0,0,0,0,0,0,0])[g];
-            });
-
-            // O birimdeki toplam personel sayısını bul
-            let birimdekiToplamKisi = state.personeller.filter(pers => pers.birim === p.birim).length;
-
-            // KAPASİTE UYGUNLUK KONTROLÜ:
-            // Eğer personel ihtiyacı, birimdeki toplam kişinin %60'ından az ise izin verilebilir
-            if (toplamIhtiyac <= (birimdekiToplamKisi * 0.6)) {
+        // Diğer Saatler
+        state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
+            state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST") && b !== "TEKNİK YÖNETMEN").forEach(birim => {
+                const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
+                let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
                 
-                // İzin ata
-                tempProg[p.ad][g] = "İZİNLİ";
-                atananIzinSayisi++;
-
-                // PEŞ PEŞE İZİN KONTROLÜ:
-                // Eğer ilk izni verdiysek ve yarın da kapasite müsaitse 2. izni de ver
-                if (atananIzinSayisi === 1 && g < 6) {
-                    let yarinIhtiyac = 0;
-                    state.saatler.forEach(s => {
-                        yarinIhtiyac += (state.kapasite[`${p.birim}_${s}`] || [0,0,0,0,0,0,0])[g + 1];
+                if (mevcut < hedef) {
+                    let adaylar = state.personeller.filter(p => {
+                        let basic = p.birim === birim && tempProg[p.ad][gun] === null;
+                        let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
+                        // Dün gece çalışıp sabah gelmesin kontrolü
+                        return basic && !(dunGece && saat === "06:30–16:00");
                     });
+                    
+                    // Sıralama: Çalışma günü az olan öncelikli
+                    adaylar.sort((a, b) => (calis[a.ad]) - (calis[b.ad]));
 
-                    if (yarinIhtiyac <= (birimdekiToplamKisi * 0.6)) {
-                        tempProg[p.ad][g + 1] = "İZİNLİ";
-                        atananIzinSayisi++;
-                        g++; // Yarın zaten izinli oldu, döngüde bir gün atla
+                     // Önce 5 günden az çalışanları dene
+                    for (let p of adaylar) {
+                         if (mevcut >= hedef) break;
+                         if (calis[p.ad] < 5) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; }
                     }
-                }
-            }
-        }
-    }
-});
-        for (let gun = 0; gun < 7; gun++) {
-            state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
-                const geceSaati = "00:00–07:00";
-                const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
-                let atanan = 0;
-                if (hedef > 0) {
-                    const adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null)
-                        .sort((a, b) => {
-                            if(gun < 5) {
-                                if(a.ad.includes("EKREM FİDAN")) return -1; if(b.ad.includes("EKREM FİDAN")) return 1;
-                                if(a.ad.includes("BARIŞ İNCE")) return -1; if(b.ad.includes("BARIŞ İNCE")) return 1;
-                            }
-                            return (calis[a.ad]) - (calis[b.ad]);
-                        });
-                    for (let p of adaylar) { if (atanan < hedef && calis[p.ad] < 6) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++; } }
-                }
-            });
-            state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
-                state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
-                    const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
-                    let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
-                    if (mevcut < hedef) {
-                        let adaylar = state.personeller.filter(p => {
-                            let basic = p.birim === birim && tempProg[p.ad][gun] === null;
-                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
-                            return basic && !(dunGece && saat === "06:30–16:00");
-                        });
-                        adaylar.sort((a, b) => {
-                            if(a.ad.includes("BARIŞ İNCE")) return Math.random() - 0.5;
-                            return (calis[a.ad] * 10 + (a.ad.charCodeAt(0) % (weekOffset + 1))) - (calis[b.ad] * 10 + (b.ad.charCodeAt(0) % (weekOffset + 1)));
-                        });
-                        for (let p of adaylar) {
-                            let limit = (gun >= 5) ? 6 : 5;
-                            if (mevcut < hedef && calis[p.ad] < limit) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; }
+                    // Yetmezse 6 günden az çalışanları dene
+                    if(mevcut < hedef) {
+                         for (let p of adaylar) {
+                            if (mevcut >= hedef) break;
+                            if (tempProg[p.ad][gun] === null && calis[p.ad] < 6) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; }
                         }
                     }
-                });
+                }
             });
-        }
-        state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu.");
+        });
     }
+    
+    state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
+    save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (TY, MCR, INGEST hariç, 5-6 gün kuralı uygulandı).");
+}
 
     function excelIndir() {
         const hKey = currentMonday.toISOString().split('T')[0];
