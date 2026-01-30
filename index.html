@@ -1,6 +1,3 @@
-
-
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -498,9 +495,24 @@ function talepIslem(id, tip) {
         state.personeller.forEach(p => { 
             tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
             
+            // 1. ADIM: MEVCUT MANUEL ATAMALARI (ONAYLANMIŞ İZİNLERİ) ÖNCE YÜKLE
+            // Bu sayede, daha önce verilmiş bir izin varsa MCR döngüsü veya dağıtım bunu ezmez.
+            for(let g=0; g<7; g++) {
+                let mKey = `${hKey}_${p.ad}_${g}`;
+                if(state.manuelAtamalar[mKey]) {
+                    tempProg[p.ad][g] = state.manuelAtamalar[mKey];
+                    if(!["İZİNLİ", "BOŞ"].includes(state.manuelAtamalar[mKey])) {
+                        calis[p.ad]++;
+                    }
+                }
+            }
+
             if(p.birim.includes("MCR")) {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
                 for(let g=0; g<7; g++) {
+                    // Eğer manuel bir atama (örn: izin) varsa döngüyü atla, onu koru.
+                    if(tempProg[p.ad][g] !== null) continue;
+
                     let d = new Date(currentMonday);
                     d.setDate(d.getDate() + g);
                     const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
@@ -513,6 +525,8 @@ function talepIslem(id, tip) {
             else if(p.birim.includes("INGEST")) {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
                 for(let g=0; g<7; g++) {
+                    if(tempProg[p.ad][g] !== null) continue;
+
                     let d = new Date(currentMonday);
                     d.setDate(d.getDate() + g);
                     const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
@@ -523,12 +537,23 @@ function talepIslem(id, tip) {
                 }
             }
             else {
-                if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
+                if(p.izinGunleri) p.izinGunleri.forEach(gi => { if(tempProg[p.ad][gi] === null) tempProg[p.ad][gi] = "İZİNLİ"; });
+                
                 if (state.haftaIciSabitler[p.ad]) {
                     const sabitSaat = state.haftaIciSabitler[p.ad];
-                    for(let i=0; i<5; i++) tempProg[p.ad][i] = sabitSaat;
-                    tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
-                    calis[p.ad] = 5;
+                    for(let i=0; i<5; i++) { if(tempProg[p.ad][i] === null) { tempProg[p.ad][i] = sabitSaat; calis[p.ad]++; } }
+                    if(tempProg[p.ad][5] === null) tempProg[p.ad][5] = "İZİNLİ"; 
+                    if(tempProg[p.ad][6] === null) tempProg[p.ad][6] = "İZİNLİ";
+                }
+                // TEKNİK YÖNETMEN HARİÇ DİĞERLERİ İÇİN 2 GÜN PEŞ PEŞE İZİN MANTIĞI
+                else if (p.birim !== "TEKNİK YÖNETMEN") {
+                     const pIndex = state.personeller.indexOf(p);
+                     const startDay = (pIndex + weekOffset) % 7; 
+                     const nextDay = (startDay + 1) % 7; 
+                     
+                     // Eğer o gün boşsa izin yaz, doluysa (manuel izin vb.) dokunma
+                     if(tempProg[p.ad][startDay] === null) tempProg[p.ad][startDay] = "İZİNLİ";
+                     if(tempProg[p.ad][nextDay] === null) tempProg[p.ad][nextDay] = "İZİNLİ";
                 }
             }
         });
