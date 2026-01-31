@@ -3,88 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TURKMEDYA TEKNiK VARDiYA | V10.0 FINAL</title>
-  
-  <link rel="icon" href="data:,">
-  
-  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline';">
-
+  <title>TURKMEDYA TEKNiK VARDiYA | V11.0 STABLE</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
+  <link rel="shortcut icon" href="#">
+
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   
   <style>
-    /* --- TASARIM --- */
+    /* --- CSS (TASARIM) --- */
     :root { --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff; --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --table-head: #f8fafc; --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed; --izin-bg: #fef2f2; }
     [data-theme="dark"] { --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9; --border: #334155; --table-head: #0f172a; --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12; --izin-bg: #450a0a; }
     
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
     
-    /* MODALLAR */
-    #loginOverlay, #panelOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
-    #loginOverlay { background: var(--primary); } #panelOverlay { background: rgba(0,0,0,0.5); z-index:999; display:none; }
+    /* GİRİŞ EKRANI */
+    #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
     .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
-    .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 14px; }
-    .btn-user { background: var(--blue); color: white; } .btn-admin { background: #475569; color: white; }
-    .login-logo { max-height: 80px; width: auto; max-width: 200px; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto; }
+    .login-logo { max-height: 80px; width: auto; max-width: 200px; margin-bottom: 20px; display: block; margin: 0 auto 20px auto; }
+    .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; }
+    .btn-user { background: var(--blue); color: white; } 
+    .btn-admin { background: #475569; color: white; }
     #personelSecimDiv { display: none; margin-top: 15px; }
 
-    /* LAYOUT */
-    .app-wrapper { padding: 10px; display: none; } 
+    /* GENEL DÜZEN */
+    .app-wrapper { padding: 10px; display: none; }
     .main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; }
-    .dashboard-container { display: none; margin-bottom: 20px; width: 100%; }
-    .welcome-card { background: linear-gradient(135deg, var(--blue), var(--primary)); color: white; padding: 20px; border-radius: 16px; text-align: center; width: 100%; box-sizing: border-box; }
     
     /* TABLO */
-    .table-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; position: relative; }
+    .table-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; }
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
     th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
     .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; position: sticky; left: 0; z-index: 20; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
-    .row-saat-0 { background-color: var(--saat1); } .row-saat-1 { background-color: var(--saat2); }
-    .row-saat-2 { background-color: var(--saat3); } .row-saat-3 { background-color: var(--saat4); }
+    
+    /* SATIR RENKLERİ */
+    .row-saat-0 { background-color: var(--saat1); } .row-saat-0 .saat-col { background-color: var(--saat1); }
+    .row-saat-1 { background-color: var(--saat2); } .row-saat-1 .saat-col { background-color: var(--saat2); }
+    .row-saat-2 { background-color: var(--saat3); } .row-saat-2 .saat-col { background-color: var(--saat3); }
+    .row-saat-3 { background-color: var(--saat4); } .row-saat-3 .saat-col { background-color: var(--saat4); }
     .row-izin { background-color: var(--izin-bg) !important; }
     .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); background-color: var(--izin-bg) !important; }
     .weekend-col { background-color: var(--weekend-bg) !important; }
-    
+
     /* KARTLAR */
-    .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: all 0.3s ease; }
-    .birim-card.dimmed { opacity: 0.15; filter: grayscale(100%); }
-    .birim-card.highlighted { opacity: 1; transform: scale(1.05); z-index: 50; border-color: var(--primary) !important; }
-    .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
+    .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s; }
+    .birim-card.dimmed { opacity: 0.2; filter: grayscale(100%); }
+    .birim-card.highlighted { opacity: 1; transform: scale(1.05); z-index: 50; border-color: var(--primary) !important; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+    .birim-tag { font-size: 7px; font-weight: 800; color: white; padding: 1px 4px; border-radius: 3px; display: inline-block; margin-bottom: 2px; }
     .pers-name { font-size: 10px; font-weight: 700; display: block; }
-    
-    /* PANEL */
+
+    /* DASHBOARD */
+    .dashboard-container { display: none; margin-bottom: 20px; }
+    .welcome-card { background: linear-gradient(135deg, var(--blue), var(--primary)); color: white; padding: 20px; border-radius: 16px; text-align: center; }
+    .status-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-weight: 700; font-size: 12px; }
+    .next-shift-info { margin-top: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-size: 11px; display: flex; justify-content: space-around; }
+
+    /* ADMIN PANEL */
     .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: var(--card-bg); z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); }
     .side-panel.open { right: 0; }
     .panel-header { padding: 15px; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; }
     .panel-content { padding: 15px; overflow-y: auto; flex: 1; }
     .panel-action-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; background: var(--bg); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
-    .btn-main-action { padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: white; }
     .hidden { display: none; }
-    .tab-btn { flex: 1; padding: 8px; border: none; background: #e2e8f0; cursor: pointer; font-size: 10px; font-weight: 700; border-radius: 4px; color: #64748b; }
+    .tab-btn { flex: 1; padding: 8px; border: none; background: #e2e8f0; cursor: pointer; border-radius: 4px; color: #64748b; margin-right: 2px; }
     .tab-btn.active { background: var(--blue); color: white; }
-    .izin-gun-pill { padding: 4px 8px; background: var(--bg); border-radius: 4px; margin: 2px; font-size: 10px; cursor: pointer; display: inline-block; font-weight: 800; border: 1px solid var(--border); color: var(--text); }
+    .izin-gun-pill { padding: 4px 8px; background: var(--bg); border-radius: 4px; margin: 2px; font-size: 10px; cursor: pointer; border: 1px solid var(--border); display: inline-block; font-weight: bold; }
     .izin-gun-pill.active { background: var(--danger); color: white; border-color: var(--danger); }
     .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
-    .admin-only { display: none; } 
-    
-    #talepModal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10001; display:none; align-items:center; justify-content:center; }
+    .admin-only { display: none; }
+    #panelOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index:999; display:none; }
+    #talepModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10001; display: none; align-items: center; justify-content: center; }
+
+    /* MOBİL */
     .mobile-day-tabs { display: none; }
-    @media screen and (max-width: 768px) { 
+    @media screen and (max-width: 768px) {
         .side-panel { width: 100%; right: -100%; }
         table { display: block; min-width: 100%; }
         thead { display: none; } tbody, tfoot { display: block; }
-        tr { display: block; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--card-bg); }
-        .saat-col { display: block; width: 100%; text-align: center; padding: 8px; background: var(--primary); color: white !important; font-size: 14px; border-left: none; background-clip: padding-box; }
+        tr { display: block; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); overflow: hidden; }
+        .saat-col { display: block; width: 100%; text-align: center; padding: 10px; background: var(--primary); color: white !important; font-size: 14px; border-left: none; }
         .row-izin .saat-col { background: var(--danger) !important; }
-        td { display: block; border: none; border-bottom: 1px solid var(--border); padding: 8px; min-height: 50px; height: auto; }
-        td:last-child { border-bottom: none; }
+        td { display: block; border: none; border-bottom: 1px solid var(--border); padding: 10px; min-height: 50px; }
         .mobile-day-tabs { display: flex; gap: 5px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px; }
-        .day-tab-btn { flex: 1; min-width: 50px; padding: 10px 5px; border: 1px solid var(--border); background: var(--card-bg); border-radius: 8px; font-weight: 700; font-size: 11px; color: var(--text); text-align: center; cursor: pointer; transition: 0.2s; }
-        .day-tab-btn.active { background: var(--blue); color: white; border-color: var(--blue); transform: scale(1.05); }
+        .day-tab-btn { flex: 1; min-width: 50px; padding: 10px; border: 1px solid var(--border); background: var(--card-bg); border-radius: 8px; text-align: center; font-weight: bold; }
+        .day-tab-btn.active { background: var(--blue); color: white; border-color: var(--blue); }
         .mobile-hidden-day { display: none !important; }
     }
   </style>
@@ -95,19 +100,17 @@
     <div class="login-card">
         <img src="logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'">
         <h2 style="margin:0 0 20px 0; color:var(--primary)">Sistem Girişi</h2>
-        
         <div id="loginButtons">
             <button onclick="showPersonelSelect()" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button>
             <button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button>
         </div>
-
         <div id="personelSecimDiv">
             <label style="display:block; text-align:left; font-size:10px; font-weight:bold; margin-bottom:5px;">İSMİNİZİ SEÇİN:</label>
             <select id="girisPersonelSec" style="width:100%; padding:12px; margin-bottom:15px; border-radius:8px; border:1px solid var(--border);"></select>
             <button onclick="enterSystem('personel')" class="login-btn" style="background:var(--success); color:white;">GİRİŞ YAP &raquo;</button>
             <button onclick="hidePersonelSelect()" style="background:none; border:none; color:var(--text); font-size:11px; cursor:pointer;">&laquo; Geri Dön</button>
         </div>
-        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V10.0</p>
+        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V11.0</p>
     </div>
   </div>
 
@@ -130,12 +133,12 @@
   </div>
 
   <div id="panelOverlay" onclick="toggleAdminPanel()"></div>
-  
+
   <div class="app-wrapper" id="appMain">
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;">
         <img src="logo.png" alt="Logo" style="height: 35px;">
-        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V10.0</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
+        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V11.0</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
       </div>
       <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;">
         <button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button>
@@ -218,6 +221,7 @@
   </div>
 
   <script>
+    // --- KONFİGÜRASYON ---
     const CONFIG = {
         firebase: { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" },
         days: ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
@@ -227,14 +231,12 @@
 
     firebase.initializeApp(CONFIG.firebase); const database = firebase.database();
     
-    // Global Değişkenler
     let isAdmin = false;
     let aktifMobilGun = (new Date().getDay() + 6) % 7; 
     let activeUser = "";
     let currentMonday = getMonday(new Date());
-    let activeHighlight = null; 
+    let activeHighlight = null;
 
-    // STATE
     let state = {
         birimler: JSON.parse(localStorage.getItem("birimler")) || Object.keys(CONFIG.colors),
         saatler: JSON.parse(localStorage.getItem("saatler")) || ["06:30–16:00", "09:00–18:00", "16:00–00:00", "00:00–07:00"],
@@ -245,8 +247,7 @@
         mcrAyarlari: JSON.parse(localStorage.getItem("mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
     };
 
-    async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const c = snap.val(); if(c.telegram_api) CONFIG.telegram.api = c.telegram_api; if(c.telegram_id) CONFIG.telegram.id = c.telegram_id; } } catch (e) {} }
-
+    // --- TEMEL FONKSİYONLAR ---
     function showPersonelSelect() { 
         document.getElementById('loginButtons').style.display = 'none'; 
         const sel = document.getElementById('girisPersonelSec');
@@ -267,7 +268,16 @@
         if (role === 'admin') {
             const email = prompt("E-posta:"); const password = prompt("Şifre:");
             if (!email || !password) return;
-            try { await firebase.auth().signInWithEmailAndPassword(email, password); isAdmin = true; document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); document.getElementById('persTalepArea').style.display = 'none'; } catch (e) { alert("Hata: " + e.message); return; }
+            try { 
+                await firebase.auth().signInWithEmailAndPassword(email, password); 
+                isAdmin = true; 
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); 
+                document.getElementById('persTalepArea').style.display = 'none'; 
+                // Admin girince talepleri çek
+                database.ref('talepler').on('value', snap => {
+                    if(snap.exists()) talepleriRenderEt(snap.val());
+                });
+            } catch (e) { alert("Hata: " + e.message); return; }
         } else {
             const selectedName = document.getElementById('girisPersonelSec').value;
             if(!selectedName) { alert("Lütfen isminizi seçin."); return; }
@@ -276,23 +286,23 @@
             document.getElementById('persTalepArea').style.display = 'block';
         }
         
-        database.ref('vardiya_data').once('value').then(snap => {
-            if(snap.exists()) { state = snap.val(); save(); tabloyuOlustur(); if(!isAdmin && activeUser) renderPersonalDashboard(activeUser); }
-            document.getElementById('loginOverlay').style.opacity = '0'; 
-            setTimeout(() => { document.getElementById('loginOverlay').style.display = 'none'; document.getElementById('appMain').style.display = 'block'; }, 500);
-        }).catch(e => { console.log(e); document.getElementById('loginOverlay').style.opacity = '0'; setTimeout(() => { document.getElementById('loginOverlay').style.display = 'none'; document.getElementById('appMain').style.display = 'block'; tabloyuOlustur(); if(!isAdmin && activeUser) renderPersonalDashboard(activeUser); }, 500); });
-    }
+        // Veritabanını dinle ve tabloyu oluştur
+        database.ref('vardiya_data').on('value', snap => {
+            if(snap.exists()) { 
+                state = snap.val(); 
+                save(); 
+                tabloyuOlustur(); 
+                if(isAdmin) refreshUI();
+                if(activeUser) renderPersonalDashboard(activeUser);
+            }
+        });
 
-    // --- MODAL AÇMA ---
-    function talepModalAc() { 
-        const sel = document.getElementById('talepPersonel'); 
-        let options = "";
-        if (state.personeller && state.personeller.length > 0) {
-            options = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join('');
-        }
-        sel.innerHTML = options;
-        if(activeUser) sel.value = activeUser; 
-        document.getElementById('talepModal').style.display = 'flex'; 
+        document.getElementById('loginOverlay').style.opacity = '0'; 
+        setTimeout(() => { 
+            document.getElementById('loginOverlay').style.display = 'none'; 
+            document.getElementById('appMain').style.display = 'block'; 
+            tabloyuOlustur();
+        }, 500);
     }
 
     function renderPersonalDashboard(userName) {
@@ -303,15 +313,27 @@
         const container = document.getElementById('personalDashboard'); container.style.display = 'block';
         let bg = "linear-gradient(135deg, var(--blue), var(--primary))";
         if(bugunVardiya === "İZİNLİ") bg = "linear-gradient(135deg, var(--success), #15803d)";
-        if(bugunVardiya === "00:00–07:00") bg = "linear-gradient(135deg, #4f46e5, #312e81)";
         container.innerHTML = `<div class="welcome-card" style="background:${bg}"><h2>Hoş Geldin,</h2><h1>${userName.split(' ')[0]}</h1><div class="status-badge">BUGÜN: ${bugunVardiya}</div><div class="next-shift-info"><span>📅 <strong>YARIN:</strong> ${yarinVardiya}</span></div></div>`;
         highlightPerson(userName);
     }
 
     function highlightPerson(name) {
         const cleanName = name.split(' (')[0].trim();
-        if (activeHighlight === cleanName && !activeUser) { document.querySelectorAll('.birim-card').forEach(el => el.classList.remove('dimmed', 'highlighted')); activeHighlight = null; }
-        else { activeHighlight = cleanName; document.querySelectorAll('.birim-card').forEach(el => { const n = el.querySelector('.pers-name'); if(!n) return; if (n.innerText.split(' (')[0].trim() === cleanName) { el.classList.remove('dimmed'); el.classList.add('highlighted'); } else { el.classList.remove('highlighted'); el.classList.add('dimmed'); } }); }
+        if (activeHighlight === cleanName && !activeUser) { 
+            document.querySelectorAll('.birim-card').forEach(el => el.classList.remove('dimmed', 'highlighted')); 
+            activeHighlight = null; 
+        } else { 
+            activeHighlight = cleanName; 
+            document.querySelectorAll('.birim-card').forEach(el => { 
+                const n = el.querySelector('.pers-name'); 
+                if(!n) return; 
+                if (n.innerText.split(' (')[0].trim() === cleanName) { 
+                    el.classList.remove('dimmed'); el.classList.add('highlighted'); 
+                } else { 
+                    el.classList.remove('highlighted'); el.classList.add('dimmed'); 
+                } 
+            }); 
+        }
     }
 
     function mobilGunSec(gunIndex) { aktifMobilGun = gunIndex; document.querySelectorAll('.day-tab-btn').forEach((btn, idx) => { if(idx === gunIndex) btn.classList.add('active'); else btn.classList.remove('active'); }); tabloyuOlustur(); }
@@ -328,20 +350,19 @@
         CONFIG.days.forEach((g, i) => { let hiddenClass = (i !== aktifMobilGun) ? 'mobile-hidden-day' : ''; headerHtml += `<th class="${i>=5?'weekend-col':''} ${hiddenClass}">${g}</th>`; });
         headerHtml += `</tr>`; document.getElementById("tableHeader").innerHTML = headerHtml;
         
-        let prog = {}; let calis = {};
-        state.personeller.forEach(p => { prog[p.ad] = Array(7).fill(null); calis[p.ad] = 0; for(let i=0; i<7; i++) { let mKey = `${hKey}_${p.ad}_${i}`; if(state.manuelAtamalar[mKey]) prog[p.ad][i] = state.manuelAtamalar[mKey]; if(prog[p.ad][i] && !["İZİNLİ","BOŞ",null].includes(prog[p.ad][i])) calis[p.ad]++; } });
+        let prog = {}; 
+        state.personeller.forEach(p => { prog[p.ad] = Array(7).fill(null); for(let i=0; i<7; i++) { let mKey = `${hKey}_${p.ad}_${i}`; if(state.manuelAtamalar[mKey]) prog[p.ad][i] = state.manuelAtamalar[mKey]; } });
 
         document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => {
             let rowHtml = `<tr class="row-saat-${sIdx}"><td class="saat-col">${s}</td>`;
             for(let g=0; g<7; g++) {
                 let hiddenClass = (g !== aktifMobilGun) ? 'mobile-hidden-day' : '';
                 let sortedPers = state.personeller.filter(p => prog[p.ad][g] === s).sort((a, b) => { if(state.birimler.indexOf(a.birim) !== state.birimler.indexOf(b.birim)) return state.birimler.indexOf(a.birim) - state.birimler.indexOf(b.birim); return (b.oncelik || 0) - (a.oncelik || 0); });
-                let cellContent = "";
-                sortedPers.forEach((p) => {
+                let cellContent = sortedPers.map(p => {
                     let click = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : `onclick="highlightPerson('${p.ad}')"`;
                     let drag = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, '${s}')"` : "";
-                    cellContent += `<div class="birim-card" style="border-left-color:${getBirimColor(p.birim)}; background-color:${getBirimColor(p.birim)}15;" ${drag} ${click}><span class="birim-tag" style="background:${getBirimColor(p.birim)}">${p.birim}</span><span class="pers-name">${p.ad}</span></div>`;
-                });
+                    return `<div class="birim-card" style="border-left-color:${getBirimColor(p.birim)}; background-color:${getBirimColor(p.birim)}15;" ${drag} ${click}><span class="birim-tag" style="background:${getBirimColor(p.birim)}">${p.birim}</span><span class="pers-name">${p.ad}</span></div>`;
+                }).join('');
                 rowHtml += `<td class="${g>=5?'weekend-col':''} ${hiddenClass}" data-label="${CONFIG.days[g]}" ondragover="event.preventDefault()" ondrop="drop(event, '${s}', ${g})">${cellContent}</td>`;
             } return rowHtml + "</tr>";
         }).join('');
@@ -350,26 +371,20 @@
         for(let g=0; g<7; g++) {
             let hiddenClass = (g !== aktifMobilGun) ? 'mobile-hidden-day' : '';
             let sortedPers = state.personeller.filter(p => ["İZİNLİ","BOŞ",null].includes(prog[p.ad][g])).sort((a, b) => state.birimler.indexOf(a.birim) - state.birimler.indexOf(b.birim));
-            let cellContent = "";
-            sortedPers.forEach(p => {
+            let cellContent = sortedPers.map(p => {
                 let click = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : `onclick="highlightPerson('${p.ad}')"`;
                 let drag = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, 'BOŞ')"` : "";
-                cellContent += `<div class="birim-card" style="border-left-color:${getBirimColor(p.birim)};" ${drag} ${click}><span class="birim-tag" style="background:${prog[p.ad][g]==='İZİNLİ'?'var(--danger)':getBirimColor(p.birim)}">${prog[p.ad][g]==='İZİNLİ'?'İZİNLİ':p.birim}</span><span class="pers-name">${p.ad} (${calis[p.ad]}G)</span></div>`;
-            });
+                return `<div class="birim-card" style="border-left-color:${getBirimColor(p.birim)};" ${drag} ${click}><span class="birim-tag" style="background:${prog[p.ad][g]==='İZİNLİ'?'var(--danger)':getBirimColor(p.birim)}">${prog[p.ad][g]||'BOŞ'}</span><span class="pers-name">${p.ad}</span></div>`;
+            }).join('');
             footerHtml += `<td class="${g>=5?'weekend-col':''} ${hiddenClass}" data-label="${CONFIG.days[g]}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">${cellContent}</td>`;
         }
-        footerHtml += `</tr>`; document.getElementById("tableFooter").innerHTML = footerHtml;
+        document.getElementById("tableFooter").innerHTML = footerHtml + "</tr>";
         if(activeUser) highlightPerson(activeUser);
     }
 
     async function vardiyaUretVeKaydet() {
-        if(!isAdmin) return;
-        if(!confirm("Vardiya oluşturulsun mu? Onaylı izinler korunacak.")) return;
-
-        try {
-            const snap = await database.ref('vardiya_data').once('value');
-            if (snap.exists()) { state = snap.val(); save(); console.log("Veri senkronize edildi."); }
-        } catch (e) { alert("Veri çekilemedi!"); return; }
+        if(!isAdmin || !confirm("Vardiya oluşturulsun mu?")) return;
+        try { const snap = await database.ref('vardiya_data').once('value'); if (snap.exists()) state = snap.val(); } catch (e) {}
 
         const hKey = currentMonday.toISOString().split('T')[0];
         let tempProg = {}; let calis = {};
@@ -379,44 +394,38 @@
 
         state.personeller.forEach(p => { 
             tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
-            
             for(let g=0; g<7; g++) {
                 let mKey = `${hKey}_${p.ad}_${g}`;
-                if(state.manuelAtamalar[mKey]) { 
-                    tempProg[p.ad][g] = state.manuelAtamalar[mKey]; 
-                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++; 
-                }
-                
-                // ÖNCELİK 2: YÖNETİCİ İZNİ (KESİN EMİR)
-                if (tempProg[p.ad][g] === null && p.izinGunleri && p.izinGunleri.includes(g)) {
-                    tempProg[p.ad][g] = "İZİNLİ";
-                }
+                // 1. ÖNCELİK: Manuel Atama ve Onaylar
+                if(state.manuelAtamalar[mKey]) { tempProg[p.ad][g] = state.manuelAtamalar[mKey]; if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++; }
+                // 2. ÖNCELİK (KESİN): Yönetici İzin Hapı
+                if(p.izinGunleri && p.izinGunleri.includes(g)) { tempProg[p.ad][g] = "İZİNLİ"; }
             }
-
             const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
-
-            // ÖNCELİK 3: DÖNGÜLER
+            
+            // 3. ÖNCELİK: Döngüler (Eğer boşsa)
             if(p.birim.includes("INGEST")) {
                 for(let g=0; g<7; g++) { 
                     if(tempProg[p.ad][g] !== null) continue;
-                    let d = new Date(currentMonday); d.setDate(d.getDate() + g); const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24)); const modIndex = ((diffDays + persOfset) % 6 + 6) % 6; tempProg[p.ad][g] = ingestDongu[modIndex]; if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++; 
+                    let d = new Date(currentMonday); d.setDate(d.getDate() + g); const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24)); const modIndex = ((diffDays + persOfset) % 6 + 6) % 6; tempProg[p.ad][g] = ingestDongu[modIndex]; if(!["İZİNLİ","BOŞ"].includes(tempProg[p.ad][g])) calis[p.ad]++; 
                 }
             } else if(p.birim.includes("MCR")) {
                 for(let g=0; g<7; g++) { 
                     if(tempProg[p.ad][g] !== null) continue; 
-                    let d = new Date(currentMonday); d.setDate(d.getDate() + g); const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24)); const modIndex = ((diffDays + persOfset) % 8 + 8) % 8; tempProg[p.ad][g] = mcrDongu[modIndex]; if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++; 
+                    let d = new Date(currentMonday); d.setDate(d.getDate() + g); const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24)); const modIndex = ((diffDays + persOfset) % 8 + 8) % 8; tempProg[p.ad][g] = mcrDongu[modIndex]; if(!["İZİNLİ","BOŞ"].includes(tempProg[p.ad][g])) calis[p.ad]++; 
                 }
             } else if (state.haftaIciSabitler[p.ad]) {
                 const sabitSaat = state.haftaIciSabitler[p.ad]; for(let i=0; i<5; i++) { if(tempProg[p.ad][i] === null) { tempProg[p.ad][i] = sabitSaat; calis[p.ad]++; } } if(tempProg[p.ad][5] === null) tempProg[p.ad][5] = "İZİNLİ"; if(tempProg[p.ad][6] === null) tempProg[p.ad][6] = "İZİNLİ";
             }
         });
 
+        // 4. ÖNCELİK: Kapasite
         for (let gun = 0; gun < 7; gun++) {
             kapasiteDoldur(gun, "00:00–07:00", tempProg, calis);
             state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => kapasiteDoldur(gun, saat, tempProg, calis));
         }
 
-        // ÖNCELİK 5: BOŞLUK DOLDURMA (İZİN KORUMALI)
+        // 5. ÖNCELİK: Boşluk Doldurma (İzin Korumalı)
         state.personeller.forEach(p => {
             for(let g=0; g<7; g++) { 
                 if(tempProg[p.ad][g] === null) {
@@ -429,10 +438,7 @@
         });
 
         state.personeller.forEach(p => { for(let i=0; i<7; i++) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); 
-        tabloyuOlustur(); 
-        database.ref('vardiya_data').set(state); 
-        alert("Vardiya oluşturuldu.");
+        save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); alert("Vardiya oluşturuldu.");
     }
 
     function kapasiteDoldur(gun, saat, tempProg, calis) {
@@ -484,9 +490,7 @@
         const idx = state.personeller[pi].izinGunleri.indexOf(gi); 
         if(idx > -1) state.personeller[pi].izinGunleri.splice(idx, 1); 
         else state.personeller[pi].izinGunleri.push(gi); 
-        save(); 
-        refreshUI(); 
-        database.ref('vardiya_data/personeller').set(state.personeller);
+        save(); refreshUI(); database.ref('vardiya_data/personeller').set(state.personeller);
     }
 
     function talepModalAc() { const sel = document.getElementById('talepPersonel'); sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); if(activeUser) sel.value = activeUser; document.getElementById('talepModal').style.display = 'flex'; }
@@ -499,12 +503,12 @@
         alert("İletildi."); document.getElementById('talepModal').style.display = 'none'; 
     }
 
-    // --- TALEPLERİ RENDER ET (DÜZELTİLDİ) ---
     function talepleriRenderEt(taleplerObj) {
         const liste = document.getElementById('gelenTaleplerListesi');
         if(!taleplerObj) { liste.innerHTML = "<p style='text-align:center; opacity:0.5;'>Bekleyen talep yok.</p>"; return; }
         let html = "";
-        Object.values(taleplerObj).forEach(t => {
+        const talepDizisi = Object.values(taleplerObj);
+        talepDizisi.forEach(t => {
             if(t.durum === 'bekliyor') {
                 html += `<div style="background:var(--card-bg); border:1px solid var(--border); border-left:5px solid var(--warning); padding:10px; margin-bottom:5px;">
                     <div><strong>${t.ad}</strong> <small>${t.tarih}</small></div>
@@ -515,7 +519,7 @@
                     </div></div>`;
             }
         });
-        liste.innerHTML = html || "<p>Bekleyen talep yok.</p>";
+        liste.innerHTML = html || "<p style='text-align:center; opacity:0.5;'>Bekleyen talep yok.</p>";
     }
 
     function talepIslem(id, tip) { 
@@ -534,10 +538,8 @@
     function applyPersonSwap() {
         const sourceName = document.getElementById("swapSource").value; const targetName = document.getElementById("swapTarget").value;
         if(!sourceName || !targetName || sourceName === targetName) { alert("Hatalı seçim!"); return; }
-        
         const checkboxes = document.querySelectorAll('.swap-day-chk:checked');
         const selectedDays = Array.from(checkboxes).map(c => parseInt(c.value));
-        
         if (selectedDays.length === 0) {
             if(confirm("Kalıcı değişim yapılsın mı?")) {
                 const sP = state.personeller.find(p => p.ad === sourceName); const tP = state.personeller.find(p => p.ad === targetName);
@@ -548,10 +550,7 @@
                 const hKey = currentMonday.toISOString().split('T')[0];
                 selectedDays.forEach(dayIndex => {
                     let targetShift = state.manuelAtamalar[`${hKey}_${targetName}_${dayIndex}`];
-                    if(targetShift && targetShift !== "İZİNLİ") { 
-                        state.manuelAtamalar[`${hKey}_${sourceName}_${dayIndex}`] = targetShift; 
-                        state.manuelAtamalar[`${hKey}_${targetName}_${dayIndex}`] = "İZİNLİ"; 
-                    }
+                    if(targetShift && targetShift !== "İZİNLİ") { state.manuelAtamalar[`${hKey}_${sourceName}_${dayIndex}`] = targetShift; state.manuelAtamalar[`${hKey}_${targetName}_${dayIndex}`] = "İZİNLİ"; }
                 });
                 save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); alert("Devralma tamamlandı.");
             }
@@ -575,17 +574,7 @@
     function excelIndir() { /* Excel Kodu */ alert("Excel indiriliyor..."); }
     function whatsappGonder() { /* WP Kodu */ window.open(`https://wa.me/?text=Vardiya Listesi Güncellendi!`); }
     function vardiyaSifirla() { if(confirm("Haftayı temizle?")) { const hKey = currentMonday.toISOString().split('T')[0]; Object.keys(state.manuelAtamalar).forEach(k => { if(k.startsWith(hKey)) delete state.manuelAtamalar[k]; }); save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); } }
-    
-    // --- TAM SIFIRLAMA (DÜZELTİLDİ) ---
-    async function tamSifirla() { 
-        if(confirm("DİKKAT: Veritabanındaki VE Tarayıcıdaki TÜM veriler silinecek. Emin misiniz?")) { 
-            await database.ref('vardiya_data').remove(); 
-            await database.ref('talepler').remove(); 
-            localStorage.clear(); 
-            location.reload(); 
-        } 
-    }
-    
+    async function tamSifirla() { if(confirm("DİKKAT: TÜM VERİ SİLİNECEK!")) { await database.ref('vardiya_data').remove(); await database.ref('talepler').remove(); localStorage.clear(); location.reload(); } }
     function jsonYedekAl() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "Yedek.json"); dl.click(); }
     async function githubdanYedekYukle() { const url = "https://raw.githubusercontent.com/ugurbakirtas/vardiya-sistemi/main/ilk_kurulum.json?t=" + new Date().getTime(); if (confirm("Sıfırlanacak. Onay?")) { try { const response = await fetch(url); if (!response.ok) throw new Error("Hata."); state = await response.json(); save(); alert("Yüklendi!"); location.reload(); } catch (error) { alert("Hata: " + error.message); } } }
     function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); }
@@ -595,36 +584,15 @@
     function drop(e, ns, ng) { if(!isAdmin) return; e.preventDefault(); const p = e.dataTransfer.getData("p"); const hKey = currentMonday.toISOString().split('T')[0]; cakismaKontrol(p, ng, ns); state.manuelAtamalar[`${hKey}_${p}_${ng}`] = ns === 'BOŞ' ? null : ns; save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); }
     function toggleTheme() { const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"; document.documentElement.setAttribute("data-theme", t); localStorage.setItem("theme", t); }
 
-    // --- SENKRONİZASYON ---
-    function anlikSenkronizasyonBaslat() {
-        database.ref().on('value', (snap) => {
-            if (snap.exists()) {
-                const data = snap.val();
-                
-                // Vardiya Verisi
-                if(data.vardiya_data) { 
-                    state = data.vardiya_data; 
-                    save(); 
-                    tabloyuOlustur(); 
-                    if(activeUser) renderPersonalDashboard(activeUser); 
-                }
-                
-                // Talepler
-                if(isAdmin && data.talepler) {
-                    talepleriRenderEt(data.talepler);
-                } else if(isAdmin) {
-                    document.getElementById('gelenTaleplerListesi').innerHTML = "<p style='text-align:center; opacity:0.5;'>Bekleyen talep yok.</p>";
-                }
-                
-                if(isAdmin) refreshUI();
-            } else {
-                // İlk kurulum
-                database.ref('vardiya_data').set(state);
-            }
+    window.onload = async () => { 
+        if(localStorage.getItem("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); 
+        await hassasAyarlariYukle(); 
+        // Veritabanını baştan dinle
+        database.ref('vardiya_data').once('value').then(snap => {
+            if(snap.exists()) { state = snap.val(); }
+            tabloyuOlustur(); 
         });
-    }
-
-    window.onload = async () => { if(localStorage.getItem("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); await hassasAyarlariYukle(); anlikSenkronizasyonBaslat(); };
+    };
   </script>
 </body>
 </html>
