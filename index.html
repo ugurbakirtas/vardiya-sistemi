@@ -24,7 +24,6 @@
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
     
-    /* GİRİŞ EKRANI */
     #loginOverlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
       background: var(--primary); z-index: 9999; 
@@ -45,7 +44,6 @@
     #personelSecimDiv { display: none; margin-top: 15px; animation: fadeIn 0.5s; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
-    /* HOŞGELDİN KARTI */
     .dashboard-container { display: none; margin-bottom: 20px; width: 100%; }
     .welcome-card {
         background: linear-gradient(135deg, var(--blue), var(--primary));
@@ -66,10 +64,8 @@
     }
 
     .app-wrapper { padding: 10px; display: none; } 
-    
     .main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; }
     
-    /* TABLO */
     .table-container { 
         background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); 
         overflow-x: auto; position: relative;
@@ -108,35 +104,23 @@
     .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
     .admin-only { display: none; } 
 
-    /* MOBİL ÖZEL AYARLAR */
     .mobile-day-tabs { display: none; }
     
     @media screen and (max-width: 768px) { 
         .side-panel { width: 100%; right: -100%; }
         .main-header { flex-direction: column; text-align: center; }
         .table-container { margin-top: 10px; }
-        
-        /* Tabloyu Blok Yapıya Çevir */
         table { display: block; min-width: 100%; }
-        thead { display: none; } 
-        tbody, tfoot { display: block; }
+        thead { display: none; } tbody, tfoot { display: block; }
         tr { display: block; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--card-bg); }
-        
         .saat-col { display: block; width: 100%; text-align: center; padding: 8px; background: var(--primary); color: white !important; font-size: 14px; border-left: none; background-clip: padding-box; }
         .row-izin .saat-col { background: var(--danger) !important; }
-        
         td { display: block; border: none; border-bottom: 1px solid var(--border); padding: 8px; min-height: 50px; height: auto; }
         td:last-child { border-bottom: none; }
-        
-        /* Mobil Sekmeler */
         .mobile-day-tabs { display: flex; gap: 5px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px; }
         .day-tab-btn { flex: 1; min-width: 50px; padding: 10px 5px; border: 1px solid var(--border); background: var(--card-bg); border-radius: 8px; font-weight: 700; font-size: 11px; color: var(--text); text-align: center; cursor: pointer; transition: 0.2s; }
         .day-tab-btn.active { background: var(--blue); color: white; border-color: var(--blue); transform: scale(1.05); }
-        
-        /* Gizleme Sınıfı - Mobilde kesin çalışmalı */
         .mobile-hidden-day { display: none !important; }
-        
-        /* Personel kartlarını yatay hizala mobilde */
         .birim-card { padding: 8px; }
     }  
   </style>
@@ -281,13 +265,32 @@
             document.getElementById('persTalepArea').style.display = 'block';
             setTimeout(() => { document.getElementById('talepPersonel').value = activeUser; }, 500);
         }
-        document.getElementById('loginOverlay').style.opacity = '0'; 
-        setTimeout(() => { 
-            document.getElementById('loginOverlay').style.display = 'none'; 
-            document.getElementById('appMain').style.display = 'block'; 
-            tabloyuOlustur();
-            if(!isAdmin && activeUser) renderPersonalDashboard(activeUser);
-        }, 500);
+        
+        // ZORUNLU GÜNCELLEME: Giriş yapılır yapılmaz buluttan veriyi çek ve ekrana bas
+        // Bu, mobilde verilerin görünmemesi sorununu çözer.
+        database.ref('vardiya_data').once('value').then(snap => {
+            if(snap.exists()) {
+                state = snap.val();
+                save();
+                tabloyuOlustur();
+                if(!isAdmin && activeUser) renderPersonalDashboard(activeUser);
+            }
+            document.getElementById('loginOverlay').style.opacity = '0'; 
+            setTimeout(() => { 
+                document.getElementById('loginOverlay').style.display = 'none'; 
+                document.getElementById('appMain').style.display = 'block'; 
+            }, 500);
+        }).catch(e => {
+            // Hata olsa bile aç (cache'den yükle)
+            console.log("Veri çekilemedi, cache kullanılıyor.", e);
+            document.getElementById('loginOverlay').style.opacity = '0'; 
+            setTimeout(() => { 
+                document.getElementById('loginOverlay').style.display = 'none'; 
+                document.getElementById('appMain').style.display = 'block'; 
+                tabloyuOlustur();
+                if(!isAdmin && activeUser) renderPersonalDashboard(activeUser);
+            }, 500);
+        });
     }
 
     function renderPersonalDashboard(userName) {
