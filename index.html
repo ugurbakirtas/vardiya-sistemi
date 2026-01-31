@@ -156,7 +156,7 @@
         <h2 style="margin:0 0 20px 0; color:var(--primary)">Sistem Girişi</h2>
         <button onclick="enterSystem('personel')" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button>
         <button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button>
-        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V63</p>
+        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V64</p>
     </div>
   </div>
 <div id="talepModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10001; display:none; align-items:center; justify-content:center;">
@@ -186,7 +186,7 @@
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;">
         <img src="logo.png" alt="Logo" style="height: 35px;">
-        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V63</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
+        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V64</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
       </div>
       <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;">
         <button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button>
@@ -406,14 +406,12 @@ function talepIslem(id, tip) {
         const hKey = currentMonday.toISOString().split('T')[0];
         document.getElementById("tarihAraligi").innerText = `${currentMonday.toLocaleDateString('tr-TR')} Haftası`;
         
-        // --- DEĞİŞİKLİK: BAŞLIKLARA TARİH EKLENDİ ---
         document.getElementById("tableHeader").innerHTML = `<tr><th style="width:100px;">SAAT</th>${GUNLER.map((g,i)=> {
             let d = new Date(currentMonday);
             d.setDate(d.getDate() + i);
             let dateStr = d.toLocaleDateString('tr-TR', {day: 'numeric', month: 'numeric'});
             return `<th class="${i>=5?'weekend-col':''}">${g} <br><span style="font-size:9px; opacity:0.8">${dateStr}</span></th>`;
         }).join('')}</tr>`;
-        // --- DEĞİŞİKLİK SONU ---
 
         let prog = {}; let calis = {};
         state.personeller.forEach(p => { 
@@ -493,16 +491,12 @@ function talepIslem(id, tip) {
 function vardiyaUretVeKaydet() {
     if(!isAdmin) return;
     const hKey = currentMonday.toISOString().split('T')[0];
-    
-    // Önceki hafta analizi için
     const prevMonday = new Date(currentMonday);
     prevMonday.setDate(prevMonday.getDate() - 7);
     const prevHKey = prevMonday.toISOString().split('T')[0];
-
     const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
-    let tempProg = {}; let calis = {};
     
-    // MCR ve INGEST döngü tanımları
+    let tempProg = {}; let calis = {};
     const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
     const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
     const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
@@ -521,7 +515,7 @@ function vardiyaUretVeKaydet() {
             }
         }
         
-        // MCR DÖNGÜSÜ
+        // MCR DÖNGÜSÜ (Düzeltildi: Negatif modulo hatası giderildi)
         if(p.birim.includes("MCR")) {
             const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
             for(let g=0; g<7; g++) {
@@ -529,14 +523,14 @@ function vardiyaUretVeKaydet() {
                     let d = new Date(currentMonday);
                     d.setDate(d.getDate() + g);
                     const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                    const donguIndex = (diffDays + persOfset) % 8; // MCR 8'li döngü
-                    const modIndex = donguIndex < 0 ? donguIndex + 8 : donguIndex;
+                    // Sağlam Modulo Formülü: ((x % n) + n) % n
+                    const modIndex = ((diffDays + persOfset) % 8 + 8) % 8;
                     tempProg[p.ad][g] = mcrDongu[modIndex];
                     if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
                 }
             }
         } 
-        // INGEST DÖNGÜSÜ (Kesin ayrıldı)
+        // INGEST DÖNGÜSÜ (Düzeltildi)
         else if(p.birim.includes("INGEST")) {
             const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
             for(let g=0; g<7; g++) {
@@ -544,49 +538,69 @@ function vardiyaUretVeKaydet() {
                     let d = new Date(currentMonday);
                     d.setDate(d.getDate() + g);
                     const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                    const donguIndex = (diffDays + persOfset) % 6; // Ingest 6'lı döngü
-                    const modIndex = donguIndex < 0 ? donguIndex + 6 : donguIndex;
+                    const modIndex = ((diffDays + persOfset) % 6 + 6) % 6;
                     tempProg[p.ad][g] = ingestDongu[modIndex];
                     if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
                 }
             }
         }
-        // STANDART PERSONEL (YÖNETMEN, SES, KJ vb.)
+        // STANDART PERSONEL
         else {
-            // Manuel izin günleri
-            if(p.izinGunleri) {
-                p.izinGunleri.forEach(gi => {
-                    if(tempProg[p.ad][gi] === null) tempProg[p.ad][gi] = "İZİNLİ";
-                });
+            if(p.izinGunleri && p.izinGunleri.length > 0) {
+                p.izinGunleri.forEach(gi => { if(tempProg[p.ad][gi] === null) tempProg[p.ad][gi] = "İZİNLİ"; });
             }
-
-            // Hafta İçi Sabitler
-            if (state.haftaIciSabitler[p.ad]) {
+            else if (state.haftaIciSabitler[p.ad]) {
                 const sabitSaat = state.haftaIciSabitler[p.ad];
-                for(let i=0; i<5; i++) {
-                    if(tempProg[p.ad][i] === null) { tempProg[p.ad][i] = sabitSaat; calis[p.ad]++; }
-                }
+                for(let i=0; i<5; i++) { if(tempProg[p.ad][i] === null) { tempProg[p.ad][i] = sabitSaat; calis[p.ad]++; } }
                 if(tempProg[p.ad][5] === null) tempProg[p.ad][5] = "İZİNLİ"; 
                 if(tempProg[p.ad][6] === null) tempProg[p.ad][6] = "İZİNLİ";
             }
-            // Normal Dağıtım (2 gün peş peşe izin mantığı)
-            else if (p.birim !== "TEKNİK YÖNETMEN") { // TEKNİK YÖNETMEN hariç kuralı korunuyor
-                 const pIndex = state.personeller.indexOf(p);
-                 // Herkesin izin gününü kaydırarak belirle (2 gün peş peşe)
-                 const offDay1 = (pIndex + weekOffset) % 7; 
-                 const offDay2 = (offDay1 + 1) % 7; 
+            // --- PLAYOUT VE KJ ÖZEL DAĞITIM (Pazartesi Yığılmasını Önle) ---
+            else if (["PLAYOUT OPERATÖRÜ", "KJ OPERATÖRÜ"].includes(p.birim)) {
+                 // Bu birimlerde personeli sıralı şekilde kaydırarak izin ver
+                 // Amaç: Pazartesi günü için yeterli eleman bırakmak.
+                 // İzin Dağıtım Mantığı: [Cmt, Paz], [Paz, Pzt], [Sal, Çar], [Çar, Per]...
+                 const pIndex = state.personeller.filter(x => x.birim === p.birim).indexOf(p);
+                 const shiftVal = (pIndex + weekOffset) % 4; // 4 farklı varyasyon yapalım
                  
-                 // İzinleri çak
-                 if(tempProg[p.ad][offDay1] === null) tempProg[p.ad][offDay1] = "İZİNLİ";
-                 if(tempProg[p.ad][offDay2] === null) tempProg[p.ad][offDay2] = "İZİNLİ";
+                 let offDays = [];
+                 if(shiftVal === 0) offDays = [5, 6]; // Cmt, Paz (Pazartesi çalışır)
+                 else if(shiftVal === 1) offDays = [6, 0]; // Paz, Pzt
+                 else if(shiftVal === 2) offDays = [1, 2]; // Sal, Çar (Pazartesi çalışır)
+                 else offDays = [2, 3]; // Çar, Per (Pazartesi çalışır)
+                 
+                 // İzinleri Ata
+                 offDays.forEach(d => { if(tempProg[p.ad][d] === null) tempProg[p.ad][d] = "İZİNLİ"; });
+            }
+            // DİĞER BİRİMLER (Klasik Peş Peşe)
+            else if (p.birim !== "TEKNİK YÖNETMEN") {
+                 const pIndex = state.personeller.indexOf(p);
+                 const startDay = (pIndex + weekOffset) % 7; 
+                 const nextDay = (startDay + 1) % 7; 
+                 if(tempProg[p.ad][startDay] === null) tempProg[p.ad][startDay] = "İZİNLİ";
+                 if(tempProg[p.ad][nextDay] === null) tempProg[p.ad][nextDay] = "İZİNLİ";
             }
         }
     });
 
-    // 2. ADIM: KAPASİTEYE GÖRE DOLDURMA (Geceler ve Gündüzler)
+    // 2. ADIM: İZİN DÖNÜŞÜ SABAH VARDİYASI KURALI
+    // İzinli olduğu günden sonraki ilk boş günü yakala ve sabah yaz (Gece yazılmasını engelle)
+    state.personeller.forEach(p => {
+        if(!p.birim.includes("MCR") && !p.birim.includes("INGEST")) {
+            for(let i=0; i<6; i++) { // Pazar hariç bak (Pazartesi zaten döngü başı)
+                if(tempProg[p.ad][i] === "İZİNLİ" && tempProg[p.ad][i+1] === null) {
+                     // İzin dönüşü sabah olsun
+                     tempProg[p.ad][i+1] = "09:00–18:00";
+                     calis[p.ad]++;
+                }
+            }
+        }
+    });
+
+    // 3. ADIM: KAPASİTEYE GÖRE DOLDURMA
     for (let gun = 0; gun < 7; gun++) {
         state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
-            // Gece Vardiyası (Öncelikli)
+            // Gece Vardiyası
             const geceSaati = "00:00–07:00";
             const hedefGece = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
             let atananGece = 0;
@@ -612,7 +626,6 @@ function vardiyaUretVeKaydet() {
                         let basic = p.birim === birim && tempProg[p.ad][gun] === null;
                         let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
                         
-                        // Pazartesi için önceki Pazar kontrolü
                         if (basic && gun === 0) {
                             let prevSundayKey = `${prevHKey}_${p.ad}_6`; 
                             let prevSundayShift = state.manuelAtamalar[prevSundayKey];
@@ -623,10 +636,9 @@ function vardiyaUretVeKaydet() {
                         return basic && !(dunGece && saat === "06:30–16:00");
                     });
                     
-                    adaylar.sort((a, b) => (calis[a.ad]) - (calis[b.ad])); // En az çalışana öncelik
+                    adaylar.sort((a, b) => (calis[a.ad]) - (calis[b.ad])); 
                     
                     for (let p of adaylar) {
-                        // 5 günden fazla atama yapma (şimdilik, sonra kontrol edeceğiz)
                         if (mevcut < hedef && calis[p.ad] < 6) { 
                             tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; 
                         }
@@ -636,25 +648,18 @@ function vardiyaUretVeKaydet() {
         });
     }
 
-    // 3. ADIM: ZORUNLU 5 GÜN TAMAMLAMA (EKSİK GÜNLERİ DOLDUR)
+    // 4. ADIM: ZORUNLU 5 GÜN TAMAMLAMA
     state.personeller.forEach(p => {
-        // MCR ve INGEST zaten döngüde olduğu için onlara dokunmuyoruz
         if(!p.birim.includes("MCR") && !p.birim.includes("INGEST")) {
             let workedDays = 0;
-            for(let i=0; i<7; i++) {
-                if(tempProg[p.ad][i] && !["İZİNLİ", "BOŞ"].includes(tempProg[p.ad][i])) workedDays++;
-            }
+            for(let i=0; i<7; i++) { if(tempProg[p.ad][i] && !["İZİNLİ", "BOŞ"].includes(tempProg[p.ad][i])) workedDays++; }
 
-            // Eğer 5 günden az çalışıyorsa, boş günlerine otomatik vardiya ekle
             let deneme = 0;
             while(workedDays < 5 && deneme < 7) {
-                // Boş olan ilk günü bul
                 for(let g=0; g<7; g++) {
                     if(tempProg[p.ad][g] === null) {
-                        // Çakışma kontrolü (Basit: Dün gececiyse sabah verme)
                         let dunGece = (g > 0 && tempProg[p.ad][g-1] === "00:00–07:00");
-                        let atanacakSaat = dunGece ? "16:00–00:00" : "09:00–18:00"; // Güvenli varsayılanlar
-                        
+                        let atanacakSaat = dunGece ? "16:00–00:00" : "09:00–18:00";
                         tempProg[p.ad][g] = atanacakSaat;
                         workedDays++;
                         if(workedDays >= 5) break;
@@ -662,17 +667,12 @@ function vardiyaUretVeKaydet() {
                 }
                 deneme++;
             }
-            
-            // Son olarak hala null kalan yerleri BOŞ yap (İzin değil, boşluk)
-            for(let g=0; g<7; g++) {
-                if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = "İZİNLİ"; // Kalan boşlukları da izin yap
-            }
+            for(let g=0; g<7; g++) { if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = "İZİNLİ"; }
         }
     });
 
-    // Kayıt
     state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-    save(); tabloyuOlustur(); alert("Vardiya oluşturuldu: MCR/Ingest ayrıldı, Peş peşe izinler ayarlandı, Herkes en az 5 gün çalışıyor.");
+    save(); tabloyuOlustur(); alert("Vardiya oluşturuldu: MCR Ofsetler Onarıldı, Playout/KJ İzinleri Dağıtıldı, İzin Dönüşü Sabah Ayarlandı.");
 }
 
     function excelIndir() {
