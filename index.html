@@ -357,10 +357,11 @@
         }
 
         // 3. ADIM: KALANLARI DÜZENLE (Min 5 Gün Tamamlama)
+        // ÖNCELİKLE HAFTA SONU 09:00 VARDİYASINI KONTROL ET
         state.personeller.forEach(p => {
             if(!p.birim.includes("MCR") && !p.birim.includes("INGEST") && !state.haftaIciSabitler[p.ad]) {
                 
-                // Kapasite dolduysa ve personel boştaysa tercih edilen günlerde izin ver
+                // KJ, SES, PLAYOUT İÇİN İZİN GÜNLERİNİ BOŞSA İŞLE (Tercih)
                 if(["KJ OPERATÖRÜ", "SES OPERATÖRÜ", "PLAYOUT OPERATÖRÜ"].includes(p.birim)) {
                     const pIndex = state.personeller.indexOf(p);
                     const blokMod = (pIndex + weekOffset) % 3;
@@ -373,8 +374,12 @@
                     if(tempProg[p.ad][off2] === null) tempProg[p.ad][off2] = "İZİNLİ";
                 }
 
-                // Hâlâ 5 günden az çalışıyorsa boş günlere ekle (Kapasite aşılsa bile min çalışma garantisi)
-                for(let g=0; g<7; g++) {
+                // 5 GÜNÜ DOLMAYANLARI DOLDUR
+                // ÖNCELİK HAFTA SONU (5: Cmt, 6: Paz)
+                // Sonra Hafta İçi
+                const gunSiralama = [5, 6, 0, 1, 2, 3, 4];
+                
+                gunSiralama.forEach(g => {
                     if(calis[p.ad] < 5 && tempProg[p.ad][g] === null) {
                          // Manuel izin kontrolü
                          let manuelIzinVar = p.izinGunleri && p.izinGunleri.includes(g);
@@ -385,7 +390,10 @@
                             tempProg[p.ad][g] = "İZİNLİ";
                          }
                     }
-                    // Boş kalan yerleri İZİNLİ yap
+                });
+
+                // Hala boş kalan yerleri İZİNLİ yap
+                for(let g=0; g<7; g++) {
                     if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = "İZİNLİ";
                 }
             }
@@ -406,32 +414,37 @@
                 // Uygun Adayları Bul
                 let adaylar = state.personeller.filter(p => {
                     let basic = p.birim === birim && tempProg[p.ad][gun] === null;
-                    // Manuel izin kontrolü
                     if (p.izinGunleri && p.izinGunleri.includes(gun)) return false;
-                    // Dinlenme kontrolü (Gece -> Sabah)
                     let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
                     return basic && !(dunGece && ["06:30–16:00", "09:00–18:00"].includes(saat));
                 });
 
-                // Adayları Puanla: 
-                // 1. Çalışma günü 5'ten az olanlar öne (Puan: +1000)
-                // 2. O gün tercih ettiği izin günü olanlar arkaya (Puan: -500)
-                // 3. Gece vardiyası ise Öncelik Puanı (Puan: +Oncelik)
+                // Adayları Puanla
                 adaylar.sort((a, b) => {
                     let puanA = 0; let puanB = 0;
                     
+                    // 1. Çalışma günü 5'ten az olanlar öne
                     if (calis[a.ad] < 5) puanA += 1000;
                     if (calis[b.ad] < 5) puanB += 1000;
                     
+                    // 2. KJ/SES/Playout için AKŞAM ÇIKIŞI ERTESİ GÜN İZİN KURALI
+                    // Eğer dün 16:00 çalıştıysa bugün çalışmak istemez (Puan düşür)
+                    // Ancak Kapasite Ön Koşul olduğu için listeden tamamen silinmez, sadece sona atılır.
+                    let dunAksamA = (gun > 0 && tempProg[a.ad][gun-1] === "16:00–00:00");
+                    let dunAksamB = (gun > 0 && tempProg[b.ad][gun-1] === "16:00–00:00");
+                    if (["KJ OPERATÖRÜ", "SES OPERATÖRÜ", "PLAYOUT OPERATÖRÜ"].includes(a.birim) && dunAksamA) puanA -= 2000;
+                    if (["KJ OPERATÖRÜ", "SES OPERATÖRÜ", "PLAYOUT OPERATÖRÜ"].includes(b.birim) && dunAksamB) puanB -= 2000;
+
+                    // 3. Tercih edilen izin günleri
                     if (tercihEdilenIzinler[a.ad] && tercihEdilenIzinler[a.ad].includes(gun)) puanA -= 500;
                     if (tercihEdilenIzinler[b.ad] && tercihEdilenIzinler[b.ad].includes(gun)) puanB -= 500;
                     
+                    // 4. Gece önceliği
                     if (saat === "00:00–07:00") {
                         puanA += (a.oncelik || 0);
                         puanB += (b.oncelik || 0);
                     }
                     
-                    // Eşitlik durumunda gün sayısı az olan, o da eşitse rastgele
                     return (puanB - puanA) || (calis[a.ad] - calis[b.ad]) || (Math.random() - 0.5);
                 });
 
