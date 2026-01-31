@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TURKMEDYA TEKNiK VARDiYA | V7.1 JSON Config</title>
+  <title>TURKMEDYA TEKNiK VARDiYA | V7.2 Final</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -47,7 +47,7 @@
     /* Tablo Yapısı */
     .table-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; position: relative; }
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
-    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); }
+    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
     .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; position: sticky; left: 0; z-index: 20; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
     .row-saat-0 { background-color: var(--saat1); } .row-saat-0 .saat-col { background-color: var(--saat1); }
@@ -77,22 +77,28 @@
     .tab-btn.active { background: var(--blue); color: white; }
     .izin-gun-pill { padding: 4px 8px; background: var(--bg); border-radius: 4px; margin: 2px; font-size: 10px; cursor: pointer; display: inline-block; font-weight: 800; border: 1px solid var(--border); color: var(--text); }
     .izin-gun-pill.active { background: var(--danger); color: white; border-color: var(--danger); }
+    .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
     .admin-only { display: none; } 
 
-    /* Mobil Sekmeler */
+    /* Mobil Sekmeler ve Özel Stil */
     .mobile-day-tabs { display: none; }
     
     @media screen and (max-width: 768px) { 
         .side-panel { width: 100%; right: -100%; }
         .main-header { flex-direction: column; text-align: center; }
         .table-container { margin-top: 10px; }
+        
         table { display: block; min-width: 100%; }
-        thead { display: none; } tbody, tfoot { display: block; }
+        thead { display: none; } 
+        tbody, tfoot { display: block; }
         tr { display: block; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--card-bg); }
+        
         .saat-col { display: block; width: 100%; text-align: center; padding: 8px; background: var(--primary); color: white !important; font-size: 14px; border-left: none; background-clip: padding-box; }
         .row-izin .saat-col { background: var(--danger) !important; }
+        
         td { display: block; border: none; border-bottom: 1px solid var(--border); padding: 8px; min-height: 50px; height: auto; }
         td:last-child { border-bottom: none; }
+        
         .mobile-day-tabs { display: flex; gap: 5px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px; }
         .day-tab-btn { flex: 1; min-width: 50px; padding: 10px 5px; border: 1px solid var(--border); background: var(--card-bg); border-radius: 8px; font-weight: 700; font-size: 11px; color: var(--text); text-align: center; cursor: pointer; transition: 0.2s; }
         .day-tab-btn.active { background: var(--blue); color: white; border-color: var(--blue); transform: scale(1.05); }
@@ -117,7 +123,7 @@
             <button onclick="enterSystem('personel')" class="login-btn" style="background:var(--success); color:white;">GİRİŞ YAP &raquo;</button>
             <button onclick="hidePersonelSelect()" style="background:none; border:none; color:var(--text); font-size:11px; cursor:pointer;">&laquo; Geri Dön</button>
         </div>
-        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V7.1</p>
+        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V7.2</p>
     </div>
   </div>
 
@@ -145,7 +151,7 @@
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;">
         <img src="logo.png" alt="Logo" style="height: 35px;">
-        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V7.1</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
+        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V7.2</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
       </div>
       <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;">
         <button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button>
@@ -191,10 +197,11 @@
         
         <div id="tab-personel" class="tab-content">
             <div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px; border:2px solid var(--blue);">
-                <h4 style="margin:0 0 5px 0; color:var(--primary);">⚡ PERSONEL DEĞİŞİMİ</h4>
+                <h4 style="margin:0 0 5px 0; color:var(--primary);">⚡ PERSONEL DEĞİŞİMİ / İZİN YÖNETİMİ</h4>
                 <select id="swapSource" style="width:100%; padding:8px; margin-bottom:5px; border-radius:6px; border:1px solid var(--border);"></select>
                 <div style="text-align:center; font-weight:bold; margin-bottom:5px; font-size:10px;">⬇️ YERİNE GEÇECEK (İZİNCİ KİŞİ) ⬇️</div>
                 <select id="swapTarget" style="width:100%; padding:8px; margin-bottom:5px; border-radius:6px; border:1px solid var(--border);"></select>
+                
                 <div style="margin:8px 0; font-size:10px; font-weight:bold;">HANGİ GÜNLER? (Seçilmezse Kalıcı Değişir)</div>
                 <div style="display:flex; justify-content:space-between; gap:2px;">
                     <label><input type="checkbox" class="swap-day-chk" value="0">Pzt</label>
@@ -220,13 +227,15 @@
   </div>
 
   <script>
-    // --- BÖLÜM 1: MERKEZİ KONFİGÜRASYON (JSON YAPISI) ---
+    // --- BÖLÜM 1: MERKEZİ KONFİGÜRASYON ---
     const CONFIG = {
         firebase: { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" },
         days: ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
         colors: { "TEKNİK YÖNETMEN": "#2563eb", "SES OPERATÖRÜ": "#7c3aed", "KJ OPERATÖRÜ": "#db2777", "PLAYOUT OPERATÖRÜ": "#059669", "REJİ": "#d97706", "24TV MCR OPERATÖRÜ": "#9333ea","360TV MCR OPERATÖRÜ": "#9333ea", "INGEST OPERATÖRÜ": "#06b6d4" },
-        localStoragePrefix: "",
-        telegram: { api: "", id: "" } 
+        telegram: { 
+            api: "BURAYA_TELEGRAM_BOT_TOKEN_YAPISTIR", 
+            id: "BURAYA_CHAT_ID_YAPISTIR" 
+        } 
     };
 
     firebase.initializeApp(CONFIG.firebase); const database = firebase.database();
@@ -237,7 +246,7 @@
     let activeUser = "";
     let currentMonday = getMonday(new Date());
 
-    // STATE (Veri Tabanı Yapısı)
+    // STATE
     let state = {
         birimler: JSON.parse(localStorage.getItem("birimler")) || Object.keys(CONFIG.colors),
         saatler: JSON.parse(localStorage.getItem("saatler")) || ["06:30–16:00", "09:00–18:00", "16:00–00:00", "00:00–07:00"],
@@ -249,7 +258,12 @@
     };
 
     // --- BÖLÜM 2: FONKSİYONLAR ---
-    async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const c = snap.val(); CONFIG.telegram.api = c.telegram_api; CONFIG.telegram.id = c.telegram_id; } } catch (e) {} }
+    async function hassasAyarlariYukle() { 
+        try { 
+            const snap = await database.ref('config').once('value'); 
+            if (snap.exists()) { const c = snap.val(); if(c.telegram_api) CONFIG.telegram.api = c.telegram_api; if(c.telegram_id) CONFIG.telegram.id = c.telegram_id; } 
+        } catch (e) {} 
+    }
 
     function showPersonelSelect() { document.getElementById('loginButtons').style.display = 'none'; document.getElementById('girisPersonelSec').innerHTML = `<option value="">İsminizi Seçiniz...</option>` + state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); document.getElementById('personelSecimDiv').style.display = 'block'; }
     function hidePersonelSelect() { document.getElementById('personelSecimDiv').style.display = 'none'; document.getElementById('loginButtons').style.display = 'block'; }
@@ -353,6 +367,7 @@
         const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
         let tempProg = {}; let calis = {};
         const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"]; 
+        // Ingest: 06:30, 06:30, 16:00, 16:00, İZİN, İZİN
         const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
 
@@ -428,6 +443,34 @@
         });
     }
 
+    function talepModalAc() { const sel = document.getElementById('talepPersonel'); sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); if(activeUser) sel.value = activeUser; document.getElementById('talepModal').style.display = 'flex'; }
+    function talepGonder() { 
+        const ad = document.getElementById('talepPersonel').value; 
+        const tarih = document.getElementById('talepTarih').value; 
+        const tur = document.getElementById('talepTuru').value; 
+        if(!tarih) { alert("Tarih seçin!"); return; } 
+        
+        if(!CONFIG.telegram.api || CONFIG.telegram.api.includes("BURAYA")) { alert("Telegram ayarları yapılmamış!"); return; }
+
+        const hKey = getMonday(new Date(tarih)).toISOString().split('T')[0]; 
+        const gunIdx = (new Date(tarih).getDay() + 6) % 7; 
+        const talepId = Date.now().toString(); 
+        
+        database.ref('talepler/' + talepId).set({ id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor" }); 
+        
+        fetch(`https://api.telegram.org/bot${CONFIG.telegram.api}/sendMessage`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ 
+                chat_id: CONFIG.telegram.id, 
+                text: `🔔 *TALEP*\n👤 ${ad}\n📅 ${tarih}\n📝 ${tur}`, 
+                parse_mode: 'Markdown', 
+                reply_markup: { inline_keyboard: [[{ text: "✅ ONAY", callback_data: `onay_${talepId}` }, { text: "❌ RED", callback_data: `red_${talepId}` }]] } 
+            }) 
+        }).then(r => r.ok ? alert("İletildi.") : alert("Hata oluştu."));
+        document.getElementById('talepModal').style.display = 'none'; 
+    }
+
     function refreshUI() {
         document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
         const swapSourceSel = document.getElementById("swapSource"); const swapTargetSel = document.getElementById("swapTarget");
@@ -438,17 +481,9 @@
             let mcrHtml = ""; 
             if(p.birim.includes("MCR")) { mcrHtml = `<div class="mcr-ayarlar"><span>Döngü Ofseti (0-7): </span><input type="number" min="0" max="7" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`; } 
             else if(p.birim.includes("INGEST")) { mcrHtml = `<div class="mcr-ayarlar"><span>Döngü Ofseti (0-5): </span><input type="number" min="0" max="5" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`; }
-            
             let birimSecimHtml = `<select onchange="birimGuncelle('${p.ad}', this.value)" style="margin-left:5px; padding:2px; font-size:10px; border-radius:4px;">`;
             state.birimler.forEach(b => { birimSecimHtml += `<option value="${b}" ${p.birim === b ? 'selected' : ''}>${b}</option>`; }); birimSecimHtml += `</select>`;
-
-            return `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span><strong>${p.ad}</strong> ${birimSecimHtml}</span>
-                    <div><input type="number" placeholder="Öncelik" value="${p.oncelik||0}" onchange="oncelikGuncelle('${p.ad}', this.value)" style="width:50px; margin-right:5px; border:1px solid var(--border); padding:3px;" title="Öncelik Puanı"><button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button></div>
-                </div>
-                <div style="margin-top:5px;">${CONFIG.days.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div>${mcrHtml}
-            </div>`;
+            return `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;"><div style="display:flex; justify-content:space-between; align-items:center;"><span><strong>${p.ad}</strong> ${birimSecimHtml}</span><div><input type="number" placeholder="Öncelik" value="${p.oncelik||0}" onchange="oncelikGuncelle('${p.ad}', this.value)" style="width:50px; margin-right:5px; border:1px solid var(--border); padding:3px;" title="Öncelik Puanı"><button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button></div></div><div style="margin-top:5px;">${CONFIG.days.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div>${mcrHtml}</div>`;
         }).join('');
         
         let capHtml = ""; state.birimler.forEach(b => { capHtml += `<div style="margin-bottom:15px; background:var(--bg); padding:10px; border-radius:8px;"><strong>${b}</strong>`; state.saatler.forEach(s => { const v = state.kapasite[`${b}_${s}`] || [0,0,0,0,0,0,0]; capHtml += `<div style="font-size:9px; margin-top:5px;">${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">${CONFIG.days.map((g, gi) => `<input type="number" value="${v[gi]}" style="width:100%; text-align:center;" onchange="capUp('${b}_${s}',${gi},this.value)">`).join('')}</div>`; }); capHtml += `</div>`; });
@@ -484,16 +519,12 @@
         }
     }
 
-    // Diğer Araçlar
     function birimEkle() { const b = document.getElementById('yeniBirimInput').value.toUpperCase(); if(b && !state.birimler.includes(b)) { state.birimler.push(b); document.getElementById('yeniBirimInput').value = ""; save(); refreshUI(); } }
     function birimSil(idx) { if(confirm("Birimi silmek istediğine emin misin?")) { state.birimler.splice(idx, 1); save(); refreshUI(); } }
     function saatEkle() { const s = document.getElementById('yeniSaatInput').value; if(s && !state.saatler.includes(s)) { state.saatler.push(s); document.getElementById('yeniSaatInput').value = ""; save(); refreshUI(); } }
     function saatSil(idx) { if(confirm("Saati silmek istediğine emin misin?")) { state.saatler.splice(idx, 1); save(); refreshUI(); } }
-    function talepModalAc() { const sel = document.getElementById('talepPersonel'); sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); if(activeUser) sel.value = activeUser; document.getElementById('talepModal').style.display = 'flex'; }
-    function talepGonder() { const ad = document.getElementById('talepPersonel').value; const tarih = document.getElementById('talepTarih').value; const tur = document.getElementById('talepTuru').value; if(!tarih) { alert("Tarih seçin!"); return; } const hKey = getMonday(new Date(tarih)).toISOString().split('T')[0]; const gunIdx = (new Date(tarih).getDay() + 6) % 7; const talepId = Date.now().toString(); database.ref('talepler/' + talepId).set({ id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor" }); if(CONFIG.telegram.api) { fetch(`https://api.telegram.org/bot${CONFIG.telegram.api}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: CONFIG.telegram.id, text: `🔔 *TALEP*\n👤 ${ad}\n📅 ${tarih}\n📝 ${tur}`, parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "✅ ONAY", callback_data: `onay_${talepId}` }, { text: "❌ RED", callback_data: `red_${talepId}` }]] } }) }); } alert("İletildi."); document.getElementById('talepModal').style.display = 'none'; }
-    function talepleriYukle() { database.ref('talepler').orderByChild('durum').equalTo('bekliyor').on('value', snap => { const liste = document.getElementById('gelenTaleplerListesi'); if(!snap.exists()) { liste.innerHTML = "<p style='text-align:center; opacity:0.5;'>Talep yok.</p>"; return; } let html = ""; snap.forEach(item => { const t = item.val(); html += `<div style="background:var(--card-bg); border:1px solid var(--border); border-left:5px solid var(--warning); padding:12px; margin-bottom:10px;"><b>${t.ad}</b><br><small>${t.tarih} - ${t.tur}</small><div style="display:flex; gap:5px; margin-top:5px;"><button onclick="talepIslem('${t.id}', 'onay')" style="flex:1; background:var(--success); color:white; border:none; padding:5px;">ONAY</button><button onclick="talepIslem('${t.id}', 'red')" style="flex:1; background:var(--danger); color:white; border:none; padding:5px;">RED</button></div></div>`; }); liste.innerHTML = html; }); }
-    function talepIslem(id, tip) { database.ref('talepler/' + id).once('value', snap => { const t = snap.val(); if(tip === 'onay') { state.manuelAtamalar[`${t.hKey}_${t.ad}_${t.gunIdx}`] = t.tur; save(); tabloyuOlustur(); database.ref('talepler/' + id).update({ durum: 'onaylandi' }); } else { database.ref('talepler/' + id).update({ durum: 'reddedildi' }); } }); }
     function birimGuncelle(ad, yeniBirim) { const p = state.personeller.find(x => x.ad === ad); if (p) { p.birim = yeniBirim; save(); refreshUI(); tabloyuOlustur(); } }
+    function oncelikGuncelle(ad, val) { const p = state.personeller.find(x=>x.ad===ad); if(p){ p.oncelik = parseInt(val); save(); } }
     function mcrOfsetGuncelle(ad, val) { if(!state.mcrAyarlari.ofsetler) state.mcrAyarlari.ofsetler = {}; state.mcrAyarlari.ofsetler[ad] = parseInt(val); save(); }
     function capUp(k, g, v) { if(!state.kapasite[k]) state.kapasite[k] = [0,0,0,0,0,0,0]; state.kapasite[k][g] = parseInt(v) || 0; save(); }
     function izinGunuTetikle(pi, gi) { if(!state.personeller[pi].izinGunleri) state.personeller[pi].izinGunleri = []; const idx = state.personeller[pi].izinGunleri.indexOf(gi); if(idx > -1) state.personeller[pi].izinGunleri.splice(idx, 1); else state.personeller[pi].izinGunleri.push(gi); save(); refreshUI(); }
