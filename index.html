@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TURKMEDYA TEKNiK VARDiYA | V7.3 Final</title>
+  <title>TURKMEDYA TEKNiK VARDiYA | V7.4 Stable</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   
   <style>
-    /* --- CSS AYARLARI --- */
+    /* --- TASARIM VE GÖRÜNÜM AYARLARI --- */
     :root {
       --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
       --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
@@ -26,41 +26,35 @@
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
     
-    /* Giriş & Modal */
+    /* GİRİŞ VE MODAL */
     #loginOverlay, #panelOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
     #loginOverlay { background: var(--primary); } #panelOverlay { background: rgba(0,0,0,0.5); z-index:999; display:none; }
     .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
     .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 14px; }
     .btn-user { background: var(--blue); color: white; } .btn-admin { background: #475569; color: white; }
     
-    /* LOGO DÜZELTME */
-    .login-logo { 
-        max-height: 80px;       /* Maksimum yükseklik */
-        width: auto;            /* Orantıyı koru */
-        max-width: 200px;       /* Genişlik sınırı */
-        margin-bottom: 20px; 
-        display: block;         /* Ortalamak için */
-        margin-left: auto;
-        margin-right: auto;
-    }
+    /* Logo Boyutlandırma */
+    .login-logo { max-height: 80px; width: auto; max-width: 200px; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto; }
 
     #personelSecimDiv { display: none; margin-top: 15px; animation: fadeIn 0.5s; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
-    /* Dashboard & Header */
+    /* DASHBOARD */
     .dashboard-container { display: none; margin-bottom: 20px; width: 100%; }
     .welcome-card { background: linear-gradient(135deg, var(--blue), var(--primary)); color: white; padding: 20px; border-radius: 16px; box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4); text-align: center; width: 100%; box-sizing: border-box; }
     .welcome-card h1 { margin: 10px 0; font-size: 24px; font-weight: 800; }
     .status-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-weight: 700; font-size: 12px; }
     .next-shift-info { margin-top: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-size: 11px; display: flex; justify-content: space-around; }
+
     .app-wrapper { padding: 10px; display: none; } 
     .main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; }
 
-    /* Tablo Yapısı */
+    /* TABLO */
     .table-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; position: relative; }
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
-    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); }
+    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
+    
     .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; position: sticky; left: 0; z-index: 20; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
     .row-saat-0 { background-color: var(--saat1); } .row-saat-0 .saat-col { background-color: var(--saat1); }
     .row-saat-1 { background-color: var(--saat2); } .row-saat-1 .saat-col { background-color: var(--saat2); }
@@ -70,14 +64,14 @@
     .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); background-color: var(--izin-bg) !important; }
     .weekend-col { background-color: var(--weekend-bg) !important; }
     
-    /* Kartlar */
     .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: all 0.3s ease; }
     .birim-card.dimmed { opacity: 0.15; filter: grayscale(100%); }
     .birim-card.highlighted { opacity: 1; transform: scale(1.05); z-index: 50; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); border-color: var(--primary) !important; }
+    .birim-ayirici { border-top: 5px solid #1e293b !important; margin-top: 8px !important; padding-top: 8px !important; }
     .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
     .pers-name { font-size: 10px; font-weight: 700; display: block; }
     
-    /* Panel */
+    /* YÖNETİM PANELİ */
     .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: var(--card-bg); z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); }
     .side-panel.open { right: 0; }
     .panel-header { padding: 15px; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; }
@@ -92,7 +86,7 @@
     .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
     .admin-only { display: none; } 
 
-    /* Mobil Sekmeler ve Özel Stil */
+    /* MOBİL GÖRÜNÜM */
     .mobile-day-tabs { display: none; }
     
     @media screen and (max-width: 768px) { 
@@ -130,7 +124,7 @@
             <button onclick="enterSystem('personel')" class="login-btn" style="background:var(--success); color:white;">GİRİŞ YAP &raquo;</button>
             <button onclick="hidePersonelSelect()" style="background:none; border:none; color:var(--text); font-size:11px; cursor:pointer;">&laquo; Geri Dön</button>
         </div>
-        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V7.3</p>
+        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V7.4</p>
     </div>
   </div>
 
@@ -158,7 +152,7 @@
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;">
         <img src="logo.png" alt="Logo" style="height: 35px;">
-        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V7.3</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
+        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V7.4</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
       </div>
       <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;">
         <button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button>
@@ -247,13 +241,11 @@
 
     firebase.initializeApp(CONFIG.firebase); const database = firebase.database();
     
-    // Değişkenler
     let isAdmin = false;
     let aktifMobilGun = (new Date().getDay() + 6) % 7; 
     let activeUser = "";
     let currentMonday = getMonday(new Date());
 
-    // STATE
     let state = {
         birimler: JSON.parse(localStorage.getItem("birimler")) || Object.keys(CONFIG.colors),
         saatler: JSON.parse(localStorage.getItem("saatler")) || ["06:30–16:00", "09:00–18:00", "16:00–00:00", "00:00–07:00"],
@@ -265,12 +257,7 @@
     };
 
     // --- BÖLÜM 2: FONKSİYONLAR ---
-    async function hassasAyarlariYukle() { 
-        try { 
-            const snap = await database.ref('config').once('value'); 
-            if (snap.exists()) { const c = snap.val(); if(c.telegram_api) CONFIG.telegram.api = c.telegram_api; if(c.telegram_id) CONFIG.telegram.id = c.telegram_id; } 
-        } catch (e) {} 
-    }
+    async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const c = snap.val(); if(c.telegram_api) CONFIG.telegram.api = c.telegram_api; if(c.telegram_id) CONFIG.telegram.id = c.telegram_id; } } catch (e) {} }
 
     function showPersonelSelect() { document.getElementById('loginButtons').style.display = 'none'; document.getElementById('girisPersonelSec').innerHTML = `<option value="">İsminizi Seçiniz...</option>` + state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); document.getElementById('personelSecimDiv').style.display = 'block'; }
     function hidePersonelSelect() { document.getElementById('personelSecimDiv').style.display = 'none'; document.getElementById('loginButtons').style.display = 'block'; }
@@ -368,8 +355,17 @@
         if(activeUser) highlightPerson(activeUser);
     }
 
-    function vardiyaUretVeKaydet() {
+    // --- VARDİYA ÜRETİMİ ---
+    async function vardiyaUretVeKaydet() {
         if(!isAdmin) return;
+        if(!confirm("Vardiya oluşturulsun mu? Onaylı izinler korunacak.")) return;
+
+        // ÖNCE GÜNCEL VERİYİ ÇEK (Çakışmayı Önle)
+        try {
+            const snap = await database.ref('vardiya_data').once('value');
+            if (snap.exists()) { state = snap.val(); save(); console.log("Veri senkronize edildi."); }
+        } catch (e) { alert("Veri çekilemedi!"); return; }
+
         const hKey = currentMonday.toISOString().split('T')[0];
         const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
         let tempProg = {}; let calis = {};
@@ -419,7 +415,9 @@
         });
 
         state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu.");
+        save(); tabloyuOlustur(); 
+        database.ref('vardiya_data').set(state); // Firebase güncelle
+        alert("Vardiya oluşturuldu.");
     }
 
     function kapasiteDoldur(gun, saat, tempProg, calis, tercihEdilenIzinler) {
@@ -447,34 +445,6 @@
                 for (let p of adaylar) { if (mevcut < hedef) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; } }
             }
         });
-    }
-
-    function talepModalAc() { const sel = document.getElementById('talepPersonel'); sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); if(activeUser) sel.value = activeUser; document.getElementById('talepModal').style.display = 'flex'; }
-    function talepGonder() { 
-        const ad = document.getElementById('talepPersonel').value; 
-        const tarih = document.getElementById('talepTarih').value; 
-        const tur = document.getElementById('talepTuru').value; 
-        if(!tarih) { alert("Tarih seçin!"); return; } 
-        
-        if(!CONFIG.telegram.api || CONFIG.telegram.api.includes("BURAYA")) { alert("Telegram ayarları yapılmamış!"); return; }
-
-        const hKey = getMonday(new Date(tarih)).toISOString().split('T')[0]; 
-        const gunIdx = (new Date(tarih).getDay() + 6) % 7; 
-        const talepId = Date.now().toString(); 
-        
-        database.ref('talepler/' + talepId).set({ id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor" }); 
-        
-        fetch(`https://api.telegram.org/bot${CONFIG.telegram.api}/sendMessage`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ 
-                chat_id: CONFIG.telegram.id, 
-                text: `🔔 *TALEP*\n👤 ${ad}\n📅 ${tarih}\n📝 ${tur}`, 
-                parse_mode: 'Markdown', 
-                reply_markup: { inline_keyboard: [[{ text: "✅ ONAY", callback_data: `onay_${talepId}` }, { text: "❌ RED", callback_data: `red_${talepId}` }]] } 
-            }) 
-        }).then(r => r.ok ? alert("İletildi.") : alert("Hata oluştu."));
-        document.getElementById('talepModal').style.display = 'none'; 
     }
 
     function refreshUI() {
