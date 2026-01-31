@@ -24,6 +24,7 @@
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
     
+    /* GİRİŞ EKRANI */
     #loginOverlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
       background: var(--primary); z-index: 9999; 
@@ -41,28 +42,23 @@
     .btn-user { background: var(--blue); color: white; }
     .btn-admin { background: #475569; color: white; }
     .login-logo { height: 60px; margin-bottom: 20px; }
-
-    /* Yeni Personel Seçim Ekranı */
     #personelSecimDiv { display: none; margin-top: 15px; animation: fadeIn 0.5s; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
-    /* KİŞİSEL ÖZET KARTI (DASHBOARD) */
-    .dashboard-container {
-        display: none; /* JS ile açılır */
-        margin-bottom: 20px;
-    }
+    /* HOŞGELDİN KARTI */
+    .dashboard-container { display: none; margin-bottom: 20px; width: 100%; }
     .welcome-card {
         background: linear-gradient(135deg, var(--blue), var(--primary));
         color: white; padding: 20px; border-radius: 16px;
         box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
         display: flex; flex-direction: column; align-items: center; text-align: center;
-        position: relative; overflow: hidden;
+        position: relative; overflow: hidden; width: 100%; box-sizing: border-box;
     }
-    .welcome-card h2 { margin: 0; font-size: 18px; font-weight: 400; opacity: 0.9; }
-    .welcome-card h1 { margin: 10px 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+    .welcome-card h2 { margin: 0; font-size: 16px; font-weight: 400; opacity: 0.9; }
+    .welcome-card h1 { margin: 10px 0; font-size: 24px; font-weight: 800; }
     .welcome-card .status-badge {
         background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px;
-        font-weight: 700; font-size: 12px; margin-top: 5px; backdrop-filter: blur(5px);
+        font-weight: 700; font-size: 12px; margin-top: 5px;
     }
     .next-shift-info {
         margin-top: 15px; background: rgba(0,0,0,0.2); width: 100%; padding: 10px;
@@ -73,13 +69,13 @@
     
     .main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; }
     
-    /* TABLO VE MOBİL UYUMLULUK */
+    /* TABLO */
     .table-container { 
         background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); 
-        overflow-x: auto; -webkit-overflow-scrolling: touch; position: relative;
+        overflow-x: auto; position: relative;
     }
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
-    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); }
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
     
     .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; position: sticky; left: 0; z-index: 20; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
@@ -112,24 +108,36 @@
     .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
     .admin-only { display: none; } 
 
+    /* MOBİL ÖZEL AYARLAR */
     .mobile-day-tabs { display: none; }
     
     @media screen and (max-width: 768px) { 
         .side-panel { width: 100%; right: -100%; }
         .main-header { flex-direction: column; text-align: center; }
         .table-container { margin-top: 10px; }
+        
+        /* Tabloyu Blok Yapıya Çevir */
         table { display: block; min-width: 100%; }
-        thead { display: none; } tbody, tfoot { display: block; }
-        tr { display: block; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        thead { display: none; } 
+        tbody, tfoot { display: block; }
+        tr { display: block; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--card-bg); }
+        
         .saat-col { display: block; width: 100%; text-align: center; padding: 8px; background: var(--primary); color: white !important; font-size: 14px; border-left: none; background-clip: padding-box; }
         .row-izin .saat-col { background: var(--danger) !important; }
-        td { display: block; border: none; border-bottom: 1px solid var(--border); padding: 8px; min-height: 60px; height: auto; }
+        
+        td { display: block; border: none; border-bottom: 1px solid var(--border); padding: 8px; min-height: 50px; height: auto; }
         td:last-child { border-bottom: none; }
-        .mobile-day-tabs { display: flex; gap: 5px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px; -webkit-overflow-scrolling: touch; }
+        
+        /* Mobil Sekmeler */
+        .mobile-day-tabs { display: flex; gap: 5px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px; }
         .day-tab-btn { flex: 1; min-width: 50px; padding: 10px 5px; border: 1px solid var(--border); background: var(--card-bg); border-radius: 8px; font-weight: 700; font-size: 11px; color: var(--text); text-align: center; cursor: pointer; transition: 0.2s; }
         .day-tab-btn.active { background: var(--blue); color: white; border-color: var(--blue); transform: scale(1.05); }
+        
+        /* Gizleme Sınıfı - Mobilde kesin çalışmalı */
         .mobile-hidden-day { display: none !important; }
-        .table-container::after { content: 'Kaydır »'; position: absolute; right: 0; top: 50%; background: rgba(0,0,0,0.1); padding: 5px; writing-mode: vertical-rl; pointer-events: none; opacity: 0.5; font-size: 10px; }
+        
+        /* Personel kartlarını yatay hizala mobilde */
+        .birim-card { padding: 8px; }
     }  
   </style>
 </head>
@@ -241,7 +249,7 @@
 
     let isAdmin = false;
     let aktifMobilGun = (new Date().getDay() + 6) % 7; 
-    let activeUser = ""; // Giriş yapan personelin adı
+    let activeUser = "";
 
     let state = {
         birimler: JSON.parse(localStorage.getItem(PREFIX + "birimler")) || ["TEKNİK YÖNETMEN", "SES OPERATÖRÜ", "KJ OPERATÖRÜ", "PLAYOUT OPERATÖRÜ", "24TV MCR OPERATÖRÜ","360TV MCR OPERATÖRÜ", "INGEST OPERATÖRÜ"],
@@ -257,18 +265,8 @@
 
     async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); TELEGRAM_API = config.telegram_api; TELEGRAM_ID = config.telegram_id; console.log("Ayarlar yüklendi."); } } catch (e) {} }
 
-    // --- GİRİŞ SİSTEMİ (GÜNCELLENDİ) ---
-    function showPersonelSelect() {
-        document.getElementById('loginButtons').style.display = 'none';
-        const sel = document.getElementById('girisPersonelSec');
-        sel.innerHTML = `<option value="">İsminizi Seçiniz...</option>` + state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join('');
-        document.getElementById('personelSecimDiv').style.display = 'block';
-    }
-    
-    function hidePersonelSelect() {
-        document.getElementById('personelSecimDiv').style.display = 'none';
-        document.getElementById('loginButtons').style.display = 'block';
-    }
+    function showPersonelSelect() { document.getElementById('loginButtons').style.display = 'none'; const sel = document.getElementById('girisPersonelSec'); sel.innerHTML = `<option value="">İsminizi Seçiniz...</option>` + state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); document.getElementById('personelSecimDiv').style.display = 'block'; }
+    function hidePersonelSelect() { document.getElementById('personelSecimDiv').style.display = 'none'; document.getElementById('loginButtons').style.display = 'block'; }
 
     async function enterSystem(role) {
         if (role === 'admin') {
@@ -276,41 +274,32 @@
             if (!email || !password) return;
             try { await firebase.auth().signInWithEmailAndPassword(email, password); isAdmin = true; await hassasAyarlariYukle(); document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); document.getElementById('persTalepArea').style.display = 'none'; alert("Giriş başarılı!"); } catch (e) { alert("Hata: " + e.message); return; }
         } else {
-            // PERSONEL GİRİŞİ
             const selectedName = document.getElementById('girisPersonelSec').value;
             if(!selectedName) { alert("Lütfen isminizi seçin."); return; }
-            
-            isAdmin = false;
-            activeUser = selectedName; // Aktif kullanıcıyı kaydet
-            
+            isAdmin = false; activeUser = selectedName;
             document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
             document.getElementById('persTalepArea').style.display = 'block';
-            
-            // Talep modalındaki ismi otomatik seç
-            setTimeout(() => { document.getElementById('talepPersonel').value = activeUser; }, 1000);
+            setTimeout(() => { document.getElementById('talepPersonel').value = activeUser; }, 500);
         }
         document.getElementById('loginOverlay').style.opacity = '0'; 
         setTimeout(() => { 
             document.getElementById('loginOverlay').style.display = 'none'; 
             document.getElementById('appMain').style.display = 'block'; 
             tabloyuOlustur();
-            if(!isAdmin) renderPersonalDashboard(activeUser); // Hoşgeldin kartını göster
+            if(!isAdmin && activeUser) renderPersonalDashboard(activeUser);
         }, 500);
     }
 
-    // --- KİŞİSEL DASHBOARD (YENİ) ---
     function renderPersonalDashboard(userName) {
         const hKey = currentMonday.toISOString().split('T')[0];
         const bugunIdx = (new Date().getDay() + 6) % 7;
         const yarinIdx = (bugunIdx + 1) % 7;
-        
         let bugunVardiya = state.manuelAtamalar[`${hKey}_${userName}_${bugunIdx}`] || "İZİNLİ";
         let yarinVardiya = state.manuelAtamalar[`${hKey}_${userName}_${yarinIdx}`] || "İZİNLİ";
         
         const container = document.getElementById('personalDashboard');
         container.style.display = 'block';
         
-        // Kart Rengi Vardiyaya Göre Değişsin
         let bg = "linear-gradient(135deg, var(--blue), var(--primary))";
         if(bugunVardiya === "İZİNLİ") bg = "linear-gradient(135deg, var(--success), #15803d)";
         if(bugunVardiya === "00:00–07:00") bg = "linear-gradient(135deg, #4f46e5, #312e81)";
@@ -324,20 +313,11 @@
                     <span>📅 <strong>YARIN:</strong> ${yarinVardiya}</span>
                     <span>📍 <strong>BİRİM:</strong> ${state.personeller.find(p=>p.ad===userName)?.birim || '-'}</span>
                 </div>
-            </div>
-        `;
-        
-        // Tabloda da otomatik highlight yap
+            </div>`;
         highlightPerson(userName);
     }
 
-    function talepModalAc() { 
-        const sel = document.getElementById('talepPersonel'); 
-        sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); 
-        if(activeUser) sel.value = activeUser; // Otomatik seç
-        document.getElementById('talepModal').style.display = 'flex'; 
-    }
-    
+    function talepModalAc() { const sel = document.getElementById('talepPersonel'); sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); if(activeUser) sel.value = activeUser; document.getElementById('talepModal').style.display = 'flex'; }
     function talepGonder() {
         const ad = document.getElementById('talepPersonel').value; const tarih = document.getElementById('talepTarih').value; const tur = document.getElementById('talepTuru').value;
         if(!tarih) { alert("Tarih seçin!"); return; }
@@ -346,53 +326,25 @@
         if(TELEGRAM_API) { fetch(`https://api.telegram.org/bot${TELEGRAM_API}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: TELEGRAM_ID, text: `🔔 *TALEP*\n👤 ${ad}\n📅 ${tarih}\n📝 ${tur}`, parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "✅ ONAY", callback_data: `onay_${talepId}` }, { text: "❌ RED", callback_data: `red_${talepId}` }]] } }) }); }
         alert("İletildi."); document.getElementById('talepModal').style.display = 'none';
     }
-    function talepleriYukle() {
-        database.ref('talepler').orderByChild('durum').equalTo('bekliyor').on('value', snap => {
-            const liste = document.getElementById('gelenTaleplerListesi'); if(!snap.exists()) { liste.innerHTML = "<p style='text-align:center; opacity:0.5;'>Talep yok.</p>"; return; }
-            let html = ""; snap.forEach(item => { const t = item.val(); html += `<div style="background:var(--card-bg); border:1px solid var(--border); border-left:5px solid var(--warning); padding:12px; margin-bottom:10px;"><b>${t.ad}</b><br><small>${t.tarih} - ${t.tur}</small><div style="display:flex; gap:5px; margin-top:5px;"><button onclick="talepIslem('${t.id}', 'onay')" style="flex:1; background:var(--success); color:white; border:none; padding:5px;">ONAY</button><button onclick="talepIslem('${t.id}', 'red')" style="flex:1; background:var(--danger); color:white; border:none; padding:5px;">RED</button></div></div>`; }); liste.innerHTML = html;
-        });
-    }
-    function talepIslem(id, tip) {
-        database.ref('talepler/' + id).once('value', snap => { const t = snap.val();
-            if(tip === 'onay') { state.manuelAtamalar[`${t.hKey}_${t.ad}_${t.gunIdx}`] = t.tur; save(); tabloyuOlustur(); database.ref('talepler/' + id).update({ durum: 'onaylandi' }); } else { database.ref('talepler/' + id).update({ durum: 'reddedildi' }); }
-        });
-    }
+    function talepleriYukle() { database.ref('talepler').orderByChild('durum').equalTo('bekliyor').on('value', snap => { const liste = document.getElementById('gelenTaleplerListesi'); if(!snap.exists()) { liste.innerHTML = "<p style='text-align:center; opacity:0.5;'>Talep yok.</p>"; return; } let html = ""; snap.forEach(item => { const t = item.val(); html += `<div style="background:var(--card-bg); border:1px solid var(--border); border-left:5px solid var(--warning); padding:12px; margin-bottom:10px;"><b>${t.ad}</b><br><small>${t.tarih} - ${t.tur}</small><div style="display:flex; gap:5px; margin-top:5px;"><button onclick="talepIslem('${t.id}', 'onay')" style="flex:1; background:var(--success); color:white; border:none; padding:5px;">ONAY</button><button onclick="talepIslem('${t.id}', 'red')" style="flex:1; background:var(--danger); color:white; border:none; padding:5px;">RED</button></div></div>`; }); liste.innerHTML = html; }); }
+    function talepIslem(id, tip) { database.ref('talepler/' + id).once('value', snap => { const t = snap.val(); if(tip === 'onay') { state.manuelAtamalar[`${t.hKey}_${t.ad}_${t.gunIdx}`] = t.tur; save(); tabloyuOlustur(); database.ref('talepler/' + id).update({ durum: 'onaylandi' }); } else { database.ref('talepler/' + id).update({ durum: 'reddedildi' }); } }); }
 
     function highlightPerson(name) {
         const cleanName = name.split(' (')[0].trim();
-        if (activeHighlight === cleanName && !activeUser) { 
-            // Sadece admin ise toggle yap, personel girişinde hep highlight kalsın
-            document.querySelectorAll('.birim-card').forEach(el => el.classList.remove('dimmed', 'highlighted')); activeHighlight = null; 
-        }
-        else { 
-            activeHighlight = cleanName; 
-            document.querySelectorAll('.birim-card').forEach(el => { 
-                const n = el.querySelector('.pers-name'); if(!n) return; 
-                if (n.innerText.split(' (')[0].trim() === cleanName) { el.classList.remove('dimmed'); el.classList.add('highlighted'); } 
-                else { el.classList.remove('highlighted'); el.classList.add('dimmed'); } 
-            }); 
-        }
+        if (activeHighlight === cleanName && !activeUser) { document.querySelectorAll('.birim-card').forEach(el => el.classList.remove('dimmed', 'highlighted')); activeHighlight = null; }
+        else { activeHighlight = cleanName; document.querySelectorAll('.birim-card').forEach(el => { const n = el.querySelector('.pers-name'); if(!n) return; if (n.innerText.split(' (')[0].trim() === cleanName) { el.classList.remove('dimmed'); el.classList.add('highlighted'); } else { el.classList.remove('highlighted'); el.classList.add('dimmed'); } }); }
     }
 
     function getMonday(d) { d = new Date(d); let day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day == 0 ? -6 : 1))); }
     function save() { Object.keys(state).forEach(k => localStorage.setItem(PREFIX + k, JSON.stringify(state[k]))); }
     function getBirimColor(birim) { return BIRIM_RENKLERI[birim] || "#64748b"; }
 
-    function mobilGunSec(gunIndex) {
-        aktifMobilGun = gunIndex;
-        document.querySelectorAll('.day-tab-btn').forEach((btn, idx) => {
-            if(idx === gunIndex) btn.classList.add('active'); else btn.classList.remove('active');
-        });
-        tabloyuOlustur();
-    }
+    function mobilGunSec(gunIndex) { aktifMobilGun = gunIndex; document.querySelectorAll('.day-tab-btn').forEach((btn, idx) => { if(idx === gunIndex) btn.classList.add('active'); else btn.classList.remove('active'); }); tabloyuOlustur(); }
 
     function tabloyuOlustur() {
         const hKey = currentMonday.toISOString().split('T')[0];
         document.getElementById("tarihAraligi").innerText = `${currentMonday.toLocaleDateString('tr-TR')} Haftası`;
-        
-        document.getElementById("mobilGunTablari").innerHTML = GUNLER.map((g, i) => 
-            `<div class="day-tab-btn ${i === aktifMobilGun ? 'active' : ''}" onclick="mobilGunSec(${i})">${g}</div>`
-        ).join('');
+        document.getElementById("mobilGunTablari").innerHTML = GUNLER.map((g, i) => `<div class="day-tab-btn ${i === aktifMobilGun ? 'active' : ''}" onclick="mobilGunSec(${i})">${g}</div>`).join('');
 
         let headerHtml = `<tr><th style="width:100px;">SAAT</th>`;
         GUNLER.forEach((g, i) => { let hiddenClass = (i !== aktifMobilGun) ? 'mobile-hidden-day' : ''; headerHtml += `<th class="${i>=5?'weekend-col':''} ${hiddenClass}">${g}</th>`; });
@@ -439,7 +391,6 @@
         const hKey = currentMonday.toISOString().split('T')[0];
         const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
         let tempProg = {}; let calis = {};
-        
         const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"]; 
         const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
@@ -452,27 +403,11 @@
             }
             const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
             if(p.birim.includes("INGEST")) {
-                for(let g=0; g<7; g++) {
-                    if(tempProg[p.ad][g] !== null) continue; 
-                    let d = new Date(currentMonday); d.setDate(d.getDate() + g);
-                    const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                    const modIndex = ((diffDays + persOfset) % 6 + 6) % 6; 
-                    tempProg[p.ad][g] = ingestDongu[modIndex];
-                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
-                }
+                for(let g=0; g<7; g++) { if(tempProg[p.ad][g] !== null) continue; let d = new Date(currentMonday); d.setDate(d.getDate() + g); const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24)); const modIndex = ((diffDays + persOfset) % 6 + 6) % 6; tempProg[p.ad][g] = ingestDongu[modIndex]; if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++; }
             } else if(p.birim.includes("MCR")) {
-                for(let g=0; g<7; g++) {
-                    if(tempProg[p.ad][g] !== null) continue; 
-                    let d = new Date(currentMonday); d.setDate(d.getDate() + g);
-                    const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                    const modIndex = ((diffDays + persOfset) % 8 + 8) % 8;
-                    tempProg[p.ad][g] = mcrDongu[modIndex];
-                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
-                }
+                for(let g=0; g<7; g++) { if(tempProg[p.ad][g] !== null) continue; let d = new Date(currentMonday); d.setDate(d.getDate() + g); const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24)); const modIndex = ((diffDays + persOfset) % 8 + 8) % 8; tempProg[p.ad][g] = mcrDongu[modIndex]; if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++; }
             } else if (state.haftaIciSabitler[p.ad]) {
-                const sabitSaat = state.haftaIciSabitler[p.ad];
-                for(let i=0; i<5; i++) { if(tempProg[p.ad][i] === null) { tempProg[p.ad][i] = sabitSaat; calis[p.ad]++; } }
-                if(tempProg[p.ad][5] === null) tempProg[p.ad][5] = "İZİNLİ"; if(tempProg[p.ad][6] === null) tempProg[p.ad][6] = "İZİNLİ";
+                const sabitSaat = state.haftaIciSabitler[p.ad]; for(let i=0; i<5; i++) { if(tempProg[p.ad][i] === null) { tempProg[p.ad][i] = sabitSaat; calis[p.ad]++; } } if(tempProg[p.ad][5] === null) tempProg[p.ad][5] = "İZİNLİ"; if(tempProg[p.ad][6] === null) tempProg[p.ad][6] = "İZİNLİ";
             }
         });
 
@@ -482,9 +417,7 @@
                 if(["KJ OPERATÖRÜ", "SES OPERATÖRÜ", "PLAYOUT OPERATÖRÜ"].includes(p.birim)) {
                     const pIndex = state.personeller.indexOf(p); const blokMod = (pIndex + weekOffset) % 3;
                     if(blokMod === 0) tercihEdilenIzinler[p.ad] = [5,6]; else if(blokMod === 1) tercihEdilenIzinler[p.ad] = [6,0]; else tercihEdilenIzinler[p.ad] = [4,5];
-                } else if(p.birim !== "TEKNİK YÖNETMEN") {
-                     const pIndex = state.personeller.indexOf(p); tercihEdilenIzinler[p.ad] = [(pIndex + weekOffset) % 7];
-                }
+                } else if(p.birim !== "TEKNİK YÖNETMEN") { const pIndex = state.personeller.indexOf(p); tercihEdilenIzinler[p.ad] = [(pIndex + weekOffset) % 7]; }
             });
             kapasiteDoldur(gun, "00:00–07:00", tempProg, calis, tercihEdilenIzinler);
             state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => { kapasiteDoldur(gun, saat, tempProg, calis, tercihEdilenIzinler); });
@@ -599,7 +532,7 @@
     async function githubdanYedekYukle() { const url = "https://raw.githubusercontent.com/ugurbakirtas/vardiya-sistemi/main/ilk_kurulum.json?t=" + new Date().getTime(); if (confirm("Sıfırlanacak. Onay?")) { try { const response = await fetch(url); if (!response.ok) throw new Error("Hata."); state = await response.json(); save(); alert("Yüklendi!"); location.reload(); } catch (error) { alert("Hata: " + error.message); } } }
     function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); }
     function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
-    function anlikSenkronizasyonBaslat() { database.ref().on('value', (snap) => { if (snap.exists()) { const data = snap.val(); if(data.vardiya_data) { state = data.vardiya_data; save(); tabloyuOlustur(); if(isAdmin) refreshUI(); } if(isAdmin) talepleriYukle(); } }); }
+    function anlikSenkronizasyonBaslat() { database.ref().on('value', (snap) => { if (snap.exists()) { const data = snap.val(); if(data.vardiya_data) { state = data.vardiya_data; save(); tabloyuOlustur(); if(isAdmin) refreshUI(); if(activeUser) renderPersonalDashboard(activeUser); } if(isAdmin) talepleriYukle(); } }); }
     window.onload = async () => { if(localStorage.getItem(PREFIX + "theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); await hassasAyarlariYukle(); anlikSenkronizasyonBaslat(); talepleriYukle(); };
   </script>
 </body>
