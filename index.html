@@ -45,17 +45,33 @@
     .app-wrapper { padding: 10px; display: none; } 
     
     .main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; }
-    .table-container { overflow-x: auto; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); }
+    
+    /* TABLO YAPISI VE MOBİL UYUMLULUK */
+    .table-container { 
+        background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); 
+        overflow-x: auto; /* Yatay kaydırma */
+        -webkit-overflow-scrolling: touch; /* Mobilde akıcı kaydırma */
+        position: relative;
+    }
+    
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
-    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); }
+    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
-    .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; }
-    .row-saat-0 { background-color: var(--saat1); }
-    .row-saat-1 { background-color: var(--saat2); }
-    .row-saat-2 { background-color: var(--saat3); }
-    .row-saat-3 { background-color: var(--saat4); }
+    
+    /* Sticky (Sabit) Saat Sütunu */
+    .saat-col { 
+        font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; 
+        position: sticky; left: 0; z-index: 20; /* Mobilde sola yapışık kalır */
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1); /* Gölge efekti */
+    }
+    
+    .row-saat-0 { background-color: var(--saat1); } .row-saat-0 .saat-col { background-color: var(--saat1); }
+    .row-saat-1 { background-color: var(--saat2); } .row-saat-1 .saat-col { background-color: var(--saat2); }
+    .row-saat-2 { background-color: var(--saat3); } .row-saat-2 .saat-col { background-color: var(--saat3); }
+    .row-saat-3 { background-color: var(--saat4); } .row-saat-3 .saat-col { background-color: var(--saat4); }
+    
     .row-izin { background-color: var(--izin-bg) !important; }
-    .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
+    .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); background-color: var(--izin-bg) !important; }
     .weekend-col { background-color: var(--weekend-bg) !important; }
     
     .birim-card { 
@@ -88,17 +104,28 @@
     .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
     .admin-only { display: none; } 
 
+    /* MOBİL İYİLEŞTİRMELERİ */
     @media screen and (max-width: 768px) { 
-        #vardiyaTablosu, #vardiyaTablosu thead, #vardiyaTablosu tbody, #vardiyaTablosu th, #vardiyaTablosu td, #vardiyaTablosu tr {
-            display: block; width: 100% !important; min-width: 100% !important;
-        }
-        #tableHeader { display: none; }
-        #tableBody tr, #tableFooter tr { margin-bottom: 20px; border: 2px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card-bg); }
-        .saat-col { display: block; width: 100% !important; background: var(--primary); color: white !important; padding: 10px; text-align: left !important; border-left: none !important; font-size: 14px; }
-        td:not(.saat-col)::before { content: attr(data-label); font-weight: 800; text-transform: uppercase; font-size: 12px; display: block; margin-bottom: 10px; color: var(--blue); background: var(--bg); padding: 4px; border-radius: 4px; text-align: center; }
-        td:not(.saat-col) { display: flex; flex-direction: column; gap: 8px; height: auto !important; min-height: 50px; }
         .side-panel { width: 100%; right: -100%; }
         .main-header { flex-direction: column; text-align: center; }
+        .table-container { margin-top: 10px; }
+        
+        /* Mobilde tabloyu sıkıştırma, kaydırma özelliği zaten container'da var */
+        th, td { padding: 4px; font-size: 11px; }
+        .saat-col { width: 70px; font-size: 11px; }
+        .birim-card { padding: 4px; margin-bottom: 3px; }
+        .birim-tag { font-size: 6px; }
+        .pers-name { font-size: 9px; }
+        
+        /* Mobilde Saat Sütununun arka planını netleştir (şeffaflığı önle) */
+        .saat-col { background-clip: padding-box; }
+        
+        /* Kullanıcıyı sola kaydırmaya teşvik eden ipucu (opsiyonel JS ile eklenebilir ama stil yeterli) */
+        .table-container::after {
+            content: 'Kaydır »'; position: absolute; right: 0; top: 50%; 
+            background: rgba(0,0,0,0.1); padding: 5px; writing-mode: vertical-rl;
+            pointer-events: none; opacity: 0.5; font-size: 10px;
+        }
     }  
   </style>
 </head>
@@ -285,16 +312,20 @@
             }).join('')}</tr>`;
     }
 
-    // --- KAPASİTE ÖNCELİKLİ VARDİYA ALGORİTMASI ---
+    // --- KAPASİTE ÖNCELİKLİ VARDİYA ALGORİTMASI (GÜNCELLENDİ: INGEST 6 GÜN) ---
     function vardiyaUretVeKaydet() {
         if(!isAdmin) return;
         const hKey = currentMonday.toISOString().split('T')[0];
         const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
         let tempProg = {}; let calis = {};
-        const standartDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
+        
+        // MCR ve INGEST için ayrı döngüler
+        const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"]; // 8 Gün
+        const ingestDongu = ["09:00–18:00", "09:00–18:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"]; // 6 Gün (2 Sabah, 2 Akşam, 2 İzin)
+        
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
 
-        // 1. ADIM: MEVCUT DURUMU YÜKLE VE HAZIRLA
+        // 1. ADIM: HAZIRLIK VE DÖNGÜLER
         state.personeller.forEach(p => { 
             tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
             
@@ -307,19 +338,32 @@
                 }
             }
 
-            // MCR / INGEST DÖNGÜSÜ (Kesin Kural)
-            if(p.birim.includes("MCR") || p.birim.includes("INGEST")) {
-                const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
+            const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
+
+            if(p.birim.includes("INGEST")) {
+                 // INGEST İÇİN 6 GÜNLÜK DÖNGÜ
+                for(let g=0; g<7; g++) {
+                    if(tempProg[p.ad][g] !== null) continue; 
+                    let d = new Date(currentMonday); d.setDate(d.getDate() + g);
+                    const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
+                    // Modülo 6 kullanıyoruz
+                    const modIndex = ((diffDays + persOfset) % 6 + 6) % 6; 
+                    tempProg[p.ad][g] = ingestDongu[modIndex];
+                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
+                }
+            }
+            else if(p.birim.includes("MCR")) {
+                 // MCR İÇİN 8 GÜNLÜK DÖNGÜ
                 for(let g=0; g<7; g++) {
                     if(tempProg[p.ad][g] !== null) continue; 
                     let d = new Date(currentMonday); d.setDate(d.getDate() + g);
                     const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
                     const modIndex = ((diffDays + persOfset) % 8 + 8) % 8;
-                    tempProg[p.ad][g] = standartDongu[modIndex];
+                    tempProg[p.ad][g] = mcrDongu[modIndex];
                     if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
                 }
             }
-            // Hafta İçi Sabitler (Yöneticiler vs.)
+            // Hafta İçi Sabitler
             else if (state.haftaIciSabitler[p.ad]) {
                 const sabitSaat = state.haftaIciSabitler[p.ad];
                 for(let i=0; i<5; i++) { if(tempProg[p.ad][i] === null) { tempProg[p.ad][i] = sabitSaat; calis[p.ad]++; } }
@@ -329,10 +373,7 @@
         });
 
         // 2. ADIM: KAPASİTE DOLDURMA (Ana Motor)
-        // Her gün ve her saat için kapasite kontrolü yapar
-        // Eğer eksik varsa, 5 günü dolmamış personeli önceliklendirerek atar.
         for (let gun = 0; gun < 7; gun++) {
-            // İzin Günü Tercihi Hesapla (KJ/SES/Playout için)
             let tercihEdilenIzinler = {};
             state.personeller.forEach(p => {
                 if(["KJ OPERATÖRÜ", "SES OPERATÖRÜ", "PLAYOUT OPERATÖRÜ"].includes(p.birim)) {
@@ -347,10 +388,10 @@
                 }
             });
 
-            // Önce Gece Vardiyası (Kritik)
+            // Önce Gece
             kapasiteDoldur(gun, "00:00–07:00", tempProg, calis, tercihEdilenIzinler);
             
-            // Sonra Gündüz Vardiyaları
+            // Sonra Gündüz
             state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
                 kapasiteDoldur(gun, saat, tempProg, calis, tercihEdilenIzinler);
             });
@@ -361,7 +402,6 @@
         state.personeller.forEach(p => {
             if(!p.birim.includes("MCR") && !p.birim.includes("INGEST") && !state.haftaIciSabitler[p.ad]) {
                 
-                // KJ, SES, PLAYOUT İÇİN İZİN GÜNLERİNİ BOŞSA İŞLE (Tercih)
                 if(["KJ OPERATÖRÜ", "SES OPERATÖRÜ", "PLAYOUT OPERATÖRÜ"].includes(p.birim)) {
                     const pIndex = state.personeller.indexOf(p);
                     const blokMod = (pIndex + weekOffset) % 3;
@@ -374,14 +414,10 @@
                     if(tempProg[p.ad][off2] === null) tempProg[p.ad][off2] = "İZİNLİ";
                 }
 
-                // 5 GÜNÜ DOLMAYANLARI DOLDUR
-                // ÖNCELİK HAFTA SONU (5: Cmt, 6: Paz)
-                // Sonra Hafta İçi
+                // Hafta Sonu Öncelikli doldurma (5: Cmt, 6: Paz)
                 const gunSiralama = [5, 6, 0, 1, 2, 3, 4];
-                
                 gunSiralama.forEach(g => {
                     if(calis[p.ad] < 5 && tempProg[p.ad][g] === null) {
-                         // Manuel izin kontrolü
                          let manuelIzinVar = p.izinGunleri && p.izinGunleri.includes(g);
                          if(!manuelIzinVar) {
                             tempProg[p.ad][g] = "09:00–18:00"; 
@@ -392,7 +428,6 @@
                     }
                 });
 
-                // Hala boş kalan yerleri İZİNLİ yap
                 for(let g=0; g<7; g++) {
                     if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = "İZİNLİ";
                 }
@@ -401,7 +436,7 @@
 
         // 4. ADIM: KAYDET
         state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (Kapasite öncelikli).");
+        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (Ingest 6 günlük döngü aktif).");
     }
 
     // Yardımcı Fonksiyon: Belirli bir gün ve saat için kapasiteyi tamamlar
@@ -411,7 +446,6 @@
             let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
             
             if (mevcut < hedef) {
-                // Uygun Adayları Bul
                 let adaylar = state.personeller.filter(p => {
                     let basic = p.birim === birim && tempProg[p.ad][gun] === null;
                     if (p.izinGunleri && p.izinGunleri.includes(gun)) return false;
@@ -419,36 +453,27 @@
                     return basic && !(dunGece && ["06:30–16:00", "09:00–18:00"].includes(saat));
                 });
 
-                // Adayları Puanla
                 adaylar.sort((a, b) => {
                     let puanA = 0; let puanB = 0;
                     
-                    // 1. Çalışma günü 5'ten az olanlar öne
                     if (calis[a.ad] < 5) puanA += 1000;
                     if (calis[b.ad] < 5) puanB += 1000;
                     
-                    // 2. KJ/SES/Playout için AKŞAM ÇIKIŞI ERTESİ GÜN İZİN KURALI
-                    // Eğer dün 16:00 çalıştıysa bugün çalışmak istemez (Puan düşür)
-                    // Ancak Kapasite Ön Koşul olduğu için listeden tamamen silinmez, sadece sona atılır.
                     let dunAksamA = (gun > 0 && tempProg[a.ad][gun-1] === "16:00–00:00");
                     let dunAksamB = (gun > 0 && tempProg[b.ad][gun-1] === "16:00–00:00");
                     if (["KJ OPERATÖRÜ", "SES OPERATÖRÜ", "PLAYOUT OPERATÖRÜ"].includes(a.birim) && dunAksamA) puanA -= 2000;
                     if (["KJ OPERATÖRÜ", "SES OPERATÖRÜ", "PLAYOUT OPERATÖRÜ"].includes(b.birim) && dunAksamB) puanB -= 2000;
 
-                    // 3. Tercih edilen izin günleri
                     if (tercihEdilenIzinler[a.ad] && tercihEdilenIzinler[a.ad].includes(gun)) puanA -= 500;
                     if (tercihEdilenIzinler[b.ad] && tercihEdilenIzinler[b.ad].includes(gun)) puanB -= 500;
                     
-                    // 4. Gece önceliği
                     if (saat === "00:00–07:00") {
                         puanA += (a.oncelik || 0);
                         puanB += (b.oncelik || 0);
                     }
-                    
                     return (puanB - puanA) || (calis[a.ad] - calis[b.ad]) || (Math.random() - 0.5);
                 });
 
-                // Boşlukları Doldur
                 for (let p of adaylar) {
                     if (mevcut < hedef) { 
                         tempProg[p.ad][gun] = saat; 
@@ -475,7 +500,12 @@
     function refreshUI() {
         document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
         document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => {
-            let mcrHtml = ""; if(p.birim.includes("MCR") || p.birim.includes("INGEST")) { mcrHtml = `<div class="mcr-ayarlar"><span>Döngü Ofseti (0-7): </span><input type="number" min="0" max="7" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`; }
+            let mcrHtml = ""; 
+            if(p.birim.includes("MCR")) { 
+                mcrHtml = `<div class="mcr-ayarlar"><span>Döngü Ofseti (0-7): </span><input type="number" min="0" max="7" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`; 
+            } else if(p.birim.includes("INGEST")) {
+                 mcrHtml = `<div class="mcr-ayarlar"><span>Döngü Ofseti (0-5): </span><input type="number" min="0" max="5" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`; 
+            }
             return `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;"><div style="display:flex; justify-content:space-between; align-items:center;"><span><strong>${p.ad}</strong> <small>(${p.birim})</small></span><div><input type="number" placeholder="Öncelik" value="${p.oncelik||0}" onchange="oncelikGuncelle('${p.ad}', this.value)" style="width:50px; margin-right:5px; border:1px solid var(--border); padding:3px;" title="Öncelik Puanı"><button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button></div></div><div style="margin-top:5px;">${GUNLER.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div>${mcrHtml}</div>`;
         }).join('');
         
