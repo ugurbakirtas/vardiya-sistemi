@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TURKMEDYA TEKNiK VARDiYA | V10.0 FINAL</title>
+  
   <link rel="icon" href="data:,">
   
   <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline';">
-  
-  <title>TURKMEDYA TEKNiK VARDiYA | V9.3 Stable</title>
+
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -15,67 +16,26 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   
   <style>
-    /* --- CSS AYARLARI --- */
-    :root { 
-      --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff; 
-      --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e; 
-      --warning: #f59e0b; --table-head: #f8fafc; --saat1: #e0f2fe; --saat2: #f0fdf4; 
-      --saat3: #faf5ff; --saat4: #fff7ed; --izin-bg: #fef2f2; 
-    }
+    /* --- TASARIM --- */
+    :root { --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff; --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --table-head: #f8fafc; --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed; --izin-bg: #fef2f2; }
+    [data-theme="dark"] { --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9; --border: #334155; --table-head: #0f172a; --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12; --izin-bg: #450a0a; }
     
-    [data-theme="dark"] { 
-      --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9; 
-      --border: #334155; --table-head: #0f172a; --saat1: #0c4a6e; --saat2: #064e3b; 
-      --saat3: #581c87; --saat4: #7c2d12; --izin-bg: #450a0a; 
-    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
     
-    body { 
-        font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); 
-        margin: 0; font-size: 12px; transition: background 0.3s ease; 
-    }
-    
-    /* GİRİŞ EKRANI */
-    #loginOverlay { 
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-        z-index: 9999; display: flex; flex-direction: column; 
-        align-items: center; justify-content: center; transition: 0.5s; 
-    }
-    #loginOverlay { background: var(--primary); } 
-    #panelOverlay { background: rgba(0,0,0,0.5); z-index:999; display:none; }
-    
-    .login-card { 
-        background: var(--card-bg); padding: 40px; border-radius: 20px; 
-        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; 
-    }
-    .login-btn { 
-        width: 100%; padding: 15px; margin: 10px 0; border: none; 
-        border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 14px; 
-    }
-    .btn-user { background: var(--blue); color: white; } 
-    .btn-admin { background: #475569; color: white; }
-    .login-logo { 
-        max-height: 80px; width: auto; max-width: 200px; 
-        margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto; 
-    }
-    #personelSecimDiv { display: none; margin-top: 15px; animation: fadeIn 0.5s; }
-    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    /* MODALLAR */
+    #loginOverlay, #panelOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
+    #loginOverlay { background: var(--primary); } #panelOverlay { background: rgba(0,0,0,0.5); z-index:999; display:none; }
+    .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
+    .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 14px; }
+    .btn-user { background: var(--blue); color: white; } .btn-admin { background: #475569; color: white; }
+    .login-logo { max-height: 80px; width: auto; max-width: 200px; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto; }
+    #personelSecimDiv { display: none; margin-top: 15px; }
 
-    /* DASHBOARD */
-    .dashboard-container { display: none; margin-bottom: 20px; width: 100%; }
-    .welcome-card { 
-        background: linear-gradient(135deg, var(--blue), var(--primary)); 
-        color: white; padding: 20px; border-radius: 16px; 
-        text-align: center; width: 100%; box-sizing: border-box; 
-    }
-    .status-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-weight: 700; font-size: 12px; }
-    .next-shift-info { margin-top: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-size: 11px; display: flex; justify-content: space-around; }
-    
+    /* LAYOUT */
     .app-wrapper { padding: 10px; display: none; } 
-    .main-header { 
-        display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; 
-        background: var(--primary); color: white; padding: 10px 15px; 
-        border-radius: 12px; margin-bottom: 15px; gap: 10px; 
-    }
+    .main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; }
+    .dashboard-container { display: none; margin-bottom: 20px; width: 100%; }
+    .welcome-card { background: linear-gradient(135deg, var(--blue), var(--primary)); color: white; padding: 20px; border-radius: 16px; text-align: center; width: 100%; box-sizing: border-box; }
     
     /* TABLO */
     .table-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; position: relative; }
@@ -83,19 +43,14 @@
     th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
     .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; position: sticky; left: 0; z-index: 20; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
-    .row-saat-0 { background-color: var(--saat1); } .row-saat-0 .saat-col { background-color: var(--saat1); }
-    .row-saat-1 { background-color: var(--saat2); } .row-saat-1 .saat-col { background-color: var(--saat2); }
-    .row-saat-2 { background-color: var(--saat3); } .row-saat-2 .saat-col { background-color: var(--saat3); }
-    .row-saat-3 { background-color: var(--saat4); } .row-saat-3 .saat-col { background-color: var(--saat4); }
+    .row-saat-0 { background-color: var(--saat1); } .row-saat-1 { background-color: var(--saat2); }
+    .row-saat-2 { background-color: var(--saat3); } .row-saat-3 { background-color: var(--saat4); }
     .row-izin { background-color: var(--izin-bg) !important; }
     .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); background-color: var(--izin-bg) !important; }
     .weekend-col { background-color: var(--weekend-bg) !important; }
     
-    .birim-card { 
-        border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; 
-        background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); 
-        cursor: pointer; transition: all 0.3s ease; 
-    }
+    /* KARTLAR */
+    .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: all 0.3s ease; }
     .birim-card.dimmed { opacity: 0.15; filter: grayscale(100%); }
     .birim-card.highlighted { opacity: 1; transform: scale(1.05); z-index: 50; border-color: var(--primary) !important; }
     .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
@@ -116,16 +71,10 @@
     .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
     .admin-only { display: none; } 
     
-    /* MODAL */
     #talepModal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10001; display:none; align-items:center; justify-content:center; }
-    #panelOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index:999; display:none; }
-
-    /* Mobil */
     .mobile-day-tabs { display: none; }
     @media screen and (max-width: 768px) { 
         .side-panel { width: 100%; right: -100%; }
-        .main-header { flex-direction: column; text-align: center; }
-        .table-container { margin-top: 10px; }
         table { display: block; min-width: 100%; }
         thead { display: none; } tbody, tfoot { display: block; }
         tr { display: block; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--card-bg); }
@@ -137,8 +86,7 @@
         .day-tab-btn { flex: 1; min-width: 50px; padding: 10px 5px; border: 1px solid var(--border); background: var(--card-bg); border-radius: 8px; font-weight: 700; font-size: 11px; color: var(--text); text-align: center; cursor: pointer; transition: 0.2s; }
         .day-tab-btn.active { background: var(--blue); color: white; border-color: var(--blue); transform: scale(1.05); }
         .mobile-hidden-day { display: none !important; }
-        .birim-card { padding: 8px; }
-    }  
+    }
   </style>
 </head>
 <body>
@@ -147,17 +95,19 @@
     <div class="login-card">
         <img src="logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'">
         <h2 style="margin:0 0 20px 0; color:var(--primary)">Sistem Girişi</h2>
+        
         <div id="loginButtons">
             <button onclick="showPersonelSelect()" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button>
             <button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button>
         </div>
+
         <div id="personelSecimDiv">
             <label style="display:block; text-align:left; font-size:10px; font-weight:bold; margin-bottom:5px;">İSMİNİZİ SEÇİN:</label>
             <select id="girisPersonelSec" style="width:100%; padding:12px; margin-bottom:15px; border-radius:8px; border:1px solid var(--border);"></select>
             <button onclick="enterSystem('personel')" class="login-btn" style="background:var(--success); color:white;">GİRİŞ YAP &raquo;</button>
             <button onclick="hidePersonelSelect()" style="background:none; border:none; color:var(--text); font-size:11px; cursor:pointer;">&laquo; Geri Dön</button>
         </div>
-        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V9.3</p>
+        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V10.0</p>
     </div>
   </div>
 
@@ -185,7 +135,7 @@
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;">
         <img src="logo.png" alt="Logo" style="height: 35px;">
-        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V9.3</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
+        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V10.0</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
       </div>
       <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;">
         <button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button>
@@ -254,6 +204,7 @@
         <div id="tab-saatler" class="tab-content hidden"><div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;"><input type="text" id="yeniSaatInput" placeholder="00:00–00:00" style="width:95%; padding:10px; border-radius:6px; border:1px solid var(--border); margin-bottom:5px;"><button onclick="saatEkle()" class="btn-main-action" style="width:100%; background:var(--success)">EKLE</button></div><div id="saatListesiAdmin"></div></div>
         <div id="tab-sabitle" class="tab-content hidden"><div id="sabitListeAdmin"></div></div>
         <div id="tab-kapasite" class="tab-content hidden"><div id="kapasiteTable"></div></div>
+        
         <div id="tab-sistem" class="tab-content hidden">
             <button onclick="jsonYedekAl()" class="btn-main-action" style="width:100%; background:var(--blue); margin-bottom:10px;">💾 JSON İNDİR</button>
             <button onclick="jsonYedekYukle()" class="btn-main-action" style="width:100%; background:var(--success); margin-bottom:10px;">📂 YEDEĞİ YÜKLE</button>
@@ -262,6 +213,7 @@
             <button onclick="vardiyaSifirla()" class="btn-main-action" style="width:100%; background:var(--warning); margin-bottom:10px;">Bu Haftayı Temizle</button>
             <button onclick="tamSifirla()" class="btn-main-action" style="width:100%; background:var(--danger)">Tüm Veritabanını Sil</button>
         </div>
+        
         <div id="tab-talepler" class="tab-content hidden"><div id="gelenTaleplerListesi" style="max-height: 400px; overflow-y: auto;"></div></div>
   </div>
 
@@ -280,7 +232,7 @@
     let aktifMobilGun = (new Date().getDay() + 6) % 7; 
     let activeUser = "";
     let currentMonday = getMonday(new Date());
-    let activeHighlight = null; // BU EKSİKTİ, EKLENDİ!
+    let activeHighlight = null; 
 
     // STATE
     let state = {
@@ -293,7 +245,6 @@
         mcrAyarlari: JSON.parse(localStorage.getItem("mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
     };
 
-    // --- FONKSİYONLAR ---
     async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const c = snap.val(); if(c.telegram_api) CONFIG.telegram.api = c.telegram_api; if(c.telegram_id) CONFIG.telegram.id = c.telegram_id; } } catch (e) {} }
 
     function showPersonelSelect() { 
@@ -332,7 +283,7 @@
         }).catch(e => { console.log(e); document.getElementById('loginOverlay').style.opacity = '0'; setTimeout(() => { document.getElementById('loginOverlay').style.display = 'none'; document.getElementById('appMain').style.display = 'block'; tabloyuOlustur(); if(!isAdmin && activeUser) renderPersonalDashboard(activeUser); }, 500); });
     }
 
-    // --- MODAL AÇMA (DÜZELTİLDİ) ---
+    // --- MODAL AÇMA ---
     function talepModalAc() { 
         const sel = document.getElementById('talepPersonel'); 
         let options = "";
@@ -359,22 +310,8 @@
 
     function highlightPerson(name) {
         const cleanName = name.split(' (')[0].trim();
-        // activeHighlight kontrolü burada hata veriyordu, yukarıda tanımladık.
-        if (activeHighlight === cleanName && !activeUser) { 
-            document.querySelectorAll('.birim-card').forEach(el => el.classList.remove('dimmed', 'highlighted')); 
-            activeHighlight = null; 
-        } else { 
-            activeHighlight = cleanName; 
-            document.querySelectorAll('.birim-card').forEach(el => { 
-                const n = el.querySelector('.pers-name'); 
-                if(!n) return; 
-                if (n.innerText.split(' (')[0].trim() === cleanName) { 
-                    el.classList.remove('dimmed'); el.classList.add('highlighted'); 
-                } else { 
-                    el.classList.remove('highlighted'); el.classList.add('dimmed'); 
-                } 
-            }); 
-        }
+        if (activeHighlight === cleanName && !activeUser) { document.querySelectorAll('.birim-card').forEach(el => el.classList.remove('dimmed', 'highlighted')); activeHighlight = null; }
+        else { activeHighlight = cleanName; document.querySelectorAll('.birim-card').forEach(el => { const n = el.querySelector('.pers-name'); if(!n) return; if (n.innerText.split(' (')[0].trim() === cleanName) { el.classList.remove('dimmed'); el.classList.add('highlighted'); } else { el.classList.remove('highlighted'); el.classList.add('dimmed'); } }); }
     }
 
     function mobilGunSec(gunIndex) { aktifMobilGun = gunIndex; document.querySelectorAll('.day-tab-btn').forEach((btn, idx) => { if(idx === gunIndex) btn.classList.add('active'); else btn.classList.remove('active'); }); tabloyuOlustur(); }
@@ -562,13 +499,12 @@
         alert("İletildi."); document.getElementById('talepModal').style.display = 'none'; 
     }
 
+    // --- TALEPLERİ RENDER ET (DÜZELTİLDİ) ---
     function talepleriRenderEt(taleplerObj) {
         const liste = document.getElementById('gelenTaleplerListesi');
         if(!taleplerObj) { liste.innerHTML = "<p style='text-align:center; opacity:0.5;'>Bekleyen talep yok.</p>"; return; }
         let html = "";
-        const talepDizisi = Object.values(taleplerObj);
-        
-        talepDizisi.forEach(t => {
+        Object.values(taleplerObj).forEach(t => {
             if(t.durum === 'bekliyor') {
                 html += `<div style="background:var(--card-bg); border:1px solid var(--border); border-left:5px solid var(--warning); padding:10px; margin-bottom:5px;">
                     <div><strong>${t.ad}</strong> <small>${t.tarih}</small></div>
@@ -579,12 +515,7 @@
                     </div></div>`;
             }
         });
-        
-        if (html === "") {
-            liste.innerHTML = "<p style='text-align:center; opacity:0.5;'>Bekleyen talep yok.</p>";
-        } else {
-            liste.innerHTML = html;
-        }
+        liste.innerHTML = html || "<p>Bekleyen talep yok.</p>";
     }
 
     function talepIslem(id, tip) { 
@@ -678,7 +609,7 @@
                     if(activeUser) renderPersonalDashboard(activeUser); 
                 }
                 
-                // Talepleri ayrı olarak işle
+                // Talepler
                 if(isAdmin && data.talepler) {
                     talepleriRenderEt(data.talepler);
                 } else if(isAdmin) {
