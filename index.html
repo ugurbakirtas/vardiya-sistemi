@@ -109,7 +109,7 @@
         <h2 style="margin:0 0 20px 0; color:var(--primary)">Sistem Girişi</h2>
         <button onclick="enterSystem('personel')" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button>
         <button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button>
-        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V62</p>
+        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V63 (MCR FIX)</p>
     </div>
   </div>
 
@@ -137,7 +137,7 @@
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;">
         <img src="logo.png" alt="Logo" style="height: 35px;">
-        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V62</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
+        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V63</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
       </div>
       <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;">
         <button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button>
@@ -199,6 +199,7 @@
 
     let isAdmin = false;
 
+    // --- BASE DATE 02.02.2026 olarak ayarlandı ---
     let state = {
         birimler: JSON.parse(localStorage.getItem(PREFIX + "birimler")) || ["TEKNİK YÖNETMEN", "SES OPERATÖRÜ", "KJ OPERATÖRÜ", "PLAYOUT OPERATÖRÜ", "24TV MCR OPERATÖRÜ","360TV MCR OPERATÖRÜ", "INGEST OPERATÖRÜ"],
         saatler: JSON.parse(localStorage.getItem(PREFIX + "saatler")) || ["06:30–16:00", "09:00–18:00", "16:00–00:00", "00:00–07:00"],
@@ -206,7 +207,7 @@
         kapasite: JSON.parse(localStorage.getItem(PREFIX + "kapasite")) || {},
         manuelAtamalar: JSON.parse(localStorage.getItem(PREFIX + "manuelAtamalar")) || {},
         haftaIciSabitler: JSON.parse(localStorage.getItem(PREFIX + "haftaIciSabitler")) || {},
-        mcrAyarlari: JSON.parse(localStorage.getItem(PREFIX + "mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
+        mcrAyarlari: JSON.parse(localStorage.getItem(PREFIX + "mcrAyarlari")) || { baslangicTarihi: "2026-02-02", ofsetler: {} }
     };
 
     let currentMonday = getMonday(new Date());
@@ -406,11 +407,16 @@
         const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
         let tempProg = {}; let calis = {};
         
+        // --- YENİ DÖNGÜ TANIMLARI ---
+        // MCR: 2 GÜN 06:30, 2 GÜN 16:00, 2 GÜN 00:00, 2 GÜN İZİN (8 GÜNLÜK DÖNGÜ)
         const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
+        
+        // INGEST: 2 GÜN 06:30, 2 GÜN 16:00, 2 GÜN İZİN (6 GÜNLÜK DÖNGÜ)
         const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
-        const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
-        // Saat farkı sorununu çözmek için saatleri sıfırla
-        baseDate.setHours(12, 0, 0, 0); 
+        
+        // --- SABİT REFERANS TARİHİ: 02.02.2026 ---
+        const baseDate = new Date("2026-02-02");
+        baseDate.setHours(12, 0, 0, 0); // Saat dilimi hatasını önlemek için öğlen saati
 
         state.personeller.forEach(p => { 
             tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
@@ -425,12 +431,13 @@
                 for(let g=0; g<7; g++) {
                     let d = new Date(currentMonday);
                     d.setDate(d.getDate() + g);
-                    d.setHours(12, 0, 0, 0); // O günün öğlen saati
+                    d.setHours(12, 0, 0, 0); // Karşılaştırma için saati eşitle
                     
                     const diffTime = d.getTime() - baseDate.getTime();
                     const diffDays = Math.round(diffTime / (1000 * 3600 * 24)); // Tam gün farkı
                     
-                    // Negatif modül hatasını önleyen formül: ((x % n) + n) % n
+                    // Modulo hatasını önleyen formül: ((x % n) + n) % n
+                    // Bu sayede tarih geriye gitse bile döngü bozulmaz.
                     const donguIndex = diffDays + persOfset;
                     const modIndex = ((donguIndex % cycleLen) + cycleLen) % cycleLen;
                     
@@ -602,9 +609,10 @@
         let capHtml = ""; state.birimler.forEach(b => { capHtml += `<div style="margin-bottom:15px; background:var(--bg); padding:10px; border-radius:8px;"><strong>${b}</strong>`; state.saatler.forEach(s => { const v = state.kapasite[`${b}_${s}`] || [0,0,0,0,0,0,0]; capHtml += `<div style="font-size:9px; margin-top:5px;">${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">${GUNLER.map((g, gi) => `<input type="number" value="${v[gi]}" style="width:100%; text-align:center;" onchange="capUp('${b}_${s}',${gi},this.value)">`).join('')}</div>`; }); capHtml += `</div>`; });
         document.getElementById("kapasiteTable").innerHTML = capHtml;
         
+        // --- TARİH SEÇİCİYİ DEVRE DIŞI BIRAKTIK (SABİT 2026) ---
         let mcrSistemHtml = `<div style="background:#e0f2fe; padding:10px; border-radius:8px; margin-bottom:10px;">
-            <strong>MCR/INGEST Döngü Başlangıç Tarihi:</strong><br>
-            <input type="date" value="${state.mcrAyarlari.baslangicTarihi}" onchange="state.mcrAyarlari.baslangicTarihi = this.value; save();" style="width:100%; padding:5px; margin-top:5px;">
+            <strong>MCR/INGEST Referans Tarihi:</strong><br>
+            <span style="font-weight:bold; color:var(--blue);">02.02.2026 (Sabit)</span>
         </div>`;
         
         document.getElementById("sabitListeAdmin").innerHTML = mcrSistemHtml + state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--bg); padding:5px; border-radius:5px;"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
