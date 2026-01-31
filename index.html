@@ -46,46 +46,34 @@
     
     .main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; }
     
-    /* TABLO YAPISI VE MOBİL UYUMLULUK */
+    /* TABLO VE MOBİL UYUMLULUK */
     .table-container { 
         background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); 
-        overflow-x: auto; /* Yatay kaydırma */
-        -webkit-overflow-scrolling: touch; /* Mobilde akıcı kaydırma */
+        overflow-x: auto; 
+        -webkit-overflow-scrolling: touch; 
         position: relative;
     }
-    
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
     th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
     
-    /* Sticky (Sabit) Saat Sütunu */
+    /* Sticky Saat Sütunu */
     .saat-col { 
         font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; 
-        position: sticky; left: 0; z-index: 20; /* Mobilde sola yapışık kalır */
-        box-shadow: 2px 0 5px rgba(0,0,0,0.1); /* Gölge efekti */
+        position: sticky; left: 0; z-index: 20; 
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1); 
     }
-    
     .row-saat-0 { background-color: var(--saat1); } .row-saat-0 .saat-col { background-color: var(--saat1); }
     .row-saat-1 { background-color: var(--saat2); } .row-saat-1 .saat-col { background-color: var(--saat2); }
     .row-saat-2 { background-color: var(--saat3); } .row-saat-2 .saat-col { background-color: var(--saat3); }
     .row-saat-3 { background-color: var(--saat4); } .row-saat-3 .saat-col { background-color: var(--saat4); }
-    
     .row-izin { background-color: var(--izin-bg) !important; }
     .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); background-color: var(--izin-bg) !important; }
     .weekend-col { background-color: var(--weekend-bg) !important; }
     
-    .birim-card { 
-        border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; 
-        background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); 
-        cursor: pointer; transition: all 0.3s ease; 
-    }
+    .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: all 0.3s ease; }
     .birim-card.dimmed { opacity: 0.15; filter: grayscale(100%); }
-    .birim-card.highlighted { 
-        opacity: 1; transform: scale(1.05); z-index: 50; 
-        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); 
-        border-color: var(--primary) !important;
-    }
-    
+    .birim-card.highlighted { opacity: 1; transform: scale(1.05); z-index: 50; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); border-color: var(--primary) !important; }
     .birim-ayirici { border-top: 5px solid #1e293b !important; margin-top: 8px !important; padding-top: 8px !important; }
     .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
     .pers-name { font-size: 10px; font-weight: 700; display: block; }
@@ -104,23 +92,15 @@
     .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
     .admin-only { display: none; } 
 
-    /* MOBİL İYİLEŞTİRMELERİ */
     @media screen and (max-width: 768px) { 
         .side-panel { width: 100%; right: -100%; }
         .main-header { flex-direction: column; text-align: center; }
         .table-container { margin-top: 10px; }
-        
-        /* Mobilde tabloyu sıkıştırma, kaydırma özelliği zaten container'da var */
         th, td { padding: 4px; font-size: 11px; }
-        .saat-col { width: 70px; font-size: 11px; }
+        .saat-col { width: 70px; font-size: 11px; background-clip: padding-box; }
         .birim-card { padding: 4px; margin-bottom: 3px; }
         .birim-tag { font-size: 6px; }
         .pers-name { font-size: 9px; }
-        
-        /* Mobilde Saat Sütununun arka planını netleştir (şeffaflığı önle) */
-        .saat-col { background-clip: padding-box; }
-        
-        /* Kullanıcıyı sola kaydırmaya teşvik eden ipucu (opsiyonel JS ile eklenebilir ama stil yeterli) */
         .table-container::after {
             content: 'Kaydır »'; position: absolute; right: 0; top: 50%; 
             background: rgba(0,0,0,0.1); padding: 5px; writing-mode: vertical-rl;
@@ -312,16 +292,17 @@
             }).join('')}</tr>`;
     }
 
-    // --- KAPASİTE ÖNCELİKLİ VARDİYA ALGORİTMASI (GÜNCELLENDİ: INGEST 6 GÜN) ---
+    // --- VARDİYA ALGORİTMASI ---
     function vardiyaUretVeKaydet() {
         if(!isAdmin) return;
         const hKey = currentMonday.toISOString().split('T')[0];
         const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
         let tempProg = {}; let calis = {};
         
-        // MCR ve INGEST için ayrı döngüler
         const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"]; // 8 Gün
-        const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"]; // 6 Gün (2 Sabah, 2 Akşam, 2 İzin)
+        
+        // INGEST DÖNGÜSÜ: 2 GÜN SABAH, 2 GÜN AKŞAM, 2 GÜN İZİN (06:30 BAŞLAR)
+        const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
         
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
 
@@ -436,7 +417,7 @@
 
         // 4. ADIM: KAYDET
         state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (Ingest 6 günlük döngü aktif).");
+        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (Ingest 6 günlük döngü: 06:30, 06:30, 16:00, 16:00, İZİN, İZİN).");
     }
 
     // Yardımcı Fonksiyon: Belirli bir gün ve saat için kapasiteyi tamamlar
