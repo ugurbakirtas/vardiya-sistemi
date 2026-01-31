@@ -214,7 +214,18 @@
           <button id="btn-tab-sistem" class="tab-btn" onclick="tabDegistir('sistem')">Sistem</button>
           <button id="btn-tab-talepler" class="tab-btn" onclick="tabDegistir('talepler')" style="background: var(--warning); color: black;">Talepler</button>
         </div>
-        <div id="tab-personel" class="tab-content"><div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;"><input type="text" id="yeniPersInp" placeholder="Ad Soyad" style="width:95%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"><select id="yeniPersBirimSec" style="width:100%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"></select><button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success)">PERSONEL EKLE</button></div><div id="persListesiAdmin"></div></div>
+        <div id="tab-personel" class="tab-content">
+            <div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px; border:2px solid var(--blue);">
+                <h4 style="margin:0 0 5px 0; color:var(--primary);">⚡ PERSONEL DEĞİŞİMİ</h4>
+                <select id="swapSource" style="width:100%; padding:8px; margin-bottom:5px; border-radius:6px; border:1px solid var(--border);"></select>
+                <div style="text-align:center; font-weight:bold; margin-bottom:5px;">⬇️ YERİNE GEÇECEK ⬇️</div>
+                <select id="swapTarget" style="width:100%; padding:8px; margin-bottom:5px; border-radius:6px; border:1px solid var(--border);"></select>
+                <button onclick="applyPersonSwap()" class="btn-main-action" style="width:100%; background:var(--blue);">DEĞİŞİMİ UYGULA</button>
+            </div>
+
+            <div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;"><input type="text" id="yeniPersInp" placeholder="Ad Soyad" style="width:95%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"><select id="yeniPersBirimSec" style="width:100%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"></select><button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success)">PERSONEL EKLE</button></div>
+            <div id="persListesiAdmin"></div>
+        </div>
         <div id="tab-birimler" class="tab-content hidden"><div id="birimListesiAdmin"></div></div>
         <div id="tab-saatler" class="tab-content hidden"><div id="saatListesiAdmin"></div></div>
         <div id="tab-sabitle" class="tab-content hidden"><div id="sabitListeAdmin"></div></div>
@@ -266,8 +277,6 @@
             setTimeout(() => { document.getElementById('talepPersonel').value = activeUser; }, 500);
         }
         
-        // ZORUNLU GÜNCELLEME: Giriş yapılır yapılmaz buluttan veriyi çek ve ekrana bas
-        // Bu, mobilde verilerin görünmemesi sorununu çözer.
         database.ref('vardiya_data').once('value').then(snap => {
             if(snap.exists()) {
                 state = snap.val();
@@ -483,21 +492,22 @@
 
     function refreshUI() {
         document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
+        
+        // DEĞİŞİM ARACI İÇİN SEÇENEKLERİ DOLDUR
+        const swapSourceSel = document.getElementById("swapSource");
+        const swapTargetSel = document.getElementById("swapTarget");
+        const personOptions = `<option value="">Seçiniz...</option>` + state.personeller.map(p => `<option value="${p.ad}">${p.ad} (${p.birim})</option>`).join('');
+        if(swapSourceSel) swapSourceSel.innerHTML = personOptions;
+        if(swapTargetSel) swapTargetSel.innerHTML = personOptions;
+
         document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => {
             let mcrHtml = ""; 
             if(p.birim.includes("MCR")) { mcrHtml = `<div class="mcr-ayarlar"><span>Döngü Ofseti (0-7): </span><input type="number" min="0" max="7" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`; } 
             else if(p.birim.includes("INGEST")) { mcrHtml = `<div class="mcr-ayarlar"><span>Döngü Ofseti (0-5): </span><input type="number" min="0" max="5" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`; }
             
-            // BİRİM DEĞİŞTİRME SELECT BOX
-            let birimSecimHtml = `<select onchange="birimGuncelle('${p.ad}', this.value)" style="margin-left:5px; padding:2px; font-size:10px; border-radius:4px;">`;
-            state.birimler.forEach(b => {
-               birimSecimHtml += `<option value="${b}" ${p.birim === b ? 'selected' : ''}>${b}</option>`;
-            });
-            birimSecimHtml += `</select>`;
-
             return `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span><strong>${p.ad}</strong> ${birimSecimHtml}</span>
+                    <span><strong>${p.ad}</strong> <small>(${p.birim})</small></span>
                     <div><input type="number" placeholder="Öncelik" value="${p.oncelik||0}" onchange="oncelikGuncelle('${p.ad}', this.value)" style="width:50px; margin-right:5px; border:1px solid var(--border); padding:3px;" title="Öncelik Puanı"><button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button></div>
                 </div>
                 <div style="margin-top:5px;">${GUNLER.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div>${mcrHtml}
@@ -511,7 +521,35 @@
         document.getElementById("saatListesiAdmin").innerHTML = state.saatler.map(s => `<div style="padding:5px; border-bottom:1px solid var(--border);">${s}</div>`).join('');
     }
 
-    function birimGuncelle(ad, yeniBirim) { const p = state.personeller.find(x => x.ad === ad); if (p) { p.birim = yeniBirim; save(); refreshUI(); tabloyuOlustur(); } }
+    // --- YENİ: PERSONEL DEĞİŞİM FONKSİYONU ---
+    function applyPersonSwap() {
+        const sourceName = document.getElementById("swapSource").value;
+        const targetName = document.getElementById("swapTarget").value;
+        
+        if(!sourceName || !targetName) { alert("Lütfen iki personel seçin!"); return; }
+        if(sourceName === targetName) { alert("Aynı kişiyi seçtiniz!"); return; }
+        
+        if(confirm(`${sourceName} kişisi, ${targetName} kişisinin birimine ve vardiya düzenine geçecek. Onaylıyor musunuz?`)) {
+            const sourcePerson = state.personeller.find(p => p.ad === sourceName);
+            const targetPerson = state.personeller.find(p => p.ad === targetName);
+            
+            if(sourcePerson && targetPerson) {
+                // Birimi kopyala
+                sourcePerson.birim = targetPerson.birim;
+                
+                // Varsa Offseti kopyala
+                if(state.mcrAyarlari.ofsetler[targetName] !== undefined) {
+                    state.mcrAyarlari.ofsetler[sourceName] = state.mcrAyarlari.ofsetler[targetName];
+                }
+                
+                save();
+                refreshUI();
+                tabloyuOlustur();
+                alert("Değişim tamamlandı! Lütfen eski personeli izinli olarak işaretleyin veya sistemden geçici olarak pasife alın.");
+            }
+        }
+    }
+
     function oncelikGuncelle(ad, val) { const p = state.personeller.find(x=>x.ad===ad); if(p){ p.oncelik = parseInt(val); save(); } }
     function mcrOfsetGuncelle(ad, val) { if(!state.mcrAyarlari.ofsetler) state.mcrAyarlari.ofsetler = {}; state.mcrAyarlari.ofsetler[ad] = parseInt(val); save(); }
     function capUp(k, g, v) { if(!state.kapasite[k]) state.kapasite[k] = [0,0,0,0,0,0,0]; state.kapasite[k][g] = parseInt(v) || 0; save(); }
