@@ -47,7 +47,7 @@
     /* Tablo Yapısı */
     .table-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; position: relative; }
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
-    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); }
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
     .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; position: sticky; left: 0; z-index: 20; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
     .row-saat-0 { background-color: var(--saat1); } .row-saat-0 .saat-col { background-color: var(--saat1); }
@@ -87,18 +87,13 @@
         .side-panel { width: 100%; right: -100%; }
         .main-header { flex-direction: column; text-align: center; }
         .table-container { margin-top: 10px; }
-        
         table { display: block; min-width: 100%; }
-        thead { display: none; } 
-        tbody, tfoot { display: block; }
+        thead { display: none; } tbody, tfoot { display: block; }
         tr { display: block; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--card-bg); }
-        
         .saat-col { display: block; width: 100%; text-align: center; padding: 8px; background: var(--primary); color: white !important; font-size: 14px; border-left: none; background-clip: padding-box; }
         .row-izin .saat-col { background: var(--danger) !important; }
-        
         td { display: block; border: none; border-bottom: 1px solid var(--border); padding: 8px; min-height: 50px; height: auto; }
         td:last-child { border-bottom: none; }
-        
         .mobile-day-tabs { display: flex; gap: 5px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px; }
         .day-tab-btn { flex: 1; min-width: 50px; padding: 10px 5px; border: 1px solid var(--border); background: var(--card-bg); border-radius: 8px; font-weight: 700; font-size: 11px; color: var(--text); text-align: center; cursor: pointer; transition: 0.2s; }
         .day-tab-btn.active { background: var(--blue); color: white; border-color: var(--blue); transform: scale(1.05); }
@@ -233,8 +228,8 @@
         days: ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
         colors: { "TEKNİK YÖNETMEN": "#2563eb", "SES OPERATÖRÜ": "#7c3aed", "KJ OPERATÖRÜ": "#db2777", "PLAYOUT OPERATÖRÜ": "#059669", "REJİ": "#d97706", "24TV MCR OPERATÖRÜ": "#9333ea","360TV MCR OPERATÖRÜ": "#9333ea", "INGEST OPERATÖRÜ": "#06b6d4" },
         telegram: { 
-            api: "BURAYA_TELEGRAM_BOT_TOKEN_YAPISTIR", 
-            id: "BURAYA_CHAT_ID_YAPISTIR" 
+            api: "8509542541:AAFu-iDK85iELZQmImCWSZRi3_eWzUyyCiM", 
+            id: "859235247" 
         } 
     };
 
@@ -367,7 +362,6 @@
         const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
         let tempProg = {}; let calis = {};
         const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"]; 
-        // Ingest: 06:30, 06:30, 16:00, 16:00, İZİN, İZİN
         const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
 
@@ -498,10 +492,8 @@
         const targetName = document.getElementById("swapTarget").value;
         if(!sourceName || !targetName) { alert("Lütfen iki personel seçin!"); return; }
         if(sourceName === targetName) { alert("Aynı kişiyi seçtiniz!"); return; }
-        
         const checkboxes = document.querySelectorAll('.swap-day-chk:checked');
         const selectedDays = Array.from(checkboxes).map(c => parseInt(c.value));
-        
         if (selectedDays.length === 0) {
             if(confirm(`${sourceName} kişisi, ${targetName} kişisinin birimine ve vardiya düzenine KALICI olarak geçecek. Onaylıyor musunuz?`)) {
                 const sP = state.personeller.find(p => p.ad === sourceName); const tP = state.personeller.find(p => p.ad === targetName);
