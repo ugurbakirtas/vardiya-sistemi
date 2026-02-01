@@ -584,8 +584,24 @@
     }
     function toggleAdminPanel() { if(!isAdmin) return; const p = document.getElementById("sidePanel"); const o = document.getElementById("panelOverlay"); p.classList.toggle("open"); o.style.display = p.classList.contains("open") ? "block" : "none"; if(p.classList.contains("open")) tabDegistir('personel'); }
     function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); refreshUI(); }
+    
+    // --- GÜNCELLENEN FONKSİYON: BULUTTAN YÜKLE ---
     function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); }
-    function buluttanYukle() { database.ref('vardiya_data').once('value').then(snap => { if(snap.exists()){ state = snap.val(); save(); location.reload(); } }); }
+    function buluttanYukle() { 
+        database.ref('vardiya_data').once('value').then(snap => { 
+            if(snap.exists()){ 
+                state = snap.val(); 
+                save(); 
+                // location.reload() YERİNE DOĞRUDAN GÜNCELLEME YAP
+                tabloyuOlustur(); 
+                if(isAdmin) refreshUI();
+                alert("Buluttan veriler başarıyla yüklendi!");
+            } else {
+                alert("Bulutta kayıtlı veri bulunamadı.");
+            }
+        }).catch(e => alert("Bağlantı hatası: " + e.message)); 
+    }
+    
     function whatsappGonder() { const hKey = currentMonday.toISOString().split('T')[0]; let m = `*📅 ${currentMonday.toLocaleDateString('tr-TR')} VARDİYASI*\n\n`; GUNLER.forEach((g, i) => { m += `*${g.toUpperCase()}*\n`; state.saatler.forEach(s => { let pList = state.personeller.filter(p => state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] === s).map(p => p.ad).join(", "); if (pList) m += `• ${s}: ${pList}\n`; }); m += `\n`; }); window.open(`https://wa.me/?text=${encodeURIComponent(m)}`, '_blank'); }
     function excelIndir() {
         const hKey = currentMonday.toISOString().split('T')[0];
@@ -598,21 +614,19 @@
     function tamSifirla() { if(confirm("Tüm veri silinecek?")) { localStorage.clear(); location.reload(); } }
     function jsonYedekAl() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "Yedek.json"); dl.click(); }
     
-    // GÜNCELLENMİŞ VE SAĞLAMLAŞTIRILMIŞ GITHUB YÜKLEME
+    // --- GÜNCELLENEN FONKSİYON: GITHUBDAN YÜKLE ---
     async function githubdanYedekYukle() { 
         const url = "https://raw.githubusercontent.com/ugurbakirtas/vardiya-sistemi/main/ilk_kurulum.json?t=" + new Date().getTime(); 
         if (confirm("Sıfırlanacak. Onay?")) { 
             try { 
                 const response = await fetch(url); 
-                if (!response.ok) throw new Error("Dosya bulunamadı veya erişim reddedildi (Kod: " + response.status + ")"); 
-                const json = await response.json(); 
-                state = json; 
+                if (!response.ok) throw new Error("Dosya bulunamadı veya erişim yok (Kod: " + response.status + ")"); 
+                state = await response.json(); 
                 save(); 
-                alert("Yüklendi! Sayfa yenileniyor..."); 
+                alert("Başarıyla Yüklendi! Sayfa yenileniyor..."); 
                 location.reload(); 
             } catch (error) { 
-                console.error(error);
-                alert("Github Veri Hatası: " + error.message); 
+                alert("Github Hatası: " + error.message + "\nLütfen internet bağlantınızı kontrol edin."); 
             } 
         } 
     }
@@ -621,10 +635,13 @@
     function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
     function anlikSenkronizasyonBaslat() { database.ref().on('value', (snap) => { if (snap.exists()) { const data = snap.val(); if(data.vardiya_data) { state = data.vardiya_data; save(); tabloyuOlustur(); if(isAdmin) refreshUI(); if(activeUser) renderPersonalDashboard(activeUser); } if(isAdmin) talepleriYukle(); } }); }
     
-    // GÜNCELLENMİŞ ONLOAD (Await kaldırılarak bloklanma engellendi)
+    // --- GÜNCELLENEN FONKSİYON: ONLOAD ---
     window.onload = async () => { 
         if(localStorage.getItem(PREFIX + "theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); 
+        
+        // HASSAS AYARLARI BEKLEMEDEN (AWAIT KALDIRILDI) BAŞLAT
         hassasAyarlariYukle(); 
+        
         anlikSenkronizasyonBaslat(); 
         talepleriYukle(); 
     };
