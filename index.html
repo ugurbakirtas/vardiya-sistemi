@@ -587,6 +587,9 @@
     window.onload = async () => { 
         if(localStorage.getItem("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); 
         
+        // --- DÜZELTME BURADA ---
+        // await hassasAyarlariYukle(); // Bu satırı devre dışı bıraktım çünkü hata veriyordu.
+        
         // Veritabanını baştan dinle
         database.ref('vardiya_data').once('value').then(snap => {
             if(snap.exists()) { state = snap.val(); }
