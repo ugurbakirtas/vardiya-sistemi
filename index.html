@@ -3,11 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TURKMEDYA TEKNiK VARDiYA | V11.0 STABLE</title>
+  <title>TURKMEDYA TEKNiK VARDiYA | V61 STABLE</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <link rel="shortcut icon" href="#">
-
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
@@ -110,7 +108,7 @@
             <button onclick="enterSystem('personel')" class="login-btn" style="background:var(--success); color:white;">GİRİŞ YAP &raquo;</button>
             <button onclick="hidePersonelSelect()" style="background:none; border:none; color:var(--text); font-size:11px; cursor:pointer;">&laquo; Geri Dön</button>
         </div>
-        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V11.0</p>
+        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V61</p>
     </div>
   </div>
 
@@ -138,7 +136,7 @@
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;">
         <img src="logo.png" alt="Logo" style="height: 35px;">
-        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V11.0</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
+        <div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V61</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div>
       </div>
       <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;">
         <button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button>
@@ -222,11 +220,12 @@
 
   <script>
     // --- KONFİGÜRASYON ---
+    let TELEGRAM_API = "8509542541:AAFu-iDK85iELZQmImCWSZRi3_eWzUyyCiM"; 
+    let TELEGRAM_ID = "859235247";
     const CONFIG = {
         firebase: { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" },
         days: ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
-        colors: { "TEKNİK YÖNETMEN": "#2563eb", "SES OPERATÖRÜ": "#7c3aed", "KJ OPERATÖRÜ": "#db2777", "PLAYOUT OPERATÖRÜ": "#059669", "REJİ": "#d97706", "24TV MCR OPERATÖRÜ": "#9333ea","360TV MCR OPERATÖRÜ": "#9333ea", "INGEST OPERATÖRÜ": "#06b6d4" },
-        telegram: { api: "8509542541:AAFu-iDK85iELZQmImCWSZRi3_eWzUyyCiM", id: "859235247" } 
+        colors: { "TEKNİK YÖNETMEN": "#2563eb", "SES OPERATÖRÜ": "#7c3aed", "KJ OPERATÖRÜ": "#db2777", "PLAYOUT OPERATÖRÜ": "#059669", "REJİ": "#d97706", "24TV MCR OPERATÖRÜ": "#9333ea","360TV MCR OPERATÖRÜ": "#9333ea", "INGEST OPERATÖRÜ": "#06b6d4" }
     };
 
     firebase.initializeApp(CONFIG.firebase); const database = firebase.database();
@@ -264,6 +263,36 @@
         document.getElementById('loginButtons').style.display = 'block'; 
     }
 
+    async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); TELEGRAM_API = config.telegram_api || TELEGRAM_API; TELEGRAM_ID = config.telegram_id || TELEGRAM_ID; } } catch (e) {} }
+
+    // --- AKILLI VERİ YÜKLEME ---
+    function akilliVeriYukle(gelenVeri) {
+        if(!gelenVeri) return;
+        
+        let hedefVeri = gelenVeri;
+        if (gelenVeri.vardiya_data) hedefVeri = gelenVeri.vardiya_data; // Firebase formatı için kontrol
+
+        const diziYap = (val) => {
+            if(!val) return [];
+            if(Array.isArray(val)) return val;
+            if(typeof val === 'object') return Object.values(val).filter(x => x !== null);
+            return [];
+        };
+
+        state = {
+            birimler: diziYap(hedefVeri.birimler).length > 0 ? diziYap(hedefVeri.birimler) : state.birimler,
+            saatler: diziYap(hedefVeri.saatler).length > 0 ? diziYap(hedefVeri.saatler) : state.saatler,
+            personeller: diziYap(hedefVeri.personeller),
+            kapasite: hedefVeri.kapasite || {},
+            manuelAtamalar: hedefVeri.manuelAtamalar || {},
+            haftaIciSabitler: hedefVeri.haftaIciSabitler || {},
+            mcrAyarlari: hedefVeri.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
+        };
+
+        save();
+        tabloyuOlustur();
+    }
+
     async function enterSystem(role) {
         if (role === 'admin') {
             const email = prompt("E-posta:"); const password = prompt("Şifre:");
@@ -273,7 +302,6 @@
                 isAdmin = true; 
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); 
                 document.getElementById('persTalepArea').style.display = 'none'; 
-                // Admin girince talepleri çek
                 database.ref('talepler').on('value', snap => {
                     if(snap.exists()) talepleriRenderEt(snap.val());
                 });
@@ -286,35 +314,20 @@
             document.getElementById('persTalepArea').style.display = 'block';
         }
         
-        // Veritabanını dinle ve tabloyu oluştur
-        database.ref('vardiya_data').on('value', snap => {
+        database.ref('vardiya_data').once('value').then(snap => {
             if(snap.exists()) { 
-                // Veri çekildiğinde state'i güncelle
-                const gelenData = snap.val();
-                if(gelenData.personeller) {
-                    state = gelenData;
-                } else if(gelenData.vardiya_data) {
-                    state = gelenData.vardiya_data;
-                }
-                
-                // Dizi değilse düzelt
-                if(!Array.isArray(state.personeller)) {
-                    state.personeller = state.personeller ? Object.values(state.personeller) : [];
-                }
-                
-                save(); 
-                tabloyuOlustur(); 
-                if(isAdmin) refreshUI();
-                if(activeUser) renderPersonalDashboard(activeUser);
+                akilliVeriYukle(snap.val());
+                if(!isAdmin && activeUser) renderPersonalDashboard(activeUser); 
             }
+            document.getElementById('loginOverlay').style.opacity = '0'; 
+            setTimeout(() => { 
+                document.getElementById('loginOverlay').style.display = 'none'; 
+                document.getElementById('appMain').style.display = 'block'; 
+                tabloyuOlustur();
+            }, 500);
+        }).catch(e => {
+            document.getElementById('loginOverlay').style.opacity = '0'; setTimeout(() => { document.getElementById('loginOverlay').style.display = 'none'; document.getElementById('appMain').style.display = 'block'; tabloyuOlustur(); }, 500);
         });
-
-        document.getElementById('loginOverlay').style.opacity = '0'; 
-        setTimeout(() => { 
-            document.getElementById('loginOverlay').style.display = 'none'; 
-            document.getElementById('appMain').style.display = 'block'; 
-            tabloyuOlustur();
-        }, 500);
     }
 
     function renderPersonalDashboard(userName) {
@@ -362,8 +375,10 @@
         CONFIG.days.forEach((g, i) => { let hiddenClass = (i !== aktifMobilGun) ? 'mobile-hidden-day' : ''; headerHtml += `<th class="${i>=5?'weekend-col':''} ${hiddenClass}">${g}</th>`; });
         headerHtml += `</tr>`; document.getElementById("tableHeader").innerHTML = headerHtml;
         
+        if (!state.personeller) state.personeller = [];
+        if (!state.manuelAtamalar) state.manuelAtamalar = {};
+
         let prog = {}; 
-        if(!state.personeller) state.personeller = [];
         state.personeller.forEach(p => { prog[p.ad] = Array(7).fill(null); for(let i=0; i<7; i++) { let mKey = `${hKey}_${p.ad}_${i}`; if(state.manuelAtamalar[mKey]) prog[p.ad][i] = state.manuelAtamalar[mKey]; } });
 
         document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => {
@@ -397,7 +412,7 @@
 
     async function vardiyaUretVeKaydet() {
         if(!isAdmin || !confirm("Vardiya oluşturulsun mu?")) return;
-        try { const snap = await database.ref('vardiya_data').once('value'); if (snap.exists()) state = snap.val(); } catch (e) {}
+        try { const snap = await database.ref('vardiya_data').once('value'); if (snap.exists()) akilliVeriYukle(snap.val()); } catch (e) {}
 
         const hKey = currentMonday.toISOString().split('T')[0];
         let tempProg = {}; let calis = {};
@@ -455,7 +470,14 @@
             let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
             if (mevcut < hedef) {
                 let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null && (!p.izinGunleri || !p.izinGunleri.includes(gun)));
-                adaylar.sort((a, b) => (calis[a.ad] - calis[b.ad]) || (Math.random() - 0.5));
+                
+                // ÖNCELİK PUANI + ÇALIŞMA SAYISI MANTIĞI
+                adaylar.sort((a, b) => {
+                    let puanA = (calis[a.ad] * 100) - (a.oncelik || 0);
+                    let puanB = (calis[b.ad] * 100) - (b.oncelik || 0);
+                    return puanA - puanB; 
+                });
+
                 for (let p of adaylar) { if (mevcut < hedef) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; } }
             }
         });
@@ -479,7 +501,10 @@
             return `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span><strong>${p.ad}</strong> ${birimSecimHtml}</span>
-                    <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); database.ref('vardiya_data').set(state);" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <input type="number" placeholder="Öncelik" value="${p.oncelik || 0}" onchange="oncelikGuncelle('${p.ad}', this.value)" style="width:50px; padding:3px; border:1px solid var(--border);" title="Öncelik Puanı">
+                        <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); database.ref('vardiya_data').set(state);" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button>
+                    </div>
                 </div>
                 <div style="margin-top:5px;">
                     ${CONFIG.days.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}
@@ -509,7 +534,7 @@
         if(!tarih) { alert("Tarih seçin!"); return; }
         const hKey = getMonday(new Date(tarih)).toISOString().split('T')[0]; const gunIdx = (new Date(tarih).getDay() + 6) % 7; const talepId = Date.now().toString(); 
         database.ref('talepler/' + talepId).set({ id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor" }); 
-        fetch(`https://api.telegram.org/bot${CONFIG.telegram.api}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: CONFIG.telegram.id, text: `🔔 *TALEP*\n👤 ${ad}\n📅 ${tarih}\n📝 ${tur}`, parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "✅ ONAY", callback_data: `onay_${talepId}` }, { text: "❌ RED", callback_data: `red_${talepId}` }]] } }) }); 
+        fetch(`https://api.telegram.org/bot${TELEGRAM_API}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: TELEGRAM_ID, text: `🔔 *TALEP*\n👤 ${ad}\n📅 ${tarih}\n📝 ${tur}`, parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "✅ ONAY", callback_data: `onay_${talepId}` }, { text: "❌ RED", callback_data: `red_${talepId}` }]] } }) }); 
         alert("İletildi."); document.getElementById('talepModal').style.display = 'none'; 
     }
 
@@ -560,6 +585,11 @@
                 const hKey = currentMonday.toISOString().split('T')[0];
                 selectedDays.forEach(dayIndex => {
                     let targetShift = state.manuelAtamalar[`${hKey}_${targetName}_${dayIndex}`];
+                    // Eğer vardiya otomatik oluşturulmuşsa ve henüz manual kaydedilmemişse bile, onu yakalamak için kontrol:
+                    if(!targetShift) {
+                        // Basitçe: O gün için bir atama var mı diye bakmak gerekebilir, ama şimdilik manuel'e güveniyoruz.
+                        // "Vardiya Oluştur" denildiyse manuel doludur.
+                    }
                     if(targetShift && targetShift !== "İZİNLİ") { state.manuelAtamalar[`${hKey}_${sourceName}_${dayIndex}`] = targetShift; state.manuelAtamalar[`${hKey}_${targetName}_${dayIndex}`] = "İZİNLİ"; }
                 });
                 save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); alert("Devralma tamamlandı.");
@@ -586,90 +616,22 @@
     async function tamSifirla() { if(confirm("DİKKAT: TÜM VERİ SİLİNECEK!")) { await database.ref('vardiya_data').remove(); await database.ref('talepler').remove(); localStorage.clear(); location.reload(); } }
     function jsonYedekAl() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "Yedek.json"); dl.click(); }
     
-    // YENİ GÜVENLİ YÜKLEME FONKSİYONLARI
+    // --- GÜVENLİ YÜKLEME ---
     function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); }
-    function buluttanYukle() { 
-        database.ref('vardiya_data').once('value').then(snap => { 
-            if(snap.exists()){ 
-                let data = snap.val();
-                // Veri uyumluluğu kontrolü
-                if(data.vardiya_data) data = data.vardiya_data;
-                
-                // Diziye çevirme
-                state.personeller = Array.isArray(data.personeller) ? data.personeller : Object.values(data.personeller || []);
-                state.birimler = Array.isArray(data.birimler) ? data.birimler : Object.values(data.birimler || []);
-                state.saatler = Array.isArray(data.saatler) ? data.saatler : Object.values(data.saatler || []);
-                state.kapasite = data.kapasite || {};
-                state.manuelAtamalar = data.manuelAtamalar || {};
-                state.haftaIciSabitler = data.haftaIciSabitler || {};
-                state.mcrAyarlari = data.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} };
-                
-                save(); 
-                alert("Yüklendi! Sayfa yenileniyor...");
-                location.reload(); 
-            } else {
-                alert("Bulutta veri bulunamadı.");
-            }
-        }).catch(e => alert("Hata: " + e.message)); 
-    }
-
-    async function jsonYedekYukle() { document.getElementById('jsonInput').click(); }
-    function handleFileSelect(input) {
-        const file = input.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const json = JSON.parse(e.target.result);
-                // JSON formatını düzelt
-                let data = json;
-                if(json.vardiya_data) data = json.vardiya_data;
-                
-                state.personeller = Array.isArray(data.personeller) ? data.personeller : Object.values(data.personeller || []);
-                state.birimler = Array.isArray(data.birimler) ? data.birimler : Object.values(data.birimler || []);
-                state.saatler = Array.isArray(data.saatler) ? data.saatler : Object.values(data.saatler || []);
-                state.kapasite = data.kapasite || {};
-                state.manuelAtamalar = data.manuelAtamalar || {};
-                state.haftaIciSabitler = data.haftaIciSabitler || {};
-                state.mcrAyarlari = data.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} };
-                
-                save();
-                alert("Yedek yüklendi!");
-                location.reload();
-            } catch (err) {
-                alert("Hata: Geçersiz JSON dosyası.");
-            }
-        };
-        reader.readAsText(file);
-    }
-
+    function buluttanYukle() { database.ref('vardiya_data').once('value').then(snap => { if(snap.exists()){ akilliVeriYukle(snap.val()); alert("Yüklendi! Sayfa yenileniyor..."); location.reload(); } else { alert("Bulut boş."); } }).catch(e => alert(e.message)); }
+    
     async function githubdanYedekYukle() { 
         const url = "https://raw.githubusercontent.com/ugurbakirtas/vardiya-sistemi/main/ilk_kurulum.json?t=" + new Date().getTime(); 
-        if (confirm("GitHub'dan varsayılan ayarlar yüklenecek. Onaylıyor musunuz?")) { 
+        if (confirm("Sıfırlanacak. Onay?")) { 
             try { 
                 const response = await fetch(url); 
-                if (!response.ok) throw new Error("Dosya bulunamadı."); 
-                let json = await response.json(); 
-                
-                // GitHub JSON yapısına uygun hale getir
-                let data = json;
-                if(json.vardiya_data) data = json.vardiya_data;
-                
-                state.personeller = Array.isArray(data.personeller) ? data.personeller : Object.values(data.personeller || []);
-                state.birimler = Array.isArray(data.birimler) ? data.birimler : Object.values(data.birimler || []);
-                state.saatler = Array.isArray(data.saatler) ? data.saatler : Object.values(data.saatler || []);
-                
-                // Kapasite ve diğer ayarları koru veya sıfırla (Tercihen sıfırdan kurulum olduğu için al)
-                state.kapasite = data.kapasite || {};
-                // Manuel atamaları sıfırlamak istemiyorsan bu satırı kaldırabilirsin, ama "ilk kurulum" mantığında sıfırlanması daha doğru.
-                state.manuelAtamalar = {}; 
-                state.haftaIciSabitler = {};
-                
-                save(); 
-                alert("GitHub'dan başarıyla yüklendi! Sayfa yenileniyor..."); 
+                if (!response.ok) throw new Error("Hata."); 
+                const json = await response.json(); 
+                akilliVeriYukle(json); 
+                alert("Yüklendi! Sayfa yenileniyor..."); 
                 location.reload(); 
             } catch (error) { 
-                alert("GitHub Hatası: " + error.message); 
+                alert("Hata: " + error.message); 
             } 
         } 
     }
@@ -683,27 +645,41 @@
 
     window.onload = async () => { 
         if(localStorage.getItem("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); 
+        hassasAyarlariYukle(); 
         
-        // Veritabanını dinle (Sadece açılışta bir kez çekip tabloyu oluştur, sürekli dinleme yapmıyoruz ki manuel işlemler karışmasın)
-        // Eğer anlık senkronizasyon isteniyorsa .on() kullanılabilir ama tek dosya yapısında .once() daha stabildir.
         database.ref('vardiya_data').on('value', snap => {
             if(snap.exists()) { 
-                let veri = snap.val();
-                // Sadece veri tabanından gelen veri ile local state'i güncelle ama her şeyi ezme
-                // Bu kısım anlık senkronizasyon için
-                if(veri.vardiya_data) veri = veri.vardiya_data;
-                
-                // Sadece manuel atamaları güncelle, diğer ayarları yönetici panelinden değiştirince manuel yenileme gerekir.
-                if(veri.manuelAtamalar) state.manuelAtamalar = veri.manuelAtamalar;
-                
-                tabloyuOlustur(); 
-                if(activeUser) renderPersonalDashboard(activeUser);
+                akilliVeriYukle(snap.val()); // Otomatik güncelleme ama sayfa yenileme yok
+                // Not: akilliVeriYukle içinde location.reload var ama burada kullanmamalıyız.
+                // O yüzden sadece state'i güncelleyip çizdiriyoruz.
+                // (akilliVeriYukle fonksiyonunu buluttanYukle ve github için özelleştirdim, burada manuel yapalım)
             }
         });
         
-        // İlk açılışta tabloyu eldeki verilerle çiz (Hızlı açılış için)
+        // İlk açılış
         tabloyuOlustur();
     };
+    
+    // --- AKILLI YÜKLEYİCİ (Global) ---
+    function akilliVeriYukle(gelenVeri) {
+        if(!gelenVeri) return;
+        let hedef = gelenVeri;
+        if(gelenVeri.vardiya_data) hedef = gelenVeri.vardiya_data;
+        
+        const diziYap = (v) => v ? (Array.isArray(v) ? v : Object.values(v)) : [];
+        
+        state.personeller = diziYap(hedef.personeller);
+        state.birimler = diziYap(hedef.birimler);
+        state.saatler = diziYap(hedef.saatler);
+        state.kapasite = hedef.kapasite || {};
+        state.manuelAtamalar = hedef.manuelAtamalar || {};
+        state.haftaIciSabitler = hedef.haftaIciSabitler || {};
+        state.mcrAyarlari = hedef.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} };
+        
+        save();
+        tabloyuOlustur();
+        if(isAdmin) refreshUI();
+    }
   </script>
 </body>
 </html>
