@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TURKMEDYA TEKNiK VARDiYA | V61 STABLE</title>
+  <title>TURKMEDYA TEKNiK VARDiYA LiSTESi | Pro_Ugr</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -11,33 +11,73 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   
   <style>
-    /* --- CSS (TASARIM - ORJİNAL HALİYLE) --- */
-    :root { --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff; --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --table-head: #f8fafc; --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed; --izin-bg: #fef2f2; --weekend-bg: #fff1f2; }
-    [data-theme="dark"] { --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9; --border: #334155; --table-head: #0f172a; --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12; --izin-bg: #450a0a; --weekend-bg: #2d1a1a; }
-    
+    /* --- TASARIM: ORİJİNAL DOSYADAN BİREBİR ALINDI --- */
+    :root {
+      --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
+      --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
+      --warning: #f59e0b; --weekend-bg: #fff1f2; --table-head: #f8fafc;
+      --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed;
+      --izin-bg: #fef2f2;
+    }
+    [data-theme="dark"] {
+      --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9;
+      --border: #334155; --weekend-bg: #2d1a1a; --table-head: #0f172a;
+      --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12;
+      --izin-bg: #450a0a;
+    }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
     
-    /* GİRİŞ EKRANI */
-    #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
-    .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
-    .login-logo { max-height: 80px; width: auto; max-width: 200px; margin-bottom: 20px; display: block; margin: 0 auto 20px auto; }
-    .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; }
-    .btn-user { background: var(--blue); color: white; } 
+    #loginOverlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      background: var(--primary); z-index: 9999; 
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      transition: 0.5s;
+    }
+    .login-card {
+      background: var(--card-bg); padding: 40px; border-radius: 20px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px;
+    }
+    .login-btn {
+      width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px;
+      font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 14px;
+    }
+    .btn-user { background: var(--blue); color: white; }
     .btn-admin { background: #475569; color: white; }
-    #personelSecimDiv { display: none; margin-top: 15px; }
+    .login-logo { height: 60px; margin-bottom: 20px; }
+    #personelSecimDiv { display: none; margin-top: 15px; animation: fadeIn 0.5s; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
-    /* GENEL DÜZEN */
-    .app-wrapper { padding: 10px; display: none; }
+    .dashboard-container { display: none; margin-bottom: 20px; width: 100%; }
+    .welcome-card {
+        background: linear-gradient(135deg, var(--blue), var(--primary));
+        color: white; padding: 20px; border-radius: 16px;
+        box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
+        display: flex; flex-direction: column; align-items: center; text-align: center;
+        position: relative; overflow: hidden; width: 100%; box-sizing: border-box;
+    }
+    .welcome-card h2 { margin: 0; font-size: 16px; font-weight: 400; opacity: 0.9; }
+    .welcome-card h1 { margin: 10px 0; font-size: 24px; font-weight: 800; }
+    .welcome-card .status-badge {
+        background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px;
+        font-weight: 700; font-size: 12px; margin-top: 5px;
+    }
+    .next-shift-info {
+        margin-top: 15px; background: rgba(0,0,0,0.2); width: 100%; padding: 10px;
+        border-radius: 8px; font-size: 11px; display: flex; justify-content: space-around;
+    }
+
+    .app-wrapper { padding: 10px; display: none; } 
     .main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; }
     
-    /* TABLO */
-    .table-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; }
+    .table-container { 
+        background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); 
+        overflow-x: auto; position: relative;
+    }
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
-    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); }
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
-    .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; position: sticky; left: 0; z-index: 20; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
     
-    /* SATIR RENKLERİ */
+    .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; position: sticky; left: 0; z-index: 20; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
     .row-saat-0 { background-color: var(--saat1); } .row-saat-0 .saat-col { background-color: var(--saat1); }
     .row-saat-1 { background-color: var(--saat2); } .row-saat-1 .saat-col { background-color: var(--saat2); }
     .row-saat-2 { background-color: var(--saat3); } .row-saat-2 .saat-col { background-color: var(--saat3); }
@@ -45,74 +85,72 @@
     .row-izin { background-color: var(--izin-bg) !important; }
     .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); background-color: var(--izin-bg) !important; }
     .weekend-col { background-color: var(--weekend-bg) !important; }
-
-    /* KARTLAR */
-    .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s; }
-    .birim-card.dimmed { opacity: 0.2; filter: grayscale(100%); }
-    .birim-card.highlighted { opacity: 1; transform: scale(1.05); z-index: 50; border-color: var(--primary) !important; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-    .birim-tag { font-size: 7px; font-weight: 800; color: white; padding: 1px 4px; border-radius: 3px; display: inline-block; margin-bottom: 2px; }
+    
+    .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: all 0.3s ease; }
+    .birim-card.dimmed { opacity: 0.15; filter: grayscale(100%); }
+    .birim-card.highlighted { opacity: 1; transform: scale(1.05); z-index: 50; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); border-color: var(--primary) !important; }
+    .birim-ayirici { border-top: 5px solid #1e293b !important; margin-top: 8px !important; padding-top: 8px !important; }
+    .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
     .pers-name { font-size: 10px; font-weight: 700; display: block; }
-
-    /* DASHBOARD */
-    .dashboard-container { display: none; margin-bottom: 20px; }
-    .welcome-card { background: linear-gradient(135deg, var(--blue), var(--primary)); color: white; padding: 20px; border-radius: 16px; text-align: center; }
-    .status-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-weight: 700; font-size: 12px; }
-    .next-shift-info { margin-top: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-size: 11px; display: flex; justify-content: space-around; }
-
-    /* ADMIN PANEL */
+    
     .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: var(--card-bg); z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); }
     .side-panel.open { right: 0; }
     .panel-header { padding: 15px; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; }
     .panel-content { padding: 15px; overflow-y: auto; flex: 1; }
     .panel-action-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; background: var(--bg); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
+    .btn-main-action { padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: white; }
     .hidden { display: none; }
-    .tab-btn { flex: 1; padding: 8px; border: none; background: #e2e8f0; cursor: pointer; border-radius: 4px; color: #64748b; margin-right: 2px; }
+    .tab-btn { flex: 1; padding: 8px; border: none; background: #e2e8f0; cursor: pointer; font-size: 10px; font-weight: 700; border-radius: 4px; color: #64748b; }
     .tab-btn.active { background: var(--blue); color: white; }
-    .izin-gun-pill { padding: 4px 8px; background: var(--bg); border-radius: 4px; margin: 2px; font-size: 10px; cursor: pointer; border: 1px solid var(--border); display: inline-block; font-weight: bold; }
+    .izin-gun-pill { padding: 4px 8px; background: var(--bg); border-radius: 4px; margin: 2px; font-size: 10px; cursor: pointer; display: inline-block; font-weight: 800; border: 1px solid var(--border); color: var(--text); transition: 0.2s; }
     .izin-gun-pill.active { background: var(--danger); color: white; border-color: var(--danger); }
     .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
-    .admin-only { display: none; }
-    #panelOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index:999; display:none; }
-    #talepModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10001; display: none; align-items: center; justify-content: center; }
+    .admin-only { display: none; } 
 
-    /* MOBİL */
     .mobile-day-tabs { display: none; }
-    @media screen and (max-width: 768px) {
+    
+    @media screen and (max-width: 768px) { 
         .side-panel { width: 100%; right: -100%; }
+        .main-header { flex-direction: column; text-align: center; }
+        .table-container { margin-top: 10px; }
         table { display: block; min-width: 100%; }
         thead { display: none; } tbody, tfoot { display: block; }
-        tr { display: block; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); overflow: hidden; }
-        .saat-col { display: block; width: 100%; text-align: center; padding: 10px; background: var(--primary); color: white !important; font-size: 14px; border-left: none; }
+        tr { display: block; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--card-bg); }
+        .saat-col { display: block; width: 100%; text-align: center; padding: 8px; background: var(--primary); color: white !important; font-size: 14px; border-left: none; background-clip: padding-box; }
         .row-izin .saat-col { background: var(--danger) !important; }
-        td { display: block; border: none; border-bottom: 1px solid var(--border); padding: 10px; min-height: 50px; }
+        td { display: block; border: none; border-bottom: 1px solid var(--border); padding: 8px; min-height: 50px; height: auto; }
+        td:last-child { border-bottom: none; }
         .mobile-day-tabs { display: flex; gap: 5px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px; }
-        .day-tab-btn { flex: 1; min-width: 50px; padding: 10px; border: 1px solid var(--border); background: var(--card-bg); border-radius: 8px; text-align: center; font-weight: bold; }
-        .day-tab-btn.active { background: var(--blue); color: white; border-color: var(--blue); }
+        .day-tab-btn { flex: 1; min-width: 50px; padding: 10px 5px; border: 1px solid var(--border); background: var(--card-bg); border-radius: 8px; font-weight: 700; font-size: 11px; color: var(--text); text-align: center; cursor: pointer; transition: 0.2s; }
+        .day-tab-btn.active { background: var(--blue); color: white; border-color: var(--blue); transform: scale(1.05); }
         .mobile-hidden-day { display: none !important; }
-    }
+        .birim-card { padding: 8px; }
+    }  
   </style>
 </head>
 <body>
-
   <div id="loginOverlay">
     <div class="login-card">
         <img src="logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'">
         <h2 style="margin:0 0 20px 0; color:var(--primary)">Sistem Girişi</h2>
+        
         <div id="loginButtons">
             <button onclick="showPersonelSelect()" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button>
             <button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button>
         </div>
+
         <div id="personelSecimDiv">
             <label style="display:block; text-align:left; font-size:10px; font-weight:bold; margin-bottom:5px;">İSMİNİZİ SEÇİN:</label>
             <select id="girisPersonelSec" style="width:100%; padding:12px; margin-bottom:15px; border-radius:8px; border:1px solid var(--border);"></select>
             <button onclick="enterSystem('personel')" class="login-btn" style="background:var(--success); color:white;">GİRİŞ YAP &raquo;</button>
             <button onclick="hidePersonelSelect()" style="background:none; border:none; color:var(--text); font-size:11px; cursor:pointer;">&laquo; Geri Dön</button>
         </div>
+
         <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V61</p>
     </div>
   </div>
 
-  <div id="talepModal">
+  <div id="talepModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10001; display:none; align-items:center; justify-content:center;">
     <div class="login-card" style="width: 320px; border: 2px solid var(--blue);">
         <h3 style="margin-top:0; color:var(--primary)">Vardiya / İzin Talebi</h3>
         <select id="talepPersonel" style="width:100%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid var(--border);"></select>
@@ -130,8 +168,8 @@
     </div>
   </div>
 
-  <div id="panelOverlay" onclick="toggleAdminPanel()"></div>
-
+  <div id="panelOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; display:none;" onclick="toggleAdminPanel()"></div>
+  
   <div class="app-wrapper" id="appMain">
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;">
@@ -184,9 +222,11 @@
             <div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px; border:2px solid var(--blue);">
                 <h4 style="margin:0 0 5px 0; color:var(--primary);">⚡ PERSONEL DEĞİŞİMİ</h4>
                 <select id="swapSource" style="width:100%; padding:8px; margin-bottom:5px; border-radius:6px; border:1px solid var(--border);"></select>
-                <div style="text-align:center; font-weight:bold; margin-bottom:5px; font-size:10px;">⬇️ YERİNE GEÇECEK ⬇️</div>
+                <div style="text-align:center; font-weight:bold; margin-bottom:5px; font-size:10px;">⬇️ YERİNE GEÇECEK (İZİNCİ KİŞİ) ⬇️</div>
                 <select id="swapTarget" style="width:100%; padding:8px; margin-bottom:5px; border-radius:6px; border:1px solid var(--border);"></select>
-                <div style="display:flex; justify-content:space-between; gap:2px; margin-top:5px;">
+                
+                <div style="margin:8px 0; font-size:10px; font-weight:bold;">HANGİ GÜNLER? (Seçilmezse Kalıcı Değişir)</div>
+                <div style="display:flex; justify-content:space-between; gap:2px;">
                     <label><input type="checkbox" class="swap-day-chk" value="0">Pzt</label>
                     <label><input type="checkbox" class="swap-day-chk" value="1">Sal</label>
                     <label><input type="checkbox" class="swap-day-chk" value="2">Çar</label>
@@ -195,82 +235,72 @@
                     <label><input type="checkbox" class="swap-day-chk" value="5">Cmt</label>
                     <label><input type="checkbox" class="swap-day-chk" value="6">Paz</label>
                 </div>
-                <button onclick="applyPersonSwap()" class="btn-main-action" style="width:100%; background:var(--blue); margin-top:10px;">UYGULA</button>
+
+                <button onclick="applyPersonSwap()" class="btn-main-action" style="width:100%; background:var(--blue); margin-top:10px;">DEĞİŞİMİ UYGULA</button>
             </div>
+
             <div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;"><input type="text" id="yeniPersInp" placeholder="Ad Soyad" style="width:95%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"><select id="yeniPersBirimSec" style="width:100%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"></select><button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success)">PERSONEL EKLE</button></div>
             <div id="persListesiAdmin"></div>
         </div>
 
-        <div id="tab-birimler" class="tab-content hidden"><div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;"><input type="text" id="yeniBirimInput" placeholder="Yeni Birim Adı" style="width:95%; padding:10px; border-radius:6px; border:1px solid var(--border); margin-bottom:5px;"><button onclick="birimEkle()" class="btn-main-action" style="width:100%; background:var(--success)">EKLE</button></div><div id="birimListesiAdmin"></div></div>
-        <div id="tab-saatler" class="tab-content hidden"><div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;"><input type="text" id="yeniSaatInput" placeholder="00:00–00:00" style="width:95%; padding:10px; border-radius:6px; border:1px solid var(--border); margin-bottom:5px;"><button onclick="saatEkle()" class="btn-main-action" style="width:100%; background:var(--success)">EKLE</button></div><div id="saatListesiAdmin"></div></div>
+        <div id="tab-birimler" class="tab-content hidden">
+            <div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;">
+                <input type="text" id="yeniBirimInput" placeholder="Yeni Birim Adı" style="width:95%; padding:10px; border-radius:6px; border:1px solid var(--border); margin-bottom:5px;">
+                <button onclick="birimEkle()" class="btn-main-action" style="width:100%; background:var(--success)">EKLE</button>
+            </div>
+            <div id="birimListesiAdmin"></div>
+        </div>
+        <div id="tab-saatler" class="tab-content hidden">
+            <div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;">
+                <input type="text" id="yeniSaatInput" placeholder="00:00–00:00" style="width:95%; padding:10px; border-radius:6px; border:1px solid var(--border); margin-bottom:5px;">
+                <button onclick="saatEkle()" class="btn-main-action" style="width:100%; background:var(--success)">EKLE</button>
+            </div>
+            <div id="saatListesiAdmin"></div>
+        </div>
         <div id="tab-sabitle" class="tab-content hidden"><div id="sabitListeAdmin"></div></div>
         <div id="tab-kapasite" class="tab-content hidden"><div id="kapasiteTable"></div></div>
-        
-        <div id="tab-sistem" class="tab-content hidden">
-            <button onclick="jsonYedekAl()" class="btn-main-action" style="width:100%; background:var(--blue); margin-bottom:10px;">💾 JSON İNDİR</button>
-            <button onclick="jsonYedekYukle()" class="btn-main-action" style="width:100%; background:var(--success); margin-bottom:10px;">📂 YEDEĞİ YÜKLE</button>
-            <input type="file" id="jsonInput" style="display:none" onchange="handleFileSelect(this)">
-            <button onclick="githubdanYedekYukle()" class="btn-main-action" style="width:100%; background:#000; color:#fff; margin-bottom:10px;">📂 GITHUB'DAN YÜKLE</button>
-            <button onclick="vardiyaSifirla()" class="btn-main-action" style="width:100%; background:var(--warning); margin-bottom:10px;">Bu Haftayı Temizle</button>
-            <button onclick="tamSifirla()" class="btn-main-action" style="width:100%; background:var(--danger)">Tüm Veritabanını Sil</button>
-        </div>
-        
+        <div id="tab-sistem" class="tab-content hidden"><button onclick="jsonYedekAl()" class="btn-main-action" style="width:100%; background:var(--blue); margin-bottom:10px;">💾 JSON İNDİR</button><button onclick="jsonYedekYukle()" class="btn-main-action" style="width:100%; background:var(--success); margin-bottom:10px;">📂 YEDEĞİ YÜKLE</button><input type="file" id="jsonInput" style="display:none" onchange="handleFileSelect(this)"><button onclick="githubdanYedekYukle()" class="btn-main-action" style="width:100%; background:#000; color:#fff; margin-bottom:10px;">📂 GITHUB'DAN YÜKLE</button><button onclick="vardiyaSifirla()" class="btn-main-action" style="width:100%; background:var(--warning); margin-bottom:10px;">Bu Haftayı Temizle</button><button onclick="tamSifirla()" class="btn-main-action" style="width:100%; background:var(--danger)">Tüm Hafızayı Sil</button></div>
         <div id="tab-talepler" class="tab-content hidden"><div id="gelenTaleplerListesi" style="max-height: 400px; overflow-y: auto;"></div></div>
   </div>
 
   <script>
-    // --- KONFİGÜRASYON ---
-    let TELEGRAM_API = "8509542541:AAFu-iDK85iELZQmImCWSZRi3_eWzUyyCiM"; 
-    let TELEGRAM_ID = "859235247";
-    const CONFIG = {
-        firebase: { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" },
-        days: ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
-        colors: { "TEKNİK YÖNETMEN": "#2563eb", "SES OPERATÖRÜ": "#7c3aed", "KJ OPERATÖRÜ": "#db2777", "PLAYOUT OPERATÖRÜ": "#059669", "REJİ": "#d97706", "24TV MCR OPERATÖRÜ": "#9333ea","360TV MCR OPERATÖRÜ": "#9333ea", "INGEST OPERATÖRÜ": "#06b6d4" }
-    };
-
-    firebase.initializeApp(CONFIG.firebase); const database = firebase.database();
+    let TELEGRAM_API = ""; let TELEGRAM_ID = "";
+    // FIREBASE YAPILANDIRMASI
+    const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
+    firebase.initializeApp(firebaseConfig); const database = firebase.database();
     
+    const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = ""; 
+    const BIRIM_RENKLERI = { "TEKNİK YÖNETMEN": "#2563eb", "SES OPERATÖRÜ": "#7c3aed", "KJ OPERATÖRÜ": "#db2777", "PLAYOUT OPERATÖRÜ": "#059669", "REJİ": "#d97706", "24TV MCR OPERATÖRÜ": "#9333ea","360TV MCR OPERATÖRÜ": "#9333ea", "INGEST OPERATÖRÜ": "#06b6d4" };
+
     let isAdmin = false;
     let aktifMobilGun = (new Date().getDay() + 6) % 7; 
     let activeUser = "";
-    let currentMonday = getMonday(new Date());
-    let activeHighlight = null;
 
+    // BAŞLANGIÇ STATE
     let state = {
-        birimler: JSON.parse(localStorage.getItem("birimler")) || Object.keys(CONFIG.colors),
-        saatler: JSON.parse(localStorage.getItem("saatler")) || ["06:30–16:00", "09:00–18:00", "16:00–00:00", "00:00–07:00"],
-        personeller: JSON.parse(localStorage.getItem("personeller")) || [],
-        kapasite: JSON.parse(localStorage.getItem("kapasite")) || {},
-        manuelAtamalar: JSON.parse(localStorage.getItem("manuelAtamalar")) || {},
-        haftaIciSabitler: JSON.parse(localStorage.getItem("haftaIciSabitler")) || {},
-        mcrAyarlari: JSON.parse(localStorage.getItem("mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
+        birimler: JSON.parse(localStorage.getItem(PREFIX + "birimler")) || ["TEKNİK YÖNETMEN", "SES OPERATÖRÜ", "KJ OPERATÖRÜ", "PLAYOUT OPERATÖRÜ", "24TV MCR OPERATÖRÜ","360TV MCR OPERATÖRÜ", "INGEST OPERATÖRÜ"],
+        saatler: JSON.parse(localStorage.getItem(PREFIX + "saatler")) || ["06:30–16:00", "09:00–18:00", "16:00–00:00", "00:00–07:00"],
+        personeller: JSON.parse(localStorage.getItem(PREFIX + "personeller")) || [],
+        kapasite: JSON.parse(localStorage.getItem(PREFIX + "kapasite")) || {},
+        manuelAtamalar: JSON.parse(localStorage.getItem(PREFIX + "manuelAtamalar")) || {},
+        haftaIciSabitler: JSON.parse(localStorage.getItem(PREFIX + "haftaIciSabitler")) || {},
+        mcrAyarlari: JSON.parse(localStorage.getItem(PREFIX + "mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
     };
 
-    // --- TEMEL FONKSİYONLAR ---
-    function showPersonelSelect() { 
-        document.getElementById('loginButtons').style.display = 'none'; 
-        const sel = document.getElementById('girisPersonelSec');
-        let options = `<option value="">Seçiniz...</option>`;
-        if (state.personeller && state.personeller.length > 0) {
-            options += state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join('');
-        }
-        sel.innerHTML = options;
-        document.getElementById('personelSecimDiv').style.display = 'block'; 
-    }
-    
-    function hidePersonelSelect() { 
-        document.getElementById('personelSecimDiv').style.display = 'none'; 
-        document.getElementById('loginButtons').style.display = 'block'; 
-    }
+    let currentMonday = getMonday(new Date());
 
-    async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); TELEGRAM_API = config.telegram_api || TELEGRAM_API; TELEGRAM_ID = config.telegram_id || TELEGRAM_ID; } } catch (e) {} }
+    async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); TELEGRAM_API = config.telegram_api; TELEGRAM_ID = config.telegram_id; console.log("Ayarlar yüklendi."); } } catch (e) {} }
+
+    function showPersonelSelect() { document.getElementById('loginButtons').style.display = 'none'; const sel = document.getElementById('girisPersonelSec'); sel.innerHTML = `<option value="">İsminizi Seçiniz...</option>` + state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); document.getElementById('personelSecimDiv').style.display = 'block'; }
+    function hidePersonelSelect() { document.getElementById('personelSecimDiv').style.display = 'none'; document.getElementById('loginButtons').style.display = 'block'; }
 
     // --- AKILLI VERİ YÜKLEME ---
     function akilliVeriYukle(gelenVeri) {
         if(!gelenVeri) return;
         
+        // Veri yapısını algıla (Firebase alt klasör veya düz JSON)
         let hedefVeri = gelenVeri;
-        if (gelenVeri.vardiya_data) hedefVeri = gelenVeri.vardiya_data; // Firebase formatı için kontrol
+        if (gelenVeri.vardiya_data) hedefVeri = gelenVeri.vardiya_data; 
 
         const diziYap = (val) => {
             if(!val) return [];
@@ -295,7 +325,7 @@
 
     async function enterSystem(role) {
         if (role === 'admin') {
-            const email = prompt("E-posta:"); const password = prompt("Şifre:");
+            const email = prompt("Yönetici E-posta:"); const password = prompt("Yönetici Şifresi:");
             if (!email || !password) return;
             try { 
                 await firebase.auth().signInWithEmailAndPassword(email, password); 
@@ -471,11 +501,14 @@
             if (mevcut < hedef) {
                 let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null && (!p.izinGunleri || !p.izinGunleri.includes(gun)));
                 
-                // ÖNCELİK PUANI + ÇALIŞMA SAYISI MANTIĞI
+                // ÖNCELİK PUANI (YÜZDE) + ÇALIŞMA SAYISI MANTIĞI
                 adaylar.sort((a, b) => {
-                    let puanA = (calis[a.ad] * 100) - (a.oncelik || 0);
-                    let puanB = (calis[b.ad] * 100) - (b.oncelik || 0);
-                    return puanA - puanB; 
+                    // Gece vardiyası ise Yüzde (Öncelik) puanına göre sırala (Yüksek puan öne geçer)
+                    if(saat === "00:00–07:00") {
+                        return (b.oncelik || 0) - (a.oncelik || 0); 
+                    }
+                    // Diğer vardiyalarda adaletli dağıtım (Az çalışan öne geçer)
+                    return calis[a.ad] - calis[b.ad]; 
                 });
 
                 for (let p of adaylar) { if (mevcut < hedef) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; } }
@@ -502,7 +535,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span><strong>${p.ad}</strong> ${birimSecimHtml}</span>
                     <div style="display:flex; align-items:center; gap:5px;">
-                        <input type="number" placeholder="Öncelik" value="${p.oncelik || 0}" onchange="oncelikGuncelle('${p.ad}', this.value)" style="width:50px; padding:3px; border:1px solid var(--border);" title="Öncelik Puanı">
+                        <input type="number" placeholder="%" value="${p.oncelik || 0}" onchange="oncelikGuncelle('${p.ad}', this.value)" style="width:40px; padding:3px; border:1px solid var(--border); text-align:center; font-weight:bold;" title="Gece Önceliği (%)">
                         <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); database.ref('vardiya_data').set(state);" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button>
                     </div>
                 </div>
@@ -534,7 +567,7 @@
         if(!tarih) { alert("Tarih seçin!"); return; }
         const hKey = getMonday(new Date(tarih)).toISOString().split('T')[0]; const gunIdx = (new Date(tarih).getDay() + 6) % 7; const talepId = Date.now().toString(); 
         database.ref('talepler/' + talepId).set({ id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor" }); 
-        fetch(`https://api.telegram.org/bot${TELEGRAM_API}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: TELEGRAM_ID, text: `🔔 *TALEP*\n👤 ${ad}\n📅 ${tarih}\n📝 ${tur}`, parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "✅ ONAY", callback_data: `onay_${talepId}` }, { text: "❌ RED", callback_data: `red_${talepId}` }]] } }) }); 
+        fetch(`https://api.telegram.org/bot${CONFIG.telegram.api}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: CONFIG.telegram.id, text: `🔔 *TALEP*\n👤 ${ad}\n📅 ${tarih}\n📝 ${tur}`, parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "✅ ONAY", callback_data: `onay_${talepId}` }, { text: "❌ RED", callback_data: `red_${talepId}` }]] } }) }); 
         alert("İletildi."); document.getElementById('talepModal').style.display = 'none'; 
     }
 
@@ -616,7 +649,7 @@
     async function tamSifirla() { if(confirm("DİKKAT: TÜM VERİ SİLİNECEK!")) { await database.ref('vardiya_data').remove(); await database.ref('talepler').remove(); localStorage.clear(); location.reload(); } }
     function jsonYedekAl() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "Yedek.json"); dl.click(); }
     
-    // --- GÜVENLİ YÜKLEME ---
+    // YENİ GÜVENLİ YÜKLEME FONKSİYONLARI
     function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); }
     function buluttanYukle() { database.ref('vardiya_data').once('value').then(snap => { if(snap.exists()){ akilliVeriYukle(snap.val()); alert("Yüklendi! Sayfa yenileniyor..."); location.reload(); } else { alert("Bulut boş."); } }).catch(e => alert(e.message)); }
     
