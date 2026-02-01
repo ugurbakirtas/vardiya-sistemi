@@ -287,26 +287,37 @@
     function showPersonelSelect() { document.getElementById('loginButtons').style.display = 'none'; const sel = document.getElementById('girisPersonelSec'); sel.innerHTML = `<option value="">İsminizi Seçiniz...</option>` + state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); document.getElementById('personelSecimDiv').style.display = 'block'; }
     function hidePersonelSelect() { document.getElementById('personelSecimDiv').style.display = 'none'; document.getElementById('loginButtons').style.display = 'block'; }
 
-    // --- GÜVENLİ VE ZIRHLI STATE GÜNCELLEME ---
+    // --- YENİLENMİŞ VE ÇOK DAHA ESNEK STATE GÜNCELLEME ---
+    // Bu fonksiyon gelen veri dizi olmasa bile (Object olsa bile) onu kabul eder ve tabloyu doldurur.
     function guvenliStateGuncelle(gelenVeri) {
         if (!gelenVeri) return;
-        // GitHub bazen array olarak değil, obje içinde personeller olarak dönebilir. Kontrol et:
-        let pList = gelenVeri.personeller || [];
-        if(!Array.isArray(pList) && gelenVeri.vardiya_data && gelenVeri.vardiya_data.personeller) {
-             pList = gelenVeri.vardiya_data.personeller; // Eğer alt obje içindeyse
+
+        // Yardımcı fonksiyon: Veri varsa ve nesneyse diziye çevir, yoksa boş dizi dön
+        const toArray = (data) => {
+            if (!data) return [];
+            if (Array.isArray(data)) return data;
+            if (typeof data === 'object') return Object.values(data).filter(item => item !== null); // Null'ları temizle
+            return [];
+        };
+
+        // GitHub bazen alt obje içinde veri gönderir, kontrol et:
+        let pList = gelenVeri.personeller;
+        if (!pList && gelenVeri.vardiya_data && gelenVeri.vardiya_data.personeller) {
+             pList = gelenVeri.vardiya_data.personeller;
+             gelenVeri = gelenVeri.vardiya_data; // Kök dizini değiştir
         }
 
         state = {
-            birimler: gelenVeri.birimler || state.birimler,
-            saatler: gelenVeri.saatler || state.saatler,
-            personeller: Array.isArray(pList) ? pList : [],
+            birimler: toArray(gelenVeri.birimler || state.birimler),
+            saatler: toArray(gelenVeri.saatler || state.saatler),
+            personeller: toArray(pList), // ARTIK NESNE GELSE BİLE KABUL EDER!
             kapasite: gelenVeri.kapasite || {},
             manuelAtamalar: gelenVeri.manuelAtamalar || {},
             haftaIciSabitler: gelenVeri.haftaIciSabitler || {},
             mcrAyarlari: gelenVeri.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
         };
         save();
-        tabloyuOlustur();
+        // Sayfayı yenileme (location.reload) fonksiyonun çağrıldığı yerde yapılacak
     }
 
     async function enterSystem(role) {
@@ -326,6 +337,7 @@
         database.ref('vardiya_data').once('value').then(snap => {
             if(snap.exists()) { 
                 guvenliStateGuncelle(snap.val()); 
+                tabloyuOlustur();
                 if(!isAdmin && activeUser) renderPersonalDashboard(activeUser); 
             }
             document.getElementById('loginOverlay').style.opacity = '0'; 
@@ -393,7 +405,7 @@
         
         let prog = {}; let calis = {};
         
-        // HATA ÖNLEYİCİ
+        // HATA ÖNLEYİCİ: Eğer listeler yoksa boş tanımla
         if (!state.personeller) state.personeller = [];
         if (!state.saatler) state.saatler = [];
         if (!state.birimler) state.birimler = [];
@@ -618,14 +630,13 @@
     function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); refreshUI(); }
     
     // --- GÜNCELLENEN FONKSİYON: BULUTTAN YÜKLE ---
-    // Güvenli State Guncelleme ile hatayı önler
     function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); }
     function buluttanYukle() { 
         database.ref('vardiya_data').once('value').then(snap => { 
             if(snap.exists()){ 
                 guvenliStateGuncelle(snap.val()); // GÜVENLİ FONKSİYON
                 alert("Buluttan veriler başarıyla yüklendi!");
-                location.reload(); // SAYFAYI YENİLE (Kesin Çözüm)
+                location.reload(); 
             } else {
                 alert("Bulutta kayıtlı veri bulunamadı.");
             }
@@ -654,7 +665,7 @@
                 const json = await response.json(); 
                 guvenliStateGuncelle(json); // GÜVENLİ FONKSİYON
                 alert("Başarıyla Yüklendi! Sayfa yenileniyor..."); 
-                location.reload(); // SAYFAYI YENİLE (Kesin Çözüm)
+                location.reload(); 
             } catch (error) { 
                 alert("Github Hatası: " + error.message + "\nLütfen internet bağlantınızı kontrol edin."); 
             } 
