@@ -3,95 +3,150 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TURKMEDYA TEKNiK VARDiYA | V61 STABLE</title>
+  <title>TURKMEDYA TEKNiK VARDiYA LiSTESi | Pro_Ugr</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-  
   <style>
-    /* --- CSS: SENİN ORİJİNAL TASARIMIN (DOKUNULMADI) --- */
-    :root { --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff; --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --table-head: #f8fafc; --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed; --izin-bg: #fef2f2; --weekend-bg: #fff1f2; }
-    [data-theme="dark"] { --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9; --border: #334155; --table-head: #0f172a; --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12; --izin-bg: #450a0a; --weekend-bg: #2d1a1a; }
-    
+    :root {
+      --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
+      --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
+      --warning: #f59e0b; --weekend-bg: #fff1f2; --table-head: #f8fafc;
+      --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed;
+      --izin-bg: #fef2f2;
+    }
+    [data-theme="dark"] {
+      --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9;
+      --border: #334155; --weekend-bg: #2d1a1a; --table-head: #0f172a;
+      --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12;
+      --izin-bg: #450a0a;
+    }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
     
-    /* GİRİŞ EKRANI */
-    #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
-    .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
-    .login-logo { max-height: 80px; width: auto; max-width: 200px; margin-bottom: 20px; display: block; margin: 0 auto 20px auto; }
-    .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; transition: 0.3s; }
-    .btn-user { background: var(--blue); color: white; } 
+    /* GİRİŞ EKRANI CSS */
+    #loginOverlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      background: var(--primary); z-index: 9999; 
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      transition: 0.5s;
+    }
+    .login-card {
+      background: var(--card-bg); padding: 40px; border-radius: 20px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px;
+    }
+    .login-btn {
+      width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px;
+      font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 14px;
+    }
+    .btn-user { background: var(--blue); color: white; }
     .btn-admin { background: #475569; color: white; }
-    #personelSecimDiv { display: none; margin-top: 15px; animation: fadeIn 0.5s; }
-    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    .login-logo { height: 60px; margin-bottom: 20px; }
 
-    .app-wrapper { padding: 10px; display: none; }
+    .app-wrapper { padding: 10px; display: none; } 
+    
     .main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; }
-    
-    /* TABLO */
-    .table-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; position: relative; }
+    .table-container { overflow-x: auto; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); }
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
-    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); }
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
-    .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; position: sticky; left: 0; z-index: 20; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
-    
-    /* SATIR RENKLERİ */
-    .row-saat-0 { background-color: var(--saat1); } .row-saat-0 .saat-col { background-color: var(--saat1); }
-    .row-saat-1 { background-color: var(--saat2); } .row-saat-1 .saat-col { background-color: var(--saat2); }
-    .row-saat-2 { background-color: var(--saat3); } .row-saat-2 .saat-col { background-color: var(--saat3); }
-    .row-saat-3 { background-color: var(--saat4); } .row-saat-3 .saat-col { background-color: var(--saat4); }
+    .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; }
+    .row-saat-0 { background-color: var(--saat1); }
+    .row-saat-1 { background-color: var(--saat2); }
+    .row-saat-2 { background-color: var(--saat3); }
+    .row-saat-3 { background-color: var(--saat4); }
     .row-izin { background-color: var(--izin-bg) !important; }
-    .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); background-color: var(--izin-bg) !important; }
+    .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
     .weekend-col { background-color: var(--weekend-bg) !important; }
-
-    /* KARTLAR */
-    .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s; }
-    .birim-card.dimmed { opacity: 0.2; filter: grayscale(100%); }
-    .birim-card.highlighted { opacity: 1; transform: scale(1.05); z-index: 50; border-color: var(--primary) !important; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-    .birim-tag { font-size: 7px; font-weight: 800; color: white; padding: 1px 4px; border-radius: 3px; display: inline-block; margin-bottom: 2px; }
+    .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; }
+    
+    .birim-ayirici { border-top: 5px solid #1e293b !important; margin-top: 8px !important; padding-top: 8px !important; }
+    .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
     .pers-name { font-size: 10px; font-weight: 700; display: block; }
-
-    /* DASHBOARD */
-    .dashboard-container { display: none; margin-bottom: 20px; }
-    .welcome-card { background: linear-gradient(135deg, var(--blue), var(--primary)); color: white; padding: 20px; border-radius: 16px; text-align: center; }
-    .status-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-weight: 700; font-size: 12px; }
-    .next-shift-info { margin-top: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-size: 11px; display: flex; justify-content: space-around; }
-
-    /* ADMIN PANEL */
     .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: var(--card-bg); z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); }
     .side-panel.open { right: 0; }
     .panel-header { padding: 15px; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; }
     .panel-content { padding: 15px; overflow-y: auto; flex: 1; }
     .panel-action-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; background: var(--bg); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
+    .btn-main-action { padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: white; }
     .hidden { display: none; }
-    .tab-btn { flex: 1; padding: 8px; border: none; background: #e2e8f0; cursor: pointer; border-radius: 4px; color: #64748b; margin-right: 2px; }
+    .tab-btn { flex: 1; padding: 8px; border: none; background: #e2e8f0; cursor: pointer; font-size: 10px; font-weight: 700; border-radius: 4px; color: #64748b; }
     .tab-btn.active { background: var(--blue); color: white; }
-    .btn-main-action { padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 11px; color: white; display: flex; align-items: center; justify-content: center; gap: 5px; }
-    .izin-gun-pill { padding: 4px 8px; background: var(--bg); border-radius: 4px; margin: 2px; font-size: 10px; cursor: pointer; border: 1px solid var(--border); display: inline-block; font-weight: bold; }
-    .izin-gun-pill.active { background: var(--danger); color: white; border-color: var(--danger); }
+    .izin-gun-pill { padding: 4px 6px; background: var(--bg); border-radius: 4px; margin: 2px; font-size: 9px; cursor: pointer; display: inline-block; font-weight: 700; border: 1px solid var(--border); }
+    .izin-gun-pill.active { background: var(--danger); color: white; }
     .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
-    .admin-only { display: none; }
-    #panelOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index:999; display:none; }
-    #talepModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10001; display: none; align-items: center; justify-content: center; }
+    
+    .admin-only { display: none; } 
 
-    /* MOBİL */
-    .mobile-day-tabs { display: none; }
-    @media screen and (max-width: 768px) {
-        .side-panel { width: 100%; right: -100%; }
-        table { display: block; min-width: 100%; }
-        thead { display: none; } tbody, tfoot { display: block; }
-        tr { display: block; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); overflow: hidden; }
-        .saat-col { display: block; width: 100%; text-align: center; padding: 10px; background: var(--primary); color: white !important; font-size: 14px; border-left: none; }
-        .row-izin .saat-col { background: var(--danger) !important; }
-        td { display: block; border: none; border-bottom: 1px solid var(--border); padding: 10px; min-height: 50px; }
-        .mobile-day-tabs { display: flex; gap: 5px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px; }
-        .day-tab-btn { flex: 1; min-width: 50px; padding: 10px; border: 1px solid var(--border); background: var(--card-bg); border-radius: 8px; text-align: center; font-weight: bold; }
-        .day-tab-btn.active { background: var(--blue); color: white; border-color: var(--blue); }
-        .mobile-hidden-day { display: none !important; }
+/* MOBİL UYUMLULUK AYARLARI */
+@media screen and (max-width: 768px) { 
+/* Tablo yapısını dikey karta çevir */
+    #vardiyaTablosu, #vardiyaTablosu thead, #vardiyaTablosu tbody, #vardiyaTablosu th, #vardiyaTablosu td, #vardiyaTablosu tr {
+        display: block;
+        width: 100% !important;
+        min-width: 100% !important;
     }
-  </style>
+
+    /* Başlıkları gizle (kart içinde göstereceğiz) */
+    #tableHeader { display: none; }
+
+    /* Her satırı (saat dilimini) bir kart gibi yap */
+    #tableBody tr, #tableFooter tr {
+        margin-bottom: 20px;
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--card-bg);
+    }
+
+    /* Saat hücresini kart başlığına çevir */
+    .saat-col {
+        display: block;
+        width: 100% !important;
+        background: var(--primary);
+        color: white !important;
+        padding: 10px;
+        text-align: left !important;
+        border-left: none !important;
+        font-size: 14px;
+    }
+
+    /* Gün hücrelerini belirginleştir */
+    td:not(.saat-col)::before {
+    content: attr(data-label);
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 12px;
+    display: block;
+    margin-bottom: 10px;
+    color: var(--blue);
+    background: var(--bg); /* Arka plan ekleyerek netliği artırır */
+    padding: 4px;
+    border-radius: 4px;
+    text-align: center;
+    }
+
+    /* Hücrenin hangi güne ait olduğunu sol üste ekle */
+    td:not(.saat-col) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* Kartlar arası boşluk */
+    height: auto !important; /* Sabit yüksekliği kaldır */
+    min-height: 50px;
+    }
+
+    /* Yan paneli mobilde tam ekran yap */
+    .side-panel {
+        width: 100%;
+        right: -100%;
+    }
+    
+    .main-header {
+        flex-direction: column;
+        text-align: center;
+    }
+}  
+</style>
 </head>
 <body>
 
@@ -99,26 +154,19 @@
     <div class="login-card">
         <img src="logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'">
         <h2 style="margin:0 0 20px 0; color:var(--primary)">Sistem Girişi</h2>
-        <div id="loginButtons">
-            <button onclick="showPersonelSelect()" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button>
-            <button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button>
-        </div>
-        <div id="personelSecimDiv">
-            <label style="display:block; text-align:left; font-size:10px; font-weight:bold; margin-bottom:5px;">İSMİNİZİ SEÇİN:</label>
-            <select id="girisPersonelSec" style="width:100%; padding:12px; margin-bottom:15px; border-radius:8px; border:1px solid var(--border);"></select>
-            <button onclick="enterSystem('personel')" class="login-btn" style="background:var(--success); color:white;">GİRİŞ YAP &raquo;</button>
-            <button onclick="hidePersonelSelect()" style="background:none; border:none; color:var(--text); font-size:11px; cursor:pointer;">&laquo; Geri Dön</button>
-        </div>
-        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V11.0</p>
+        <button onclick="enterSystem('personel')" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button>
+        <button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button>
+        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V61</p>
     </div>
   </div>
-
-  <div id="talepModal">
+<div id="talepModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10001; display:none; align-items:center; justify-content:center;">
     <div class="login-card" style="width: 320px; border: 2px solid var(--blue);">
         <h3 style="margin-top:0; color:var(--primary)">Vardiya / İzin Talebi</h3>
         <select id="talepPersonel" style="width:100%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid var(--border);"></select>
+        
         <label style="display:block; text-align:left; font-size:10px; margin-bottom:5px; font-weight:bold; color:var(--text)">TARİH SEÇİN:</label>
         <input type="date" id="talepTarih" style="width:93%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid var(--border); font-family:inherit;">
+        
         <select id="talepTuru" style="width:100%; padding:10px; margin-bottom:15px; border-radius:8px; border:1px solid var(--border);">
             <option value="İZİNLİ">İZİNLİ (İzin Talebi)</option>
             <option value="06:30–16:00">06:30–16:00</option>
@@ -129,10 +177,11 @@
         <button onclick="talepGonder()" class="btn-main-action" style="background:var(--success); width:100%; padding:12px;">TALEBİ GÖNDER</button>
         <button onclick="document.getElementById('talepModal').style.display='none'" style="background:none; border:none; color:var(--danger); margin-top:10px; cursor:pointer; font-weight:bold;">İptal</button>
     </div>
-  </div>
+</div>
+  
 
-  <div id="panelOverlay" onclick="toggleAdminPanel()"></div>
-
+  <div id="panelOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; display:none;" onclick="toggleAdminPanel()"></div>
+  
   <div class="app-wrapper" id="appMain">
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;">
@@ -150,13 +199,9 @@
       </div>
     </header>
 
-    <div id="personalDashboard" class="dashboard-container"></div>
-
     <div id="persTalepArea" style="text-align:center; display:none;" class="no-print">
          <button onclick="talepModalAc()" class="btn-main-action" style="background:var(--warning); margin: 0 auto 15px auto; width: 250px; color: #1e293b; font-weight: 800; border: 2px solid #1e293b;">📝 VARDİYA / İZİN TALEBİ OLUŞTUR</button>
     </div>
-
-    <div class="mobile-day-tabs" id="mobilGunTablari"></div>
 
     <main class="table-container">
         <table id="vardiyaTablosu"><thead id="tableHeader"></thead><tbody id="tableBody"></tbody><tfoot id="tableFooter"></tfoot></table>
@@ -180,545 +225,550 @@
           <button id="btn-tab-sistem" class="tab-btn" onclick="tabDegistir('sistem')">Sistem</button>
           <button id="btn-tab-talepler" class="tab-btn" onclick="tabDegistir('talepler')" style="background: var(--warning); color: black;">Talepler</button>
         </div>
-        
-        <div id="tab-personel" class="tab-content">
-            <div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px; border:2px solid var(--blue);">
-                <h4 style="margin:0 0 5px 0; color:var(--primary);">⚡ PERSONEL DEĞİŞİMİ</h4>
-                <select id="swapSource" style="width:100%; padding:8px; margin-bottom:5px; border-radius:6px; border:1px solid var(--border);"></select>
-                <div style="text-align:center; font-weight:bold; margin-bottom:5px; font-size:10px;">⬇️ YERİNE GEÇECEK ⬇️</div>
-                <select id="swapTarget" style="width:100%; padding:8px; margin-bottom:5px; border-radius:6px; border:1px solid var(--border);"></select>
-                <div style="display:flex; justify-content:space-between; gap:2px; margin-top:5px;">
-                    <label><input type="checkbox" class="swap-day-chk" value="0">Pzt</label>
-                    <label><input type="checkbox" class="swap-day-chk" value="1">Sal</label>
-                    <label><input type="checkbox" class="swap-day-chk" value="2">Çar</label>
-                    <label><input type="checkbox" class="swap-day-chk" value="3">Per</label>
-                    <label><input type="checkbox" class="swap-day-chk" value="4">Cum</label>
-                    <label><input type="checkbox" class="swap-day-chk" value="5">Cmt</label>
-                    <label><input type="checkbox" class="swap-day-chk" value="6">Paz</label>
-                </div>
-                <button onclick="applyPersonSwap()" class="btn-main-action" style="width:100%; background:var(--blue); margin-top:10px;">UYGULA</button>
-            </div>
-            <div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;"><input type="text" id="yeniPersInp" placeholder="Ad Soyad" style="width:95%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"><select id="yeniPersBirimSec" style="width:100%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"></select><button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success)">PERSONEL EKLE</button></div>
-            <div id="persListesiAdmin"></div>
-        </div>
-
-        <div id="tab-birimler" class="tab-content hidden"><div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;"><input type="text" id="yeniBirimInput" placeholder="Yeni Birim Adı" style="width:95%; padding:10px; border-radius:6px; border:1px solid var(--border); margin-bottom:5px;"><button onclick="birimEkle()" class="btn-main-action" style="width:100%; background:var(--success)">EKLE</button></div><div id="birimListesiAdmin"></div></div>
-        <div id="tab-saatler" class="tab-content hidden"><div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;"><input type="text" id="yeniSaatInput" placeholder="00:00–00:00" style="width:95%; padding:10px; border-radius:6px; border:1px solid var(--border); margin-bottom:5px;"><button onclick="saatEkle()" class="btn-main-action" style="width:100%; background:var(--success)">EKLE</button></div><div id="saatListesiAdmin"></div></div>
+        <div id="tab-personel" class="tab-content"><div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;"><input type="text" id="yeniPersInp" placeholder="Ad Soyad" style="width:95%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"><select id="yeniPersBirimSec" style="width:100%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"></select><button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success)">PERSONEL EKLE</button></div><div id="persListesiAdmin"></div></div>
+        <div id="tab-birimler" class="tab-content hidden"><div id="birimListesiAdmin"></div></div>
+        <div id="tab-saatler" class="tab-content hidden"><div id="saatListesiAdmin"></div></div>
         <div id="tab-sabitle" class="tab-content hidden"><div id="sabitListeAdmin"></div></div>
         <div id="tab-kapasite" class="tab-content hidden"><div id="kapasiteTable"></div></div>
-        
-        <div id="tab-sistem" class="tab-content hidden">
-            <button onclick="jsonYedekAl()" class="btn-main-action" style="width:100%; background:var(--blue); margin-bottom:10px;">💾 JSON İNDİR</button>
-            <button onclick="jsonYedekYukle()" class="btn-main-action" style="width:100%; background:var(--success); margin-bottom:10px;">📂 YEDEĞİ YÜKLE</button>
-            <input type="file" id="jsonInput" style="display:none" onchange="handleFileSelect(this)">
-            <button onclick="githubdanYedekYukle()" class="btn-main-action" style="width:100%; background:#000; color:#fff; margin-bottom:10px;">📂 GITHUB'DAN YÜKLE</button>
-            <button onclick="vardiyaSifirla()" class="btn-main-action" style="width:100%; background:var(--warning); margin-bottom:10px;">Bu Haftayı Temizle</button>
-            <button onclick="tamSifirla()" class="btn-main-action" style="width:100%; background:var(--danger)">Tüm Veritabanını Sil</button>
-        </div>
-        
-        <div id="tab-talepler" class="tab-content hidden"><div id="gelenTaleplerListesi" style="max-height: 400px; overflow-y: auto;"></div></div>
+        <div id="tab-sistem" class="tab-content hidden"><button onclick="jsonYedekAl()" class="btn-main-action" style="width:100%; background:var(--blue); margin-bottom:10px;">💾 JSON İNDİR</button><button onclick="jsonYedekYukle()" class="btn-main-action" style="width:100%; background:var(--success); margin-bottom:10px;">📂 YEDEĞİ YÜKLE</button><input type="file" id="jsonInput" style="display:none" onchange="handleFileSelect(this)"><button onclick="githubdanYedekYukle()" class="btn-main-action" style="width:100%; background:#000; color:#fff; margin-bottom:10px;">📂 GITHUB'DAN YÜKLE</button><button onclick="vardiyaSifirla()" class="btn-main-action" style="width:100%; background:var(--warning); margin-bottom:10px;">Bu Haftayı Temizle</button><button onclick="tamSifirla()" class="btn-main-action" style="width:100%; background:var(--danger)">Tüm Hafızayı Sil</button></div>
+        <div id="tab-talepler" class="tab-content hidden">
+        <div id="gelenTaleplerListesi" style="max-height: 400px; overflow-y: auto;"></div>
+    </div>
   </div>
 
   <script>
-    // --- KONFİGÜRASYON ---
-    const CONFIG = {
-        firebase: { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" },
-        days: ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
-        colors: { "TEKNİK YÖNETMEN": "#2563eb", "SES OPERATÖRÜ": "#7c3aed", "KJ OPERATÖRÜ": "#db2777", "PLAYOUT OPERATÖRÜ": "#059669", "REJİ": "#d97706", "24TV MCR OPERATÖRÜ": "#9333ea","360TV MCR OPERATÖRÜ": "#9333ea", "INGEST OPERATÖRÜ": "#06b6d4" },
-        telegram: { api: "8509542541:AAFu-iDK85iELZQmImCWSZRi3_eWzUyyCiM", id: "859235247" } 
-    };
+    // --- TELEGRAM AYARLARI (YENİ) ---
+    let TELEGRAM_API = ""; 
+    let TELEGRAM_ID = "";
 
-    firebase.initializeApp(CONFIG.firebase); const database = firebase.database();
-    
+    const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
+    firebase.initializeApp(firebaseConfig); const database = firebase.database();
+    const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = ""; const PANEL_SIFRE = "6161"; 
+    const BIRIM_RENKLERI = { "TEKNİK YÖNETMEN": "#2563eb", "SES OPERATÖRÜ": "#7c3aed", "KJ OPERATÖRÜ": "#db2777", "PLAYOUT OPERATÖRÜ": "#059669", "REJİ": "#d97706", "24TV MCR OPERATÖRÜ": "#9333ea","360TV MCR OPERATÖRÜ": "#9333ea", "INGEST OPERATÖRÜ": "#06b6d4" };
+
     let isAdmin = false;
-    let aktifMobilGun = (new Date().getDay() + 6) % 7; 
-    let activeUser = "";
-    let currentMonday = getMonday(new Date());
-    let activeHighlight = null;
 
     let state = {
-        birimler: JSON.parse(localStorage.getItem("birimler")) || Object.keys(CONFIG.colors),
-        saatler: JSON.parse(localStorage.getItem("saatler")) || ["06:30–16:00", "09:00–18:00", "16:00–00:00", "00:00–07:00"],
-        personeller: JSON.parse(localStorage.getItem("personeller")) || [],
-        kapasite: JSON.parse(localStorage.getItem("kapasite")) || {},
-        manuelAtamalar: JSON.parse(localStorage.getItem("manuelAtamalar")) || {},
-        haftaIciSabitler: JSON.parse(localStorage.getItem("haftaIciSabitler")) || {},
-        mcrAyarlari: JSON.parse(localStorage.getItem("mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
+        birimler: JSON.parse(localStorage.getItem(PREFIX + "birimler")) || ["TEKNİK YÖNETMEN", "SES OPERATÖRÜ", "KJ OPERATÖRÜ", "PLAYOUT OPERATÖRÜ", "24TV MCR OPERATÖRÜ","360TV MCR OPERATÖRÜ", "INGEST OPERATÖRÜ"],
+        saatler: JSON.parse(localStorage.getItem(PREFIX + "saatler")) || ["06:30–16:00", "09:00–18:00", "16:00–00:00", "00:00–07:00"],
+        personeller: JSON.parse(localStorage.getItem(PREFIX + "personeller")) || [],
+        kapasite: JSON.parse(localStorage.getItem(PREFIX + "kapasite")) || {},
+        manuelAtamalar: JSON.parse(localStorage.getItem(PREFIX + "manuelAtamalar")) || {},
+        haftaIciSabitler: JSON.parse(localStorage.getItem(PREFIX + "haftaIciSabitler")) || {},
+        mcrAyarlari: JSON.parse(localStorage.getItem(PREFIX + "mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
     };
 
-    // --- TEMEL FONKSİYONLAR ---
-    function showPersonelSelect() { 
-        document.getElementById('loginButtons').style.display = 'none'; 
-        const sel = document.getElementById('girisPersonelSec');
-        let options = `<option value="">Seçiniz...</option>`;
-        if (state.personeller && state.personeller.length > 0) {
-            options += state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join('');
+    let currentMonday = getMonday(new Date());
+
+    // --- GİRİŞ FONKSİYONU (GÜNCELLENDİ) ---
+    // --- GÜVENLİ GİRİŞ VE AYAR YÜKLEME ---
+    async function hassasAyarlariYukle() {
+        try {
+            const snap = await database.ref('config').once('value');
+            if (snap.exists()) {
+                const config = snap.val();
+                TELEGRAM_API = config.telegram_api;
+                TELEGRAM_ID = config.telegram_id;
+                console.log("Sistem: Güvenli ayarlar yüklendi.");
+            }
+        } catch (error) {
+            console.error("Ayarlar yüklenirken hata oluştu:", error);
         }
-        sel.innerHTML = options;
-        document.getElementById('personelSecimDiv').style.display = 'block'; 
-    }
-    
-    function hidePersonelSelect() { 
-        document.getElementById('personelSecimDiv').style.display = 'none'; 
-        document.getElementById('loginButtons').style.display = 'block'; 
-    }
-
-    // Bu fonksiyon CONFIG.telegram eksikse hata verdiriyordu, düzelttim
-    async function hassasAyarlariYukle() { 
-        try { 
-            const snap = await database.ref('config').once('value'); 
-            if (snap.exists()) { 
-                const config = snap.val(); 
-                // Güvenli atama
-                if(config.telegram_api) CONFIG.telegram.api = config.telegram_api; 
-                if(config.telegram_id) CONFIG.telegram.id = config.telegram_id; 
-            } 
-        } catch (e) {
-            console.warn("Hassas ayarlar yüklenemedi, varsayılanlar kullanılacak.");
-        } 
-    }
-
-    // --- AKILLI VERİ YÜKLEME ---
-    function akilliVeriYukle(gelenVeri) {
-        if(!gelenVeri) return;
-        
-        let hedefVeri = gelenVeri;
-        if (gelenVeri.vardiya_data) hedefVeri = gelenVeri.vardiya_data; 
-
-        const diziYap = (val) => {
-            if(!val) return [];
-            if(Array.isArray(val)) return val;
-            if(typeof val === 'object') return Object.values(val).filter(x => x !== null);
-            return [];
-        };
-
-        state = {
-            birimler: diziYap(hedefVeri.birimler).length > 0 ? diziYap(hedefVeri.birimler) : state.birimler,
-            saatler: diziYap(hedefVeri.saatler).length > 0 ? diziYap(hedefVeri.saatler) : state.saatler,
-            personeller: diziYap(hedefVeri.personeller),
-            kapasite: hedefVeri.kapasite || {},
-            manuelAtamalar: hedefVeri.manuelAtamalar || {},
-            haftaIciSabitler: hedefVeri.haftaIciSabitler || {},
-            mcrAyarlari: hedefVeri.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
-        };
-
-        save();
-        tabloyuOlustur();
     }
 
     async function enterSystem(role) {
         if (role === 'admin') {
-            const email = prompt("E-posta:"); const password = prompt("Şifre:");
+            const email = prompt("Yönetici E-posta:");
+            const password = prompt("Yönetici Şifresi:");
+            
             if (!email || !password) return;
-            try { 
-                await firebase.auth().signInWithEmailAndPassword(email, password); 
-                isAdmin = true; 
-                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); 
-                document.getElementById('persTalepArea').style.display = 'none'; 
-                database.ref('talepler').on('value', snap => {
-                    if(snap.exists()) talepleriRenderEt(snap.val());
-                });
-            } catch (e) { alert("Hata: " + e.message); return; }
+
+            try {
+                const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+                isAdmin = true;
+                await hassasAyarlariYukle(); 
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
+                document.getElementById('persTalepArea').style.display = 'none';
+                alert("Yönetici girişi başarılı!");
+            } catch (error) {
+                alert("Hatalı giriş: " + error.message);
+                return;
+            }
         } else {
-            const selectedName = document.getElementById('girisPersonelSec').value;
-            if(!selectedName) { alert("Lütfen isminizi seçin."); return; }
-            isAdmin = false; activeUser = selectedName;
+            isAdmin = false;
             document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
             document.getElementById('persTalepArea').style.display = 'block';
         }
         
-        database.ref('vardiya_data').once('value').then(snap => {
-            if(snap.exists()) { 
-                akilliVeriYukle(snap.val());
-                if(!isAdmin && activeUser) renderPersonalDashboard(activeUser); 
+        document.getElementById('loginOverlay').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('appMain').style.display = 'block';
+            tabloyuOlustur();
+        }, 500);
+    }
+      
+
+    // --- TALEP SİSTEMİ FONKSİYONLARI (YENİ) ---
+    function talepModalAc() {
+        const sel = document.getElementById('talepPersonel');
+        sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join('');
+        document.getElementById('talepModal').style.display = 'flex';
+    }
+
+    function talepGonder() {
+    const ad = document.getElementById('talepPersonel').value;
+    const tarih = document.getElementById('talepTarih').value;
+    const tur = document.getElementById('talepTuru').value;
+    
+    if(!tarih) { alert("Lütfen tarih seçin!"); return; }
+
+    const secilenTarih = new Date(tarih);
+    const pzt = getMonday(secilenTarih);
+    const hKey = pzt.toISOString().split('T')[0];
+    const gunIdx = (secilenTarih.getDay() + 6) % 7; 
+    const talepId = Date.now().toString();
+
+    // Veritabanına Kayıt
+    database.ref('talepler/' + talepId).set({
+        id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor"
+    });
+
+    // Telegram'a Butonlu Gönderim
+    fetch(`https://api.telegram.org/bot${TELEGRAM_API}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: TELEGRAM_ID,
+            text: `🔔 *YENİ VARDİYA TALEBİ*\n\n👤 *Personel:* ${ad}\n📅 *Tarih:* ${tarih}\n📝 *Vardiya:* ${tur}`,
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: "✅ ONAYLA", callback_data: `onay_${talepId}` },
+                        { text: "❌ REDDET", callback_data: `red_${talepId}` }
+                    ]
+                ]
             }
-            document.getElementById('loginOverlay').style.opacity = '0'; 
-            setTimeout(() => { 
-                document.getElementById('loginOverlay').style.display = 'none'; 
-                document.getElementById('appMain').style.display = 'block'; 
-                tabloyuOlustur();
-            }, 500);
-        }).catch(e => {
-            document.getElementById('loginOverlay').style.opacity = '0'; setTimeout(() => { document.getElementById('loginOverlay').style.display = 'none'; document.getElementById('appMain').style.display = 'block'; tabloyuOlustur(); }, 500);
-        });
-    }
+        })
+    });
 
-    function renderPersonalDashboard(userName) {
-        const hKey = currentMonday.toISOString().split('T')[0];
-        const bugunIdx = (new Date().getDay() + 6) % 7; const yarinIdx = (bugunIdx + 1) % 7;
-        let bugunVardiya = state.manuelAtamalar[`${hKey}_${userName}_${bugunIdx}`] || "İZİNLİ";
-        let yarinVardiya = state.manuelAtamalar[`${hKey}_${userName}_${yarinIdx}`] || "İZİNLİ";
-        const container = document.getElementById('personalDashboard'); container.style.display = 'block';
-        let bg = "linear-gradient(135deg, var(--blue), var(--primary))";
-        if(bugunVardiya === "İZİNLİ") bg = "linear-gradient(135deg, var(--success), #15803d)";
-        container.innerHTML = `<div class="welcome-card" style="background:${bg}"><h2>Hoş Geldin,</h2><h1>${userName.split(' ')[0]}</h1><div class="status-badge">BUGÜN: ${bugunVardiya}</div><div class="next-shift-info"><span>📅 <strong>YARIN:</strong> ${yarinVardiya}</span></div></div>`;
-        highlightPerson(userName);
-    }
+    alert("Talebiniz yöneticiye butonlu mesaj olarak iletildi.");
+    document.getElementById('talepModal').style.display = 'none';
+}
 
-    function highlightPerson(name) {
-        const cleanName = name.split(' (')[0].trim();
-        if (activeHighlight === cleanName && !activeUser) { 
-            document.querySelectorAll('.birim-card').forEach(el => el.classList.remove('dimmed', 'highlighted')); 
-            activeHighlight = null; 
-        } else { 
-            activeHighlight = cleanName; 
-            document.querySelectorAll('.birim-card').forEach(el => { 
-                const n = el.querySelector('.pers-name'); 
-                if(!n) return; 
-                if (n.innerText.split(' (')[0].trim() === cleanName) { 
-                    el.classList.remove('dimmed'); el.classList.add('highlighted'); 
-                } else { 
-                    el.classList.remove('highlighted'); el.classList.add('dimmed'); 
-                } 
-            }); 
+function talepleriYukle() {
+    database.ref('talepler').orderByChild('durum').equalTo('bekliyor').on('value', snap => {
+        const liste = document.getElementById('gelenTaleplerListesi');
+        if(!snap.exists()) {
+            liste.innerHTML = "<p style='text-align:center; padding:20px; opacity:0.5;'>Bekleyen talep bulunmuyor.</p>";
+            return;
         }
-    }
+        let html = "";
+        snap.forEach(item => {
+            const t = item.val();
+            html += `
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-left:5px solid var(--warning); padding:12px; border-radius:8px; margin-bottom:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-weight:800; color:var(--primary); font-size:12px; margin-bottom:4px;">${t.ad}</div>
+                <div style="font-size:11px; margin-bottom:8px;">📅 ${t.tarih} (Hafta: ${t.hKey})<br>📝 İstek: <b>${t.tur}</b></div>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="talepIslem('${t.id}', 'onay')" style="flex:1; background:var(--success); color:white; border:none; border-radius:6px; padding:8px; cursor:pointer; font-weight:700; font-size:10px;">ONAYLA</button>
+                    <button onclick="talepIslem('${t.id}', 'red')" style="flex:1; background:var(--danger); color:white; border:none; border-radius:6px; padding:8px; cursor:pointer; font-weight:700; font-size:10px;">REDDET</button>
+                </div>
+            </div>`;
+        });
+        liste.innerHTML = html;
+    });
+}
 
-    function mobilGunSec(gunIndex) { aktifMobilGun = gunIndex; document.querySelectorAll('.day-tab-btn').forEach((btn, idx) => { if(idx === gunIndex) btn.classList.add('active'); else btn.classList.remove('active'); }); tabloyuOlustur(); }
+function talepIslem(id, tip) {
+    database.ref('talepler/' + id).once('value', snap => {
+        const t = snap.val();
+        if(tip === 'onay') {
+            const mKey = `${t.hKey}_${t.ad}_${t.gunIdx}`;
+            state.manuelAtamalar[mKey] = t.tur;
+            save();
+            tabloyuOlustur();
+            database.ref('talepler/' + id).update({ durum: 'onaylandi' });
+            alert("Onaylandı ve vardiyaya işlendi.");
+        } else {
+            database.ref('talepler/' + id).update({ durum: 'reddedildi' });
+            alert("Talep reddedildi.");
+        }
+    });
+}
+
+    // --- MEVCUT DİĞER FONKSİYONLAR (BOZULMADI) ---
     function getMonday(d) { d = new Date(d); let day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day == 0 ? -6 : 1))); }
-    function save() { Object.keys(state).forEach(k => localStorage.setItem(k, JSON.stringify(state[k]))); }
-    function getBirimColor(birim) { return CONFIG.colors[birim] || "#64748b"; }
+    function save() { Object.keys(state).forEach(k => localStorage.setItem(PREFIX + k, JSON.stringify(state[k]))); }
+    function getBirimColor(birim) { return BIRIM_RENKLERI[birim] || "#64748b"; }
 
     function tabloyuOlustur() {
         const hKey = currentMonday.toISOString().split('T')[0];
         document.getElementById("tarihAraligi").innerText = `${currentMonday.toLocaleDateString('tr-TR')} Haftası`;
-        document.getElementById("mobilGunTablari").innerHTML = CONFIG.days.map((g, i) => `<div class="day-tab-btn ${i === aktifMobilGun ? 'active' : ''}" onclick="mobilGunSec(${i})">${g}</div>`).join('');
-
-        let headerHtml = `<tr><th style="width:100px;">SAAT</th>`;
-        CONFIG.days.forEach((g, i) => { let hiddenClass = (i !== aktifMobilGun) ? 'mobile-hidden-day' : ''; headerHtml += `<th class="${i>=5?'weekend-col':''} ${hiddenClass}">${g}</th>`; });
-        headerHtml += `</tr>`; document.getElementById("tableHeader").innerHTML = headerHtml;
-        
-        if (!state.personeller) state.personeller = [];
-        if (!state.manuelAtamalar) state.manuelAtamalar = {};
-
-        let prog = {}; 
-        state.personeller.forEach(p => { prog[p.ad] = Array(7).fill(null); for(let i=0; i<7; i++) { let mKey = `${hKey}_${p.ad}_${i}`; if(state.manuelAtamalar[mKey]) prog[p.ad][i] = state.manuelAtamalar[mKey]; } });
+        document.getElementById("tableHeader").innerHTML = `<tr><th style="width:100px;">SAAT</th>${GUNLER.map((g,i)=>`<th class="${i>=5?'weekend-col':''}">${g}</th>`).join('')}</tr>`;
+        let prog = {}; let calis = {};
+        state.personeller.forEach(p => { 
+            prog[p.ad] = Array(7).fill(null); calis[p.ad] = 0;
+            for(let i=0; i<7; i++) {
+                let mKey = `${hKey}_${p.ad}_${i}`;
+                if(state.manuelAtamalar[mKey]) prog[p.ad][i] = state.manuelAtamalar[mKey];
+                if(prog[p.ad][i] && !["İZİNLİ","BOŞ",null].includes(prog[p.ad][i])) calis[p.ad]++;
+            }
+        });
 
         document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => {
             let rowHtml = `<tr class="row-saat-${sIdx}"><td class="saat-col">${s}</td>`;
             for(let g=0; g<7; g++) {
-                let hiddenClass = (g !== aktifMobilGun) ? 'mobile-hidden-day' : '';
-                let sortedPers = state.personeller.filter(p => prog[p.ad][g] === s).sort((a, b) => { if(state.birimler.indexOf(a.birim) !== state.birimler.indexOf(b.birim)) return state.birimler.indexOf(a.birim) - state.birimler.indexOf(b.birim); return (b.oncelik || 0) - (a.oncelik || 0); });
-                let cellContent = sortedPers.map(p => {
-                    let click = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : `onclick="highlightPerson('${p.ad}')"`;
-                    let drag = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, '${s}')"` : "";
-                    return `<div class="birim-card" style="border-left-color:${getBirimColor(p.birim)}; background-color:${getBirimColor(p.birim)}15;" ${drag} ${click}><span class="birim-tag" style="background:${getBirimColor(p.birim)}">${p.birim}</span><span class="pers-name">${p.ad}</span></div>`;
-                }).join('');
-                rowHtml += `<td class="${g>=5?'weekend-col':''} ${hiddenClass}" data-label="${CONFIG.days[g]}" ondragover="event.preventDefault()" ondrop="drop(event, '${s}', ${g})">${cellContent}</td>`;
-            } return rowHtml + "</tr>";
+                let sortedPers = state.personeller
+                    .filter(p => prog[p.ad][g] === s)
+                    .sort((a, b) => state.birimler.indexOf(a.birim) - state.birimler.indexOf(b.birim));
+                
+                let cellContent = "";
+                let lastBirim = "";
+                sortedPers.forEach((p) => {
+                    let ayiriciClass = (lastBirim !== "" && lastBirim !== p.birim) ? "birim-ayirici" : "";
+                    let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : "";
+                    let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, '${s}')"` : "";
+                    
+                    cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(p.birim)}; background-color:${getBirimColor(p.birim)}15;" ${dragAttr} ${clickAttr}><span class="birim-tag" style="background:${getBirimColor(p.birim)}">${p.birim}</span><span class="pers-name">${p.ad}</span></div>`;
+                    lastBirim = p.birim;
+                });
+      rowHtml += `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, '${s}', ${g})">${cellContent}</td>`;
+            }
+            return rowHtml + "</tr>";
         }).join('');
 
-        let footerHtml = `<tr class="row-izin"><td class="saat-col">İZİN / BOŞ</td>`;
-        for(let g=0; g<7; g++) {
-            let hiddenClass = (g !== aktifMobilGun) ? 'mobile-hidden-day' : '';
-            let sortedPers = state.personeller.filter(p => ["İZİNLİ","BOŞ",null].includes(prog[p.ad][g])).sort((a, b) => state.birimler.indexOf(a.birim) - state.birimler.indexOf(b.birim));
-            let cellContent = sortedPers.map(p => {
-                let click = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : `onclick="highlightPerson('${p.ad}')"`;
-                let drag = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, 'BOŞ')"` : "";
-                return `<div class="birim-card" style="border-left-color:${getBirimColor(p.birim)};" ${drag} ${click}><span class="birim-tag" style="background:${prog[p.ad][g]==='İZİNLİ'?'var(--danger)':getBirimColor(p.birim)}">${prog[p.ad][g]||'BOŞ'}</span><span class="pers-name">${p.ad}</span></div>`;
-            }).join('');
-            footerHtml += `<td class="${g>=5?'weekend-col':''} ${hiddenClass}" data-label="${CONFIG.days[g]}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">${cellContent}</td>`;
-        }
-        document.getElementById("tableFooter").innerHTML = footerHtml + "</tr>";
-        if(activeUser) highlightPerson(activeUser);
+        document.getElementById("tableFooter").innerHTML = `
+            <tr class="row-izin"><td class="saat-col">İZİN / BOŞ</td>
+                ${[0,1,2,3,4,5,6].map(g => {
+                    let sortedPers = state.personeller
+                        .filter(p => ["İZİNLİ","BOŞ",null].includes(prog[p.ad][g]))
+                        .sort((a, b) => state.birimler.indexOf(a.birim) - state.birimler.indexOf(b.birim));
+                    let cellContent = "";
+                    let lastBirim = "";
+                    sortedPers.forEach(p => {
+                        let ayiriciClass = (lastBirim !== "" && lastBirim !== p.birim) ? "birim-ayirici" : "";
+                        let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : "";
+                        let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, 'BOŞ')"` : "";
+
+                        cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(p.birim)};" ${dragAttr} ${clickAttr}><span class="birim-tag" style="background:${prog[p.ad][g]==='İZİNLİ'?'var(--danger)':getBirimColor(p.birim)}">${prog[p.ad][g]==='İZİNLİ'?'İZİNLİ':p.birim}</span><span class="pers-name">${p.ad} (${calis[p.ad]}G)</span></div>`;
+                        lastBirim = p.birim;
+                    });
+                    return `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">${cellContent}</td>`;
+                }).join('')}</tr>`;
     }
 
-    async function vardiyaUretVeKaydet() {
-        if(!isAdmin || !confirm("Vardiya oluşturulsun mu?")) return;
-        try { const snap = await database.ref('vardiya_data').once('value'); if (snap.exists()) akilliVeriYukle(snap.val()); } catch (e) {}
-
+    function cakismaKontrol(personelAd, hedefGun, hedefSaat) {
         const hKey = currentMonday.toISOString().split('T')[0];
+        if (["İZİNLİ", "BOŞ", null].includes(hedefSaat)) return;
+        if (hedefGun > 0) {
+            let dunKey = `${hKey}_${personelAd}_${hedefGun - 1}`;
+            let dunVardiya = state.manuelAtamalar[dunKey];
+            let sabahVardiyalari = ["06:30–16:00", "09:00–18:00"];
+            let aksamVardiyalari = ["16:00–00:00", "00:00–07:00"];
+            if (aksamVardiyalari.includes(dunVardiya) && sabahVardiyalari.includes(hedefSaat)) {
+                alert(`⚠️ DİKKAT: ${personelAd} dün AKŞAM/GECE vardiyasındaydı. Bugün SABAH vardiyasına yazıyorsunuz. Dinlenme süresi yetersiz olabilir!`);
+            }
+        }
+        if (hedefGun < 6) {
+            let yarinKey = `${hKey}_${personelAd}_${hedefGun + 1}`;
+            let yarinVardiya = state.manuelAtamalar[yarinKey];
+            let sabahVardiyalari = ["06:30–16:00", "09:00–18:00"];
+            let aksamVardiyalari = ["16:00–00:00", "00:00–07:00"];
+            if (aksamVardiyalari.includes(hedefSaat) && sabahVardiyalari.includes(yarinVardiya)) {
+                alert(`⚠️ DİKKAT: ${personelAd} yarın SABAH vardiyasında görünüyor. Bugün AKŞAM/GECE vardiyasına yazıyorsunuz. Dinlenme süresi yetersiz olabilir!`);
+            }
+        }
+    }
+
+    function vardiyaUretVeKaydet() {
+        if(!isAdmin) return;
+        const hKey = currentMonday.toISOString().split('T')[0];
+        const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
         let tempProg = {}; let calis = {};
-        const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"]; 
+        
+        const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
         const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
 
         state.personeller.forEach(p => { 
             tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
-            for(let g=0; g<7; g++) {
-                let mKey = `${hKey}_${p.ad}_${g}`;
-                if(state.manuelAtamalar[mKey]) { tempProg[p.ad][g] = state.manuelAtamalar[mKey]; if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++; }
-                if(p.izinGunleri && p.izinGunleri.includes(g)) { tempProg[p.ad][g] = "İZİNLİ"; }
-            }
-            const persOfset = parseInt(state.mcrAyarlari.ofsetler && state.mcrAyarlari.ofsetler[p.ad] ? state.mcrAyarlari.ofsetler[p.ad] : 0);
             
-            if(p.birim.includes("INGEST")) {
-                for(let g=0; g<7; g++) { 
-                    if(tempProg[p.ad][g] !== null) continue;
-                    let d = new Date(currentMonday); d.setDate(d.getDate() + g); const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24)); const modIndex = ((diffDays + persOfset) % 6 + 6) % 6; tempProg[p.ad][g] = ingestDongu[modIndex]; if(!["İZİNLİ","BOŞ"].includes(tempProg[p.ad][g])) calis[p.ad]++; 
+            if(p.birim.includes("MCR")) {
+                const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
+                for(let g=0; g<7; g++) {
+                    let d = new Date(currentMonday);
+                    d.setDate(d.getDate() + g);
+                    const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
+                    const donguIndex = (diffDays + persOfset) % 8;
+                    const modIndex = donguIndex < 0 ? donguIndex + 8 : donguIndex;
+                    tempProg[p.ad][g] = mcrDongu[modIndex];
+                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
                 }
-            } else if(p.birim.includes("MCR")) {
-                for(let g=0; g<7; g++) { 
-                    if(tempProg[p.ad][g] !== null) continue; 
-                    let d = new Date(currentMonday); d.setDate(d.getDate() + g); const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24)); const modIndex = ((diffDays + persOfset) % 8 + 8) % 8; tempProg[p.ad][g] = mcrDongu[modIndex]; if(!["İZİNLİ","BOŞ"].includes(tempProg[p.ad][g])) calis[p.ad]++; 
+            } 
+            else if(p.birim.includes("INGEST")) {
+                const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
+                for(let g=0; g<7; g++) {
+                    let d = new Date(currentMonday);
+                    d.setDate(d.getDate() + g);
+                    const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
+                    const donguIndex = (diffDays + persOfset) % 6; 
+                    const modIndex = donguIndex < 0 ? donguIndex + 6 : donguIndex;
+                    tempProg[p.ad][g] = ingestDongu[modIndex];
+                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
                 }
-            } else if (state.haftaIciSabitler && state.haftaIciSabitler[p.ad]) {
-                const sabitSaat = state.haftaIciSabitler[p.ad]; for(let i=0; i<5; i++) { if(tempProg[p.ad][i] === null) { tempProg[p.ad][i] = sabitSaat; calis[p.ad]++; } } if(tempProg[p.ad][5] === null) tempProg[p.ad][5] = "İZİNLİ"; if(tempProg[p.ad][6] === null) tempProg[p.ad][6] = "İZİNLİ";
+            }
+            else {
+                if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
+                if (state.haftaIciSabitler[p.ad]) {
+                    const sabitSaat = state.haftaIciSabitler[p.ad];
+                    for(let i=0; i<5; i++) tempProg[p.ad][i] = sabitSaat;
+                    tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
+                    calis[p.ad] = 5;
+                }
+                // --- DEĞİŞİKLİK BAŞLANGICI ---
+                // TEKNİK YÖNETMEN HARİÇ DİĞERLERİ İÇİN 2 GÜN PEŞ PEŞE İZİN MANTIĞI
+                else if (p.birim !== "TEKNİK YÖNETMEN") {
+                     // Personel indexi ve hafta ofsetine göre izin günlerini kaydırarak dağıt
+                     // Böylece herkes aynı gün izinli olup kapasiteyi düşürmez
+                     const pIndex = state.personeller.indexOf(p);
+                     const startDay = (pIndex + weekOffset) % 7; 
+                     const nextDay = (startDay + 1) % 7; 
+                     
+                     // Eğer manuel izin veya başka bir engel yoksa 2 gün üst üste izin yaz
+                     if(tempProg[p.ad][startDay] === null) tempProg[p.ad][startDay] = "İZİNLİ";
+                     if(tempProg[p.ad][nextDay] === null) tempProg[p.ad][nextDay] = "İZİNLİ";
+                }
+                // --- DEĞİŞİKLİK SONU ---
             }
         });
 
         for (let gun = 0; gun < 7; gun++) {
-            kapasiteDoldur(gun, "00:00–07:00", tempProg, calis);
-            state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => kapasiteDoldur(gun, saat, tempProg, calis));
-        }
-
-        state.personeller.forEach(p => {
-            for(let g=0; g<7; g++) { 
-                if(tempProg[p.ad][g] === null) {
-                    if (p.izinGunleri && p.izinGunleri.includes(g)) tempProg[p.ad][g] = "İZİNLİ";
-                    else if(p.birim.includes("MCR") || p.birim.includes("INGEST")) tempProg[p.ad][g] = "İZİNLİ";
-                    else if(calis[p.ad] < 5) { tempProg[p.ad][g] = "09:00–18:00"; calis[p.ad]++; }
-                    else tempProg[p.ad][g] = "İZİNLİ";
+            state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
+                const geceSaati = "00:00–07:00";
+                const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
+                let atanan = 0;
+                if (hedef > 0) {
+                    const adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null)
+                        .sort((a, b) => {
+                            if(gun < 5) {
+                                if(a.ad.includes("EKREM FİDAN")) return -1; if(b.ad.includes("EKREM FİDAN")) return 1;
+                                if(a.ad.includes("BARIŞ İNCE")) return -1; if(b.ad.includes("BARIŞ İNCE")) return 1;
+                            }
+                            return (calis[a.ad]) - (calis[b.ad]);
+                        });
+                    for (let p of adaylar) { if (atanan < hedef && calis[p.ad] < 6) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++; } }
                 }
-            }
-        });
-
-        state.personeller.forEach(p => { for(let i=0; i<7; i++) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); alert("Vardiya oluşturuldu.");
-    }
-
-    // --- YENİLENEN KAPASİTE MANTIĞI (ÖNCELİK PUANI İLE) ---
-    function kapasiteDoldur(gun, saat, tempProg, calis) {
-        state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
-            const hedef = (state.kapasite && state.kapasite[`${birim}_${saat}`]) ? state.kapasite[`${birim}_${saat}`][gun] : 0;
-            let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
-            if (mevcut < hedef) {
-                let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null && (!p.izinGunleri || !p.izinGunleri.includes(gun)));
-                
-                // SKORLAMA (ÖNCELİK PUANI):
-                // Eğer gece vardiyası dağıtılıyorsa (00:00-07:00), puanı YÜKSEK olanı öne al.
-                // Diğer saatlerde, adaletli dağıtım için az çalışanı öne al.
-                adaylar.sort((a, b) => {
-                    if(saat === "00:00–07:00") {
-                        // Büyük puan üstte (Azalan sıralama)
-                        return (b.oncelik || 0) - (a.oncelik || 0);
+            });
+            state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
+                state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
+                    const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
+                    let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
+                    if (mevcut < hedef) {
+                        let adaylar = state.personeller.filter(p => {
+                            let basic = p.birim === birim && tempProg[p.ad][gun] === null;
+                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
+                            return basic && !(dunGece && saat === "06:30–16:00");
+                        });
+                        adaylar.sort((a, b) => {
+                            if(a.ad.includes("BARIŞ İNCE")) return Math.random() - 0.5;
+                            return (calis[a.ad] * 10 + (a.ad.charCodeAt(0) % (weekOffset + 1))) - (calis[b.ad] * 10 + (b.ad.charCodeAt(0) % (weekOffset + 1)));
+                        });
+                        for (let p of adaylar) {
+                            let limit = (gun >= 5) ? 6 : 5;
+                            if (mevcut < hedef && calis[p.ad] < limit) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; }
+                        }
                     }
-                    // Normal vardiyada puana bakma, çalışma sayısına bak
-                    return (calis[a.ad] - calis[b.ad]) || (Math.random() - 0.5);
                 });
-
-                for (let p of adaylar) { if (mevcut < hedef) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; } }
-            }
-        });
+            });
+        }
+        state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
+        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu.");
     }
 
+    function excelIndir() {
+        const hKey = currentMonday.toISOString().split('T')[0];
+        let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>
+            table { border-collapse: collapse; font-family: Arial; } td { border: 1px solid #000; text-align: center; padding: 4px; font-size: 8pt; }
+            .title { background: #312e81; color: white; font-weight: bold; font-size: 12pt; }
+            .header { background: #1e1b4b; color: white; font-weight: bold; }
+            .saat-0630 { background: #ffff00; font-weight: bold; }
+            .saat-0900 { background: #00b0f0; color: white; font-weight: bold; }
+            .saat-1600 { background: #7030a0; color: white; font-weight: bold; }
+            .saat-0000 { background: #ed7d31; color: white; font-weight: bold; }
+            .saat-izin { background: #ff0000; color: white; font-weight: bold; }
+        </style></head><body><table><tr><th colspan="8" class="title">TEKNİK PERSONEL ÇALIŞMA LİSTESİ</th></tr>
+        <tr><th class="header">SAAT</th>${GUNLER.map(g => `<th class="header">${g.toUpperCase()}</th>`).join('')}</tr>`;
+        
+        state.birimler.forEach(birim => {
+            html += `<tr><td colspan="8" style="background:${getBirimColor(birim)}; color:white; font-weight:bold;">${birim}</td></tr>`;
+            [...state.saatler, "İZİN"].forEach(s => {
+                let pByDay = []; let maxRow = 1;
+                for(let i=0; i<7; i++) {
+                    let list = state.personeller.filter(p => {
+                        let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
+                        if(s === "İZİN") return p.birim === birim && (v === "İZİNLİ" || v === "BOŞ" || !v);
+                        return p.birim === birim && v === s;
+                    });
+                    pByDay[i] = list; if(list.length > maxRow) maxRow = list.length;
+                }
+                let cls = s.includes("06:30") ? "saat-0630" : s.includes("09:00") ? "saat-0900" : s.includes("16:00") ? "saat-1600" : s.includes("00:00") ? "saat-0000" : s === "İZİN" ? "saat-izin" : "";
+                for(let r=0; r<maxRow; r++) {
+                    html += `<tr>${r===0 ? `<td rowspan="${maxRow}" class="${cls}">${s}</td>`:""}${pByDay.map(d => `<td>${d[r]?d[r].ad:""}</td>`).join('')}</tr>`;
+                }
+            });
+        });
+        html += `</table></body></html>`;
+        const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Vardiya_${hKey}.xls`; a.click();
+    }
+
+    function toggleAdminPanel() { 
+        if(!isAdmin) return;
+        const p = document.getElementById("sidePanel"); 
+        const o = document.getElementById("panelOverlay"); 
+        p.classList.toggle("open"); 
+        o.style.display = p.classList.contains("open") ? "block" : "none"; 
+        if(p.classList.contains("open")) tabDegistir('personel'); 
+    }
+    
+    function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); refreshUI(); }
+    function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); }
+    function buluttanYukle() { database.ref('vardiya_data').once('value').then(snap => { if(snap.exists()){ state = snap.val(); save(); location.reload(); } }); }
+    
     function refreshUI() {
-        if(!state.birimler) return;
         document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
-        const swapSourceSel = document.getElementById("swapSource"); const swapTargetSel = document.getElementById("swapTarget");
-        const personOptions = `<option value="">Seçiniz...</option>` + state.personeller.map(p => `<option value="${p.ad}">${p.ad} (${p.birim})</option>`).join('');
-        if(swapSourceSel) swapSourceSel.innerHTML = personOptions; if(swapTargetSel) swapTargetSel.innerHTML = personOptions;
-
         document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => {
-            let mcrHtml = ""; 
-            if(p.birim.includes("MCR")) mcrHtml = `<div class="mcr-ayarlar"><span>Döngü Ofseti: </span><input type="number" min="0" max="7" value="${(state.mcrAyarlari.ofsetler && state.mcrAyarlari.ofsetler[p.ad]) || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`;
-            else if(p.birim.includes("INGEST")) mcrHtml = `<div class="mcr-ayarlar"><span>Döngü Ofseti: </span><input type="number" min="0" max="5" value="${(state.mcrAyarlari.ofsetler && state.mcrAyarlari.ofsetler[p.ad]) || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`;
-            
-            let birimSecimHtml = `<select onchange="birimGuncelle('${p.ad}', this.value)" style="margin-left:5px; padding:2px; font-size:10px; border-radius:4px;">`;
-            state.birimler.forEach(b => { birimSecimHtml += `<option value="${b}" ${p.birim === b ? 'selected' : ''}>${b}</option>`; }); birimSecimHtml += `</select>`;
-
+            let mcrHtml = "";
+            if(p.birim.includes("MCR") || p.birim.includes("INGEST")) {
+                mcrHtml = `<div class="mcr-ayarlar">
+                    <span>${p.birim.includes("INGEST") ? 'INGEST' : 'MCR'} Döngü Ofseti: </span>
+                    <input type="number" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:40px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)">
+                </div>`;
+            }
             return `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span><strong>${p.ad}</strong> ${birimSecimHtml}</span>
-                    <div style="display:flex; align-items:center; gap:5px;">
-                        <span style="font-size:10px; font-weight:bold;">Öncelik %:</span>
-                        <input type="number" value="${p.oncelik || 0}" onchange="oncelikGuncelle('${p.ad}', this.value)" style="width:40px; padding:2px; border:1px solid var(--border); text-align:center;">
-                        <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); database.ref('vardiya_data').set(state);" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button>
-                    </div>
-                </div>
-                <div style="margin-top:5px;">
-                    ${CONFIG.days.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}
-                </div>${mcrHtml}
+                <strong>${p.ad}</strong> <small>(${p.birim})</small>
+                <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer; float:right;">Sil</button>
+                <div style="margin-top:5px;">${GUNLER.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div>
+                ${mcrHtml}
             </div>`;
         }).join('');
         
-        let capHtml = ""; 
-        state.birimler.forEach(b => { capHtml += `<div style="margin-bottom:15px; background:var(--bg); padding:10px; border-radius:8px;"><strong>${b}</strong>`; state.saatler.forEach(s => { const v = (state.kapasite && state.kapasite[`${b}_${s}`]) ? state.kapasite[`${b}_${s}`] : [0,0,0,0,0,0,0]; capHtml += `<div style="font-size:9px; margin-top:5px;">${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">${CONFIG.days.map((g, gi) => `<input type="number" value="${v[gi]}" style="width:100%; text-align:center;" onchange="capUp('${b}_${s}',${gi},this.value)">`).join('')}</div>`; }); capHtml += `</div>`; });
+        let capHtml = ""; state.birimler.forEach(b => { capHtml += `<div style="margin-bottom:15px; background:var(--bg); padding:10px; border-radius:8px;"><strong>${b}</strong>`; state.saatler.forEach(s => { const v = state.kapasite[`${b}_${s}`] || [0,0,0,0,0,0,0]; capHtml += `<div style="font-size:9px; margin-top:5px;">${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">${GUNLER.map((g, gi) => `<input type="number" value="${v[gi]}" style="width:100%; text-align:center;" onchange="capUp('${b}_${s}',${gi},this.value)">`).join('')}</div>`; }); capHtml += `</div>`; });
         document.getElementById("kapasiteTable").innerHTML = capHtml;
-        document.getElementById("sabitListeAdmin").innerHTML = `<div style="background:#e0f2fe; padding:10px; border-radius:8px; margin-bottom:10px;"><strong>Döngü Başlangıç Tarihi:</strong><br><input type="date" value="${state.mcrAyarlari.baslangicTarihi}" onchange="state.mcrAyarlari.baslangicTarihi = this.value; save();" style="width:100%; padding:5px; margin-top:5px;"></div>` + state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--bg); padding:5px; border-radius:5px;"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
-        document.getElementById("birimListesiAdmin").innerHTML = state.birimler.map((b,i) => `<div style="padding:5px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between;">${b} <button onclick="birimSil(${i})" style="color:red;border:none;background:none;cursor:pointer;">x</button></div>`).join('');
-        document.getElementById("saatListesiAdmin").innerHTML = state.saatler.map((s,i) => `<div style="padding:5px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between;">${s} <button onclick="saatSil(${i})" style="color:red;border:none;background:none;cursor:pointer;">x</button></div>`).join('');
-    }
-
-    function izinGunuTetikle(pi, gi) { 
-        if(!state.personeller[pi].izinGunleri) state.personeller[pi].izinGunleri = []; 
-        const idx = state.personeller[pi].izinGunleri.indexOf(gi); 
-        if(idx > -1) state.personeller[pi].izinGunleri.splice(idx, 1); 
-        else state.personeller[pi].izinGunleri.push(gi); 
-        save(); refreshUI(); database.ref('vardiya_data/personeller').set(state.personeller);
-    }
-
-    function talepModalAc() { const sel = document.getElementById('talepPersonel'); sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); if(activeUser) sel.value = activeUser; document.getElementById('talepModal').style.display = 'flex'; }
-    function talepGonder() { 
-        const ad = document.getElementById('talepPersonel').value; const tarih = document.getElementById('talepTarih').value; const tur = document.getElementById('talepTuru').value; 
-        if(!tarih) { alert("Tarih seçin!"); return; }
-        const hKey = getMonday(new Date(tarih)).toISOString().split('T')[0]; const gunIdx = (new Date(tarih).getDay() + 6) % 7; const talepId = Date.now().toString(); 
-        database.ref('talepler/' + talepId).set({ id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor" }); 
-        fetch(`https://api.telegram.org/bot${CONFIG.telegram.api}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: CONFIG.telegram.id, text: `🔔 *TALEP*\n👤 ${ad}\n📅 ${tarih}\n📝 ${tur}`, parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "✅ ONAY", callback_data: `onay_${talepId}` }, { text: "❌ RED", callback_data: `red_${talepId}` }]] } }) }); 
-        alert("İletildi."); document.getElementById('talepModal').style.display = 'none'; 
-    }
-
-    function talepleriRenderEt(taleplerObj) {
-        const liste = document.getElementById('gelenTaleplerListesi');
-        if(!taleplerObj) { liste.innerHTML = "<p style='text-align:center; opacity:0.5;'>Bekleyen talep yok.</p>"; return; }
-        let html = "";
-        const talepDizisi = Object.values(taleplerObj);
-        talepDizisi.forEach(t => {
-            if(t.durum === 'bekliyor') {
-                html += `<div style="background:var(--card-bg); border:1px solid var(--border); border-left:5px solid var(--warning); padding:10px; margin-bottom:5px;">
-                    <div><strong>${t.ad}</strong> <small>${t.tarih}</small></div>
-                    <div>${t.tur}</div>
-                    <div style="display:flex; gap:5px; margin-top:5px;">
-                        <button onclick="talepIslem('${t.id}', 'onay')" style="flex:1; background:var(--success); color:white; border:none; padding:5px;">ONAY</button>
-                        <button onclick="talepIslem('${t.id}', 'red')" style="flex:1; background:var(--danger); color:white; border:none; padding:5px;">RED</button>
-                    </div></div>`;
-            }
-        });
-        liste.innerHTML = html || "<p style='text-align:center; opacity:0.5;'>Bekleyen talep yok.</p>";
-    }
-
-    function talepIslem(id, tip) { 
-        database.ref('talepler/' + id).once('value', snap => { 
-            const t = snap.val(); 
-            if(tip === 'onay') { 
-                state.manuelAtamalar[`${t.hKey}_${t.ad}_${t.gunIdx}`] = t.tur; 
-                save(); tabloyuOlustur(); database.ref('vardiya_data').set(state);
-                database.ref('talepler/' + id).update({ durum: 'onaylandi' }); 
-            } else { 
-                database.ref('talepler/' + id).update({ durum: 'reddedildi' }); 
-            } 
-        }); 
-    }
-
-    // --- SWAP (DEVRALMA) DÜZELTİLDİ ---
-    function applyPersonSwap() {
-        const sourceName = document.getElementById("swapSource").value; const targetName = document.getElementById("swapTarget").value;
-        if(!sourceName || !targetName || sourceName === targetName) { alert("Hatalı seçim!"); return; }
-        const checkboxes = document.querySelectorAll('.swap-day-chk:checked');
-        const selectedDays = Array.from(checkboxes).map(c => parseInt(c.value));
         
-        if (selectedDays.length === 0) {
-            if(confirm("Kalıcı değişim yapılsın mı?")) {
-                const sP = state.personeller.find(p => p.ad === sourceName); const tP = state.personeller.find(p => p.ad === targetName);
-                if(sP && tP) { sP.birim = tP.birim; if(state.mcrAyarlari.ofsetler[targetName] !== undefined) state.mcrAyarlari.ofsetler[sourceName] = state.mcrAyarlari.ofsetler[targetName]; save(); refreshUI(); alert("Değişim tamamlandı."); }
-            }
-        } else {
-            if(confirm("Sadece seçili günlerde vardiya devralınsın mı?")) {
-                const hKey = currentMonday.toISOString().split('T')[0];
-                selectedDays.forEach(dayIndex => {
-                    // Mevcut (Otomatik veya Manuel) vardiyayı bul
-                    let targetShift = state.manuelAtamalar[`${hKey}_${targetName}_${dayIndex}`];
-                    // Eğer manuel atamada yoksa, otomatik dağıtımdan bulmaya çalış (Hafızadan)
-                    if(!targetShift) {
-                       // Burada basitçe: O gün için o kişinin vardiyası neyse onu al
-                       // Ancak state.manuelAtamalar 'Vardiya Oluştur' denilince dolduğu için orada olmalı.
-                       // Güvenlik için yine de kontrol edelim.
-                    }
-
-                    if(targetShift && targetShift !== "İZİNLİ") { 
-                        // Kaynak kişiye vardiyayı yaz
-                        state.manuelAtamalar[`${hKey}_${sourceName}_${dayIndex}`] = targetShift; 
-                        // Hedef kişiyi izinli yap
-                        state.manuelAtamalar[`${hKey}_${targetName}_${dayIndex}`] = "İZİNLİ"; 
-                    }
-                });
-                // Değişikliği veritabanına işle
-                save(); 
-                tabloyuOlustur(); 
-                database.ref('vardiya_data').set(state); 
-                alert("Devralma tamamlandı.");
-            }
-        }
+        let mcrSistemHtml = `<div style="background:#e0f2fe; padding:10px; border-radius:8px; margin-bottom:10px;">
+            <strong>MCR/INGEST Döngü Başlangıç Tarihi:</strong><br>
+            <input type="date" value="${state.mcrAyarlari.baslangicTarihi}" onchange="state.mcrAyarlari.baslangicTarihi = this.value; save();" style="width:100%; padding:5px; margin-top:5px;">
+        </div>`;
+        
+        document.getElementById("sabitListeAdmin").innerHTML = mcrSistemHtml + state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--bg); padding:5px; border-radius:5px;"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
+        document.getElementById("birimListesiAdmin").innerHTML = state.birimler.map(b => `<div style="padding:5px; border-bottom:1px solid var(--border);">${b}</div>`).join('');
+        document.getElementById("saatListesiAdmin").innerHTML = state.saatler.map(s => `<div style="padding:5px; border-bottom:1px solid var(--border);">${s}</div>`).join('');
     }
 
-    function birimEkle() { const b = document.getElementById('yeniBirimInput').value.toUpperCase(); if(b && !state.birimler.includes(b)) { state.birimler.push(b); document.getElementById('yeniBirimInput').value = ""; save(); refreshUI(); } }
-    function birimSil(idx) { if(confirm("Silinsin mi?")) { state.birimler.splice(idx, 1); save(); refreshUI(); } }
-    function saatEkle() { const s = document.getElementById('yeniSaatInput').value; if(s && !state.saatler.includes(s)) { state.saatler.push(s); document.getElementById('yeniSaatInput').value = ""; save(); refreshUI(); } }
-    function saatSil(idx) { if(confirm("Silinsin mi?")) { state.saatler.splice(idx, 1); save(); refreshUI(); } }
-    function birimGuncelle(ad, yeniBirim) { const p = state.personeller.find(x => x.ad === ad); if (p) { p.birim = yeniBirim; save(); refreshUI(); tabloyuOlustur(); database.ref('vardiya_data').set(state); } }
-    function oncelikGuncelle(ad, val) { const p = state.personeller.find(x=>x.ad===ad); if(p){ p.oncelik = parseInt(val); save(); } }
     function mcrOfsetGuncelle(ad, val) { if(!state.mcrAyarlari.ofsetler) state.mcrAyarlari.ofsetler = {}; state.mcrAyarlari.ofsetler[ad] = parseInt(val); save(); }
+    function whatsappGonder() { const hKey = currentMonday.toISOString().split('T')[0]; let m = `*📅 ${currentMonday.toLocaleDateString('tr-TR')} VARDİYASI*\n\n`; GUNLER.forEach((g, i) => { m += `*${g.toUpperCase()}*\n`; state.saatler.forEach(s => { let pList = state.personeller.filter(p => state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] === s).map(p => p.ad).join(", "); if (pList) m += `• ${s}: ${pList}\n`; }); m += `\n`; }); window.open(`https://wa.me/?text=${encodeURIComponent(m)}`, '_blank'); }
     function capUp(k, g, v) { if(!state.kapasite[k]) state.kapasite[k] = [0,0,0,0,0,0,0]; state.kapasite[k][g] = parseInt(v) || 0; save(); }
-    function haftaDegistir(v) { currentMonday.setDate(currentMonday.getDate() + v); tabloyuOlustur(); if(activeUser) renderPersonalDashboard(activeUser); }
-    function toggleAdminPanel() { const p = document.getElementById("sidePanel"); const o = document.getElementById("panelOverlay"); p.classList.toggle("open"); o.style.display = p.classList.contains("open") ? "block" : "none"; if(p.classList.contains("open")) tabDegistir('personel'); }
-    function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); event.target.classList.add('active'); refreshUI(); }
-    function personelEkle() { const ad = document.getElementById("yeniPersInp").value.toUpperCase(); const b = document.getElementById("yeniPersBirimSec").value; if(ad){ state.personeller.push({ad, birim:b, izinGunleri:[], oncelik: 0}); save(); refreshUI(); document.getElementById("yeniPersInp").value=""; database.ref('vardiya_data').set(state); } }
-    function vardiyaDegistir(p, g) { if(!isAdmin) return; const s = prompt(`${p}: 1:06:30, 2:09:00, 3:16:00, 4:00:00, 5:İZİN`); if(s){ let v = null; if(s=="1") v="06:30–16:00"; if(s=="2") v="09:00–18:00"; if(s=="3") v="16:00–00:00"; if(s=="4") v="00:00–07:00"; if(s=="5") v="İZİNLİ"; state.manuelAtamalar[`${currentMonday.toISOString().split('T')[0]}_${p}_${g}`] = v; save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); } }
-    function excelIndir() { /* Excel Kodu */ alert("Excel indiriliyor..."); }
-    function whatsappGonder() { /* WP Kodu */ window.open(`https://wa.me/?text=Vardiya Listesi Güncellendi!`); }
-    function vardiyaSifirla() { if(confirm("Haftayı temizle?")) { const hKey = currentMonday.toISOString().split('T')[0]; Object.keys(state.manuelAtamalar).forEach(k => { if(k.startsWith(hKey)) delete state.manuelAtamalar[k]; }); save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); } }
-    async function tamSifirla() { if(confirm("DİKKAT: TÜM VERİ SİLİNECEK!")) { await database.ref('vardiya_data').remove(); await database.ref('talepler').remove(); localStorage.clear(); location.reload(); } }
-    function jsonYedekAl() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "Yedek.json"); dl.click(); }
+    function izinGunuTetikle(pi, gi) { if(!state.personeller[pi].izinGunleri) state.personeller[pi].izinGunleri = []; const idx = state.personeller[pi].izinGunleri.indexOf(gi); if(idx > -1) state.personeller[pi].izinGunleri.splice(idx, 1); else state.personeller[pi].izinGunleri.push(gi); save(); refreshUI(); }
+    function haftaDegistir(v) { currentMonday.setDate(currentMonday.getDate() + v); tabloyuOlustur(); }
+    function personelEkle() { const ad = document.getElementById("yeniPersInp").value.toUpperCase(); const b = document.getElementById("yeniPersBirimSec").value; if(ad){ state.personeller.push({ad, birim:b, izinGunleri:[]}); save(); refreshUI(); document.getElementById("yeniPersInp").value=""; } }
     
-    // GÜVENLİ YÜKLEME (BULUT)
-    function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); }
-    function buluttanYukle() { 
-        database.ref('vardiya_data').once('value').then(snap => { 
-            if(snap.exists()){ akilliVeriYukle(snap.val()); alert("Yüklendi! Sayfa yenileniyor..."); location.reload(); } else { alert("Bulut boş."); } 
-        }).catch(e => alert(e.message)); 
+    function drag(e, p, g, s) { 
+        if(!isAdmin) return;
+        e.dataTransfer.setData("p", p); e.dataTransfer.setData("oldG", g); 
     }
     
-    // GÜVENLİ YÜKLEME (GITHUB)
-    async function githubdanYedekYukle() { 
-        const url = "https://raw.githubusercontent.com/ugurbakirtas/vardiya-sistemi/main/ilk_kurulum.json?t=" + new Date().getTime(); 
-        if (confirm("Sıfırlanacak. Onay?")) { 
-            try { 
-                const response = await fetch(url); 
-                if (!response.ok) throw new Error("Hata."); 
-                const json = await response.json(); 
-                akilliVeriYukle(json); 
-                alert("Yüklendi! Sayfa yenileniyor..."); 
-                location.reload(); 
-            } catch (error) { 
-                alert("Hata: " + error.message); 
-            } 
+    function drop(e, ns, ng) { 
+        if(!isAdmin) return;
+        e.preventDefault(); 
+        const p = e.dataTransfer.getData("p"); 
+        const hKey = currentMonday.toISOString().split('T')[0];
+        cakismaKontrol(p, ng, ns);
+        state.manuelAtamalar[`${hKey}_${p}_${ng}`] = ns === 'BOŞ' ? null : ns; 
+        save(); 
+        tabloyuOlustur(); 
+    }
+
+    function vardiyaDegistir(p, g) { 
+        if(!isAdmin) return;
+        const s = prompt(`${p}: 1:06:30, 2:09:00, 3:16:00, 4:00:00, 5:İZİN`); 
+        if(s){ 
+            let v = null; 
+            if(s=="1") v="06:30–16:00"; 
+            if(s=="2") v="09:00–18:00"; 
+            if(s=="3") v="16:00–00:00"; 
+            if(s=="4") v="00:00–07:00"; 
+            if(s=="5") v="İZİNLİ"; 
+            cakismaKontrol(p, g, v);
+            state.manuelAtamalar[`${currentMonday.toISOString().split('T')[0]}_${p}_${g}`] = v; 
+            save(); 
+            tabloyuOlustur(); 
         } 
     }
-    
+
+    function toggleTheme() { const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"; document.documentElement.setAttribute("data-theme", t); localStorage.setItem(PREFIX + "theme", t); }
+    function vardiyaSifirla() { if(confirm("Haftayı temizle?")) { const hKey = currentMonday.toISOString().split('T')[0]; Object.keys(state.manuelAtamalar).forEach(k => { if(k.startsWith(hKey)) delete state.manuelAtamalar[k]; }); save(); tabloyuOlustur(); } }
+    function tamSifirla() { if(confirm("Sıfırla?")) { localStorage.clear(); location.reload(); } }
+    function jsonYedekAl() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "Yedek.json"); dl.click(); }
+    async function githubdanYedekYukle() {
+    const url = "https://raw.githubusercontent.com/ugurbakirtas/vardiya-sistemi/main/ilk_kurulum.json?t=" + new Date().getTime();
+    if (confirm("Sistem verileri GitHub üzerindeki yedekle değiştirilecek. Onaylıyor musunuz?")) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("GitHub'daki dosya bulunamadı veya erişim engellendi.");
+            const data = await response.json();
+            state = data;
+            save();
+            alert("GitHub yedeği başarıyla yüklendi!");
+            location.reload();
+        } catch (error) {
+            console.error(error);
+            alert("Hata: " + error.message);
+        }
+    }
+}
     function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); }
     function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
-    function cakismaKontrol(personelAd, hedefGun, hedefSaat) { const hKey = currentMonday.toISOString().split('T')[0]; if (["İZİNLİ", "BOŞ", null].includes(hedefSaat)) return; if (hedefGun > 0) { let dunKey = `${hKey}_${personelAd}_${hedefGun - 1}`; let dunVardiya = state.manuelAtamalar[dunKey]; if (["16:00–00:00", "00:00–07:00"].includes(dunVardiya) && ["06:30–16:00", "09:00–18:00"].includes(hedefSaat)) { alert(`⚠️ DİKKAT: ${personelAd} dinlenme süresi ihlali olabilir!`); } } }
-    function drag(e, p, g, s) { if(!isAdmin) return; e.dataTransfer.setData("p", p); e.dataTransfer.setData("oldG", g); }
-    function drop(e, ns, ng) { if(!isAdmin) return; e.preventDefault(); const p = e.dataTransfer.getData("p"); const hKey = currentMonday.toISOString().split('T')[0]; cakismaKontrol(p, ng, ns); state.manuelAtamalar[`${hKey}_${p}_${ng}`] = ns === 'BOŞ' ? null : ns; save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); }
-    function toggleTheme() { const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"; document.documentElement.setAttribute("data-theme", t); localStorage.setItem("theme", t); }
-
-    window.onload = async () => { 
-        if(localStorage.getItem("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); 
-        
-        // Hassas ayarları yükle (Hata korumalı)
-        await hassasAyarlariYukle(); 
-        
-        database.ref('vardiya_data').on('value', snap => {
-            if(snap.exists()) { 
-                akilliVeriYukle(snap.val(), false); // Otomatik güncellemede sayfa yenileme YOK
+// Bu fonksiyonu mevcut olanla değiştir veya üzerine yaz
+function anlikSenkronizasyonBaslat() {
+    // Sadece 'vardiya_data' değil, tüm veritabanını dinleyerek 
+    // hem vardiya değişimlerini hem de yeni gelen talepleri anında yakalarız.
+    database.ref().on('value', (snap) => {
+        if (snap.exists()) {
+            const data = snap.val();
+            
+            // 1. Vardiya Verilerini Güncelle
+            if(data.vardiya_data) {
+                state = data.vardiya_data;
+                save();
+                tabloyuOlustur();
+                if(isAdmin) refreshUI();
             }
-        });
-        
-        // İlk açılış
-        tabloyuOlustur();
-    };
-    
-    // --- AKILLI YÜKLEYİCİ (Global) ---
-    function akilliVeriYukle(gelenVeri, reload = true) {
-        if(!gelenVeri) return;
-        let hedef = gelenVeri;
-        if(gelenVeri.vardiya_data) hedef = gelenVeri.vardiya_data;
-        
-        const diziYap = (v) => v ? (Array.isArray(v) ? v : Object.values(v)) : [];
-        
-        state.personeller = diziYap(hedef.personeller);
-        state.birimler = diziYap(hedef.birimler);
-        state.saatler = diziYap(hedef.saatler);
-        state.kapasite = hedef.kapasite || {};
-        state.manuelAtamalar = hedef.manuelAtamalar || {};
-        state.haftaIciSabitler = hedef.haftaIciSabitler || {};
-        state.mcrAyarlari = hedef.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} };
-        
-        save();
-        tabloyuOlustur();
-        if(isAdmin) refreshUI();
-        if(reload) location.reload();
+            
+            // 2. Bekleyen Talepleri Güncelle (Yönetici Paneli İçin)
+            if(isAdmin) {
+                talepleriYukle(); 
+            }
+            
+            console.log("Sistem: Tüm veriler (vardiya ve talepler) güncellendi.");
+        }
+    });
+}
+       window.onload = async () => { 
+    // Tema ayarını uygula
+    if(localStorage.getItem(PREFIX + "theme") === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
     }
+    
+    // ÖNEMLİ: Hassas ayarları (Telegram API vb.) giriş yapmadan önce yükle
+    await hassasAyarlariYukle(); 
+    
+    // Canlı senkronizasyonu ve talepleri başlat
+    anlikSenkronizasyonBaslat();
+    talepleriYukle(); 
+};
   </script>
 </body>
 </html>
