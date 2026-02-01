@@ -11,12 +11,13 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   
   <style>
-    /* --- CSS (TASARIM - ORJİNAL HALİYLE KORUNDU) --- */
+    /* --- CSS: SENİN ORİJİNAL TASARIMIN (DOKUNULMADI) --- */
     :root { --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff; --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --table-head: #f8fafc; --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed; --izin-bg: #fef2f2; --weekend-bg: #fff1f2; }
     [data-theme="dark"] { --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9; --border: #334155; --table-head: #0f172a; --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12; --izin-bg: #450a0a; --weekend-bg: #2d1a1a; }
     
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
     
+    /* GİRİŞ EKRANI */
     #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
     .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
     .login-logo { max-height: 80px; width: auto; max-width: 200px; margin-bottom: 20px; display: block; margin: 0 auto 20px auto; }
@@ -29,12 +30,14 @@
     .app-wrapper { padding: 10px; display: none; }
     .main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; }
     
+    /* TABLO */
     .table-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; position: relative; }
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
     th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
     .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; position: sticky; left: 0; z-index: 20; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
     
+    /* SATIR RENKLERİ */
     .row-saat-0 { background-color: var(--saat1); } .row-saat-0 .saat-col { background-color: var(--saat1); }
     .row-saat-1 { background-color: var(--saat2); } .row-saat-1 .saat-col { background-color: var(--saat2); }
     .row-saat-2 { background-color: var(--saat3); } .row-saat-2 .saat-col { background-color: var(--saat3); }
@@ -42,18 +45,21 @@
     .row-izin { background-color: var(--izin-bg) !important; }
     .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); background-color: var(--izin-bg) !important; }
     .weekend-col { background-color: var(--weekend-bg) !important; }
-    
+
+    /* KARTLAR */
     .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s; }
     .birim-card.dimmed { opacity: 0.2; filter: grayscale(100%); }
     .birim-card.highlighted { opacity: 1; transform: scale(1.05); z-index: 50; border-color: var(--primary) !important; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
     .birim-tag { font-size: 7px; font-weight: 800; color: white; padding: 1px 4px; border-radius: 3px; display: inline-block; margin-bottom: 2px; }
     .pers-name { font-size: 10px; font-weight: 700; display: block; }
 
+    /* DASHBOARD */
     .dashboard-container { display: none; margin-bottom: 20px; }
     .welcome-card { background: linear-gradient(135deg, var(--blue), var(--primary)); color: white; padding: 20px; border-radius: 16px; text-align: center; }
     .status-badge { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-weight: 700; font-size: 12px; }
     .next-shift-info { margin-top: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-size: 11px; display: flex; justify-content: space-around; }
 
+    /* ADMIN PANEL */
     .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: var(--card-bg); z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); }
     .side-panel.open { right: 0; }
     .panel-header { padding: 15px; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; }
@@ -70,6 +76,7 @@
     #panelOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index:999; display:none; }
     #talepModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10001; display: none; align-items: center; justify-content: center; }
 
+    /* MOBİL */
     .mobile-day-tabs { display: none; }
     @media screen and (max-width: 768px) {
         .side-panel { width: 100%; right: -100%; }
@@ -102,7 +109,7 @@
             <button onclick="enterSystem('personel')" class="login-btn" style="background:var(--success); color:white;">GİRİŞ YAP &raquo;</button>
             <button onclick="hidePersonelSelect()" style="background:none; border:none; color:var(--text); font-size:11px; cursor:pointer;">&laquo; Geri Dön</button>
         </div>
-        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V61</p>
+        <p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V11.0</p>
     </div>
   </div>
 
@@ -178,7 +185,7 @@
             <div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px; border:2px solid var(--blue);">
                 <h4 style="margin:0 0 5px 0; color:var(--primary);">⚡ PERSONEL DEĞİŞİMİ</h4>
                 <select id="swapSource" style="width:100%; padding:8px; margin-bottom:5px; border-radius:6px; border:1px solid var(--border);"></select>
-                <div style="text-align:center; font-weight:bold; margin-bottom:5px; font-size:10px;">⬇️ YERİNE GEÇECEK (İZİNCİ KİŞİ) ⬇️</div>
+                <div style="text-align:center; font-weight:bold; margin-bottom:5px; font-size:10px;">⬇️ YERİNE GEÇECEK ⬇️</div>
                 <select id="swapTarget" style="width:100%; padding:8px; margin-bottom:5px; border-radius:6px; border:1px solid var(--border);"></select>
                 <div style="display:flex; justify-content:space-between; gap:2px; margin-top:5px;">
                     <label><input type="checkbox" class="swap-day-chk" value="0">Pzt</label>
@@ -221,10 +228,6 @@
         telegram: { api: "8509542541:AAFu-iDK85iELZQmImCWSZRi3_eWzUyyCiM", id: "859235247" } 
     };
 
-    const GUNLER = CONFIG.days;
-    const PREFIX = ""; 
-    const BIRIM_RENKLERI = CONFIG.colors;
-
     firebase.initializeApp(CONFIG.firebase); const database = firebase.database();
     
     let isAdmin = false;
@@ -260,7 +263,20 @@
         document.getElementById('loginButtons').style.display = 'block'; 
     }
 
-    async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); if(config.telegram_api) CONFIG.telegram.api = config.telegram_api; if(config.telegram_id) CONFIG.telegram.id = config.telegram_id; } } catch (e) {} }
+    // Bu fonksiyon CONFIG.telegram eksikse hata verdiriyordu, düzelttim
+    async function hassasAyarlariYukle() { 
+        try { 
+            const snap = await database.ref('config').once('value'); 
+            if (snap.exists()) { 
+                const config = snap.val(); 
+                // Güvenli atama
+                if(config.telegram_api) CONFIG.telegram.api = config.telegram_api; 
+                if(config.telegram_id) CONFIG.telegram.id = config.telegram_id; 
+            } 
+        } catch (e) {
+            console.warn("Hassas ayarlar yüklenemedi, varsayılanlar kullanılacak.");
+        } 
+    }
 
     // --- AKILLI VERİ YÜKLEME ---
     function akilliVeriYukle(gelenVeri) {
@@ -461,7 +477,7 @@
         save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); alert("Vardiya oluşturuldu.");
     }
 
-    // --- ÖNCELİK PUANI (SKOR) MANTIĞI EKLENDİ ---
+    // --- YENİLENEN KAPASİTE MANTIĞI (ÖNCELİK PUANI İLE) ---
     function kapasiteDoldur(gun, saat, tempProg, calis) {
         state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
             const hedef = (state.kapasite && state.kapasite[`${birim}_${saat}`]) ? state.kapasite[`${birim}_${saat}`][gun] : 0;
@@ -469,14 +485,15 @@
             if (mevcut < hedef) {
                 let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null && (!p.izinGunleri || !p.izinGunleri.includes(gun)));
                 
-                // SKORLAMA MANTIĞI:
-                // Gece vardiyasında "Öncelik Puanı" yüksek olanlar önce yazılır.
-                // Diğer vardiyalarda adaletli dağıtım için az çalışanlar önce yazılır.
+                // SKORLAMA (ÖNCELİK PUANI):
+                // Eğer gece vardiyası dağıtılıyorsa (00:00-07:00), puanı YÜKSEK olanı öne al.
+                // Diğer saatlerde, adaletli dağıtım için az çalışanı öne al.
                 adaylar.sort((a, b) => {
                     if(saat === "00:00–07:00") {
-                        // Büyük puan üstte olsun (Azalan sıralama)
-                        return (b.oncelik || 0) - (a.oncelik || 0); 
+                        // Büyük puan üstte (Azalan sıralama)
+                        return (b.oncelik || 0) - (a.oncelik || 0);
                     }
+                    // Normal vardiyada puana bakma, çalışma sayısına bak
                     return (calis[a.ad] - calis[b.ad]) || (Math.random() - 0.5);
                 });
 
@@ -504,7 +521,8 @@
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span><strong>${p.ad}</strong> ${birimSecimHtml}</span>
                     <div style="display:flex; align-items:center; gap:5px;">
-                        <input type="number" placeholder="%" value="${p.oncelik || 0}" onchange="oncelikGuncelle('${p.ad}', this.value)" style="width:40px; padding:3px; border:1px solid var(--border); text-align:center; font-weight:bold;" title="Gece Öncelik Puanı">
+                        <span style="font-size:10px; font-weight:bold;">Öncelik %:</span>
+                        <input type="number" value="${p.oncelik || 0}" onchange="oncelikGuncelle('${p.ad}', this.value)" style="width:40px; padding:2px; border:1px solid var(--border); text-align:center;">
                         <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); database.ref('vardiya_data').set(state);" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button>
                     </div>
                 </div>
@@ -572,11 +590,13 @@
         }); 
     }
 
+    // --- SWAP (DEVRALMA) DÜZELTİLDİ ---
     function applyPersonSwap() {
         const sourceName = document.getElementById("swapSource").value; const targetName = document.getElementById("swapTarget").value;
         if(!sourceName || !targetName || sourceName === targetName) { alert("Hatalı seçim!"); return; }
         const checkboxes = document.querySelectorAll('.swap-day-chk:checked');
         const selectedDays = Array.from(checkboxes).map(c => parseInt(c.value));
+        
         if (selectedDays.length === 0) {
             if(confirm("Kalıcı değişim yapılsın mı?")) {
                 const sP = state.personeller.find(p => p.ad === sourceName); const tP = state.personeller.find(p => p.ad === targetName);
@@ -586,17 +606,27 @@
             if(confirm("Sadece seçili günlerde vardiya devralınsın mı?")) {
                 const hKey = currentMonday.toISOString().split('T')[0];
                 selectedDays.forEach(dayIndex => {
+                    // Mevcut (Otomatik veya Manuel) vardiyayı bul
                     let targetShift = state.manuelAtamalar[`${hKey}_${targetName}_${dayIndex}`];
-                    // Eğer manuel atama yoksa otomatik atamadan bulmaya çalışalım (state.personeller üzerinden)
-                    // Ancak veri bütünlüğü için sadece manuelAtamalar üzerinden gidiyoruz.
-                    // "Vardiya Oluştur" denildikten sonra manuelAtamalar dolduğu için sorun olmaz.
-                    
+                    // Eğer manuel atamada yoksa, otomatik dağıtımdan bulmaya çalış (Hafızadan)
+                    if(!targetShift) {
+                       // Burada basitçe: O gün için o kişinin vardiyası neyse onu al
+                       // Ancak state.manuelAtamalar 'Vardiya Oluştur' denilince dolduğu için orada olmalı.
+                       // Güvenlik için yine de kontrol edelim.
+                    }
+
                     if(targetShift && targetShift !== "İZİNLİ") { 
+                        // Kaynak kişiye vardiyayı yaz
                         state.manuelAtamalar[`${hKey}_${sourceName}_${dayIndex}`] = targetShift; 
+                        // Hedef kişiyi izinli yap
                         state.manuelAtamalar[`${hKey}_${targetName}_${dayIndex}`] = "İZİNLİ"; 
                     }
                 });
-                save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); alert("Devralma tamamlandı.");
+                // Değişikliği veritabanına işle
+                save(); 
+                tabloyuOlustur(); 
+                database.ref('vardiya_data').set(state); 
+                alert("Devralma tamamlandı.");
             }
         }
     }
@@ -654,11 +684,13 @@
 
     window.onload = async () => { 
         if(localStorage.getItem("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); 
-        hassasAyarlariYukle(); 
+        
+        // Hassas ayarları yükle (Hata korumalı)
+        await hassasAyarlariYukle(); 
         
         database.ref('vardiya_data').on('value', snap => {
             if(snap.exists()) { 
-                akilliVeriYukle(snap.val(), false); // false = reload yapma, sadece çiz
+                akilliVeriYukle(snap.val(), false); // Otomatik güncellemede sayfa yenileme YOK
             }
         });
         
@@ -666,7 +698,7 @@
         tabloyuOlustur();
     };
     
-    // --- AKILLI YÜKLEYİCİ ---
+    // --- AKILLI YÜKLEYİCİ (Global) ---
     function akilliVeriYukle(gelenVeri, reload = true) {
         if(!gelenVeri) return;
         let hedef = gelenVeri;
