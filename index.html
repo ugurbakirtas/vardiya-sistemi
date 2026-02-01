@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TURKMEDYA TEKNiK VARDiYA | V11.0 STABLE</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
   <link rel="shortcut icon" href="#">
 
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -228,8 +229,7 @@
         telegram: { api: "8509542541:AAFu-iDK85iELZQmImCWSZRi3_eWzUyyCiM", id: "859235247" } 
     };
 
-    firebase.initializeApp(CONFIG.firebase); 
-    const database = firebase.database();
+    firebase.initializeApp(CONFIG.firebase); const database = firebase.database();
     
     let isAdmin = false;
     let aktifMobilGun = (new Date().getDay() + 6) % 7; 
@@ -238,13 +238,13 @@
     let activeHighlight = null;
 
     let state = {
-        birimler: Object.keys(CONFIG.colors),
-        saatler: ["06:30–16:00", "09:00–18:00", "16:00–00:00", "00:00–07:00"],
-        personeller: [],
-        kapasite: {},
-        manuelAtamalar: {},
-        haftaIciSabitler: {},
-        mcrAyarlari: { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
+        birimler: JSON.parse(localStorage.getItem("birimler")) || Object.keys(CONFIG.colors),
+        saatler: JSON.parse(localStorage.getItem("saatler")) || ["06:30–16:00", "09:00–18:00", "16:00–00:00", "00:00–07:00"],
+        personeller: JSON.parse(localStorage.getItem("personeller")) || [],
+        kapasite: JSON.parse(localStorage.getItem("kapasite")) || {},
+        manuelAtamalar: JSON.parse(localStorage.getItem("manuelAtamalar")) || {},
+        haftaIciSabitler: JSON.parse(localStorage.getItem("haftaIciSabitler")) || {},
+        mcrAyarlari: JSON.parse(localStorage.getItem("mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
     };
 
     // --- TEMEL FONKSİYONLAR ---
@@ -286,7 +286,17 @@
             document.getElementById('persTalepArea').style.display = 'block';
         }
         
-        // GİRİŞ EKRANINI KAPAT (HIZLI YÜKLEME İÇİN)
+        // Veritabanını dinle ve tabloyu oluştur
+        database.ref('vardiya_data').on('value', snap => {
+            if(snap.exists()) { 
+                state = snap.val(); 
+                save(); 
+                tabloyuOlustur(); 
+                if(isAdmin) refreshUI();
+                if(activeUser) renderPersonalDashboard(activeUser);
+            }
+        });
+
         document.getElementById('loginOverlay').style.opacity = '0'; 
         setTimeout(() => { 
             document.getElementById('loginOverlay').style.display = 'none'; 
@@ -328,7 +338,7 @@
 
     function mobilGunSec(gunIndex) { aktifMobilGun = gunIndex; document.querySelectorAll('.day-tab-btn').forEach((btn, idx) => { if(idx === gunIndex) btn.classList.add('active'); else btn.classList.remove('active'); }); tabloyuOlustur(); }
     function getMonday(d) { d = new Date(d); let day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day == 0 ? -6 : 1))); }
-    function save() { /* Firebase kullanıldığı için localstorage save opsiyonel */ }
+    function save() { Object.keys(state).forEach(k => localStorage.setItem(k, JSON.stringify(state[k]))); }
     function getBirimColor(birim) { return CONFIG.colors[birim] || "#64748b"; }
 
     function tabloyuOlustur() {
@@ -340,12 +350,6 @@
         CONFIG.days.forEach((g, i) => { let hiddenClass = (i !== aktifMobilGun) ? 'mobile-hidden-day' : ''; headerHtml += `<th class="${i>=5?'weekend-col':''} ${hiddenClass}">${g}</th>`; });
         headerHtml += `</tr>`; document.getElementById("tableHeader").innerHTML = headerHtml;
         
-        // Veri güvenliği kontrolü
-        if (!state.personeller) state.personeller = [];
-        if (!state.manuelAtamalar) state.manuelAtamalar = {};
-        if (!state.birimler) state.birimler = [];
-        if (!state.saatler) state.saatler = [];
-
         let prog = {}; 
         state.personeller.forEach(p => { prog[p.ad] = Array(7).fill(null); for(let i=0; i<7; i++) { let mKey = `${hKey}_${p.ad}_${i}`; if(state.manuelAtamalar[mKey]) prog[p.ad][i] = state.manuelAtamalar[mKey]; } });
 
@@ -393,13 +397,13 @@
             for(let g=0; g<7; g++) {
                 let mKey = `${hKey}_${p.ad}_${g}`;
                 // 1. ÖNCELİK: Manuel Atama ve Onaylar
-                if(state.manuelAtamalar && state.manuelAtamalar[mKey]) { tempProg[p.ad][g] = state.manuelAtamalar[mKey]; if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++; }
+                if(state.manuelAtamalar[mKey]) { tempProg[p.ad][g] = state.manuelAtamalar[mKey]; if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++; }
                 // 2. ÖNCELİK (KESİN): Yönetici İzin Hapı
                 if(p.izinGunleri && p.izinGunleri.includes(g)) { tempProg[p.ad][g] = "İZİNLİ"; }
             }
-            const persOfset = parseInt(state.mcrAyarlari.ofsetler && state.mcrAyarlari.ofsetler[p.ad] ? state.mcrAyarlari.ofsetler[p.ad] : 0);
+            const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
             
-            // 3. ÖNCELİK: Döngüler
+            // 3. ÖNCELİK: Döngüler (Eğer boşsa)
             if(p.birim.includes("INGEST")) {
                 for(let g=0; g<7; g++) { 
                     if(tempProg[p.ad][g] !== null) continue;
@@ -410,7 +414,7 @@
                     if(tempProg[p.ad][g] !== null) continue; 
                     let d = new Date(currentMonday); d.setDate(d.getDate() + g); const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24)); const modIndex = ((diffDays + persOfset) % 8 + 8) % 8; tempProg[p.ad][g] = mcrDongu[modIndex]; if(!["İZİNLİ","BOŞ"].includes(tempProg[p.ad][g])) calis[p.ad]++; 
                 }
-            } else if (state.haftaIciSabitler && state.haftaIciSabitler[p.ad]) {
+            } else if (state.haftaIciSabitler[p.ad]) {
                 const sabitSaat = state.haftaIciSabitler[p.ad]; for(let i=0; i<5; i++) { if(tempProg[p.ad][i] === null) { tempProg[p.ad][i] = sabitSaat; calis[p.ad]++; } } if(tempProg[p.ad][5] === null) tempProg[p.ad][5] = "İZİNLİ"; if(tempProg[p.ad][6] === null) tempProg[p.ad][6] = "İZİNLİ";
             }
         });
@@ -421,7 +425,7 @@
             state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => kapasiteDoldur(gun, saat, tempProg, calis));
         }
 
-        // 5. ÖNCELİK: Boşluk Doldurma
+        // 5. ÖNCELİK: Boşluk Doldurma (İzin Korumalı)
         state.personeller.forEach(p => {
             for(let g=0; g<7; g++) { 
                 if(tempProg[p.ad][g] === null) {
@@ -439,7 +443,7 @@
 
     function kapasiteDoldur(gun, saat, tempProg, calis) {
         state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
-            const hedef = (state.kapasite && state.kapasite[`${birim}_${saat}`]) ? state.kapasite[`${birim}_${saat}`][gun] : 0;
+            const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
             let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
             if (mevcut < hedef) {
                 let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null && (!p.izinGunleri || !p.izinGunleri.includes(gun)));
@@ -450,7 +454,6 @@
     }
 
     function refreshUI() {
-        if(!state.birimler) return;
         document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
         const swapSourceSel = document.getElementById("swapSource"); const swapTargetSel = document.getElementById("swapTarget");
         const personOptions = `<option value="">Seçiniz...</option>` + state.personeller.map(p => `<option value="${p.ad}">${p.ad} (${p.birim})</option>`).join('');
@@ -458,8 +461,8 @@
 
         document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => {
             let mcrHtml = ""; 
-            if(p.birim.includes("MCR")) mcrHtml = `<div class="mcr-ayarlar"><span>Döngü Ofseti: </span><input type="number" min="0" max="7" value="${(state.mcrAyarlari.ofsetler && state.mcrAyarlari.ofsetler[p.ad]) || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`;
-            else if(p.birim.includes("INGEST")) mcrHtml = `<div class="mcr-ayarlar"><span>Döngü Ofseti: </span><input type="number" min="0" max="5" value="${(state.mcrAyarlari.ofsetler && state.mcrAyarlari.ofsetler[p.ad]) || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`;
+            if(p.birim.includes("MCR")) mcrHtml = `<div class="mcr-ayarlar"><span>Döngü Ofseti: </span><input type="number" min="0" max="7" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`;
+            else if(p.birim.includes("INGEST")) mcrHtml = `<div class="mcr-ayarlar"><span>Döngü Ofseti: </span><input type="number" min="0" max="5" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`;
             
             let birimSecimHtml = `<select onchange="birimGuncelle('${p.ad}', this.value)" style="margin-left:5px; padding:2px; font-size:10px; border-radius:4px;">`;
             state.birimler.forEach(b => { birimSecimHtml += `<option value="${b}" ${p.birim === b ? 'selected' : ''}>${b}</option>`; }); birimSecimHtml += `</select>`;
@@ -475,8 +478,7 @@
             </div>`;
         }).join('');
         
-        let capHtml = ""; 
-        state.birimler.forEach(b => { capHtml += `<div style="margin-bottom:15px; background:var(--bg); padding:10px; border-radius:8px;"><strong>${b}</strong>`; state.saatler.forEach(s => { const v = (state.kapasite && state.kapasite[`${b}_${s}`]) ? state.kapasite[`${b}_${s}`] : [0,0,0,0,0,0,0]; capHtml += `<div style="font-size:9px; margin-top:5px;">${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">${CONFIG.days.map((g, gi) => `<input type="number" value="${v[gi]}" style="width:100%; text-align:center;" onchange="capUp('${b}_${s}',${gi},this.value)">`).join('')}</div>`; }); capHtml += `</div>`; });
+        let capHtml = ""; state.birimler.forEach(b => { capHtml += `<div style="margin-bottom:15px; background:var(--bg); padding:10px; border-radius:8px;"><strong>${b}</strong>`; state.saatler.forEach(s => { const v = state.kapasite[`${b}_${s}`] || [0,0,0,0,0,0,0]; capHtml += `<div style="font-size:9px; margin-top:5px;">${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">${CONFIG.days.map((g, gi) => `<input type="number" value="${v[gi]}" style="width:100%; text-align:center;" onchange="capUp('${b}_${s}',${gi},this.value)">`).join('')}</div>`; }); capHtml += `</div>`; });
         document.getElementById("kapasiteTable").innerHTML = capHtml;
         document.getElementById("sabitListeAdmin").innerHTML = `<div style="background:#e0f2fe; padding:10px; border-radius:8px; margin-bottom:10px;"><strong>Döngü Başlangıç Tarihi:</strong><br><input type="date" value="${state.mcrAyarlari.baslangicTarihi}" onchange="state.mcrAyarlari.baslangicTarihi = this.value; save();" style="width:100%; padding:5px; margin-top:5px;"></div>` + state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--bg); padding:5px; border-radius:5px;"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
         document.getElementById("birimListesiAdmin").innerHTML = state.birimler.map((b,i) => `<div style="padding:5px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between;">${b} <button onclick="birimSil(${i})" style="color:red;border:none;background:none;cursor:pointer;">x</button></div>`).join('');
@@ -568,6 +570,7 @@
     function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); event.target.classList.add('active'); refreshUI(); }
     function personelEkle() { const ad = document.getElementById("yeniPersInp").value.toUpperCase(); const b = document.getElementById("yeniPersBirimSec").value; if(ad){ state.personeller.push({ad, birim:b, izinGunleri:[], oncelik: 0}); save(); refreshUI(); document.getElementById("yeniPersInp").value=""; database.ref('vardiya_data').set(state); } }
     function vardiyaDegistir(p, g) { if(!isAdmin) return; const s = prompt(`${p}: 1:06:30, 2:09:00, 3:16:00, 4:00:00, 5:İZİN`); if(s){ let v = null; if(s=="1") v="06:30–16:00"; if(s=="2") v="09:00–18:00"; if(s=="3") v="16:00–00:00"; if(s=="4") v="00:00–07:00"; if(s=="5") v="İZİNLİ"; state.manuelAtamalar[`${currentMonday.toISOString().split('T')[0]}_${p}_${g}`] = v; save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); } }
+    function mcrOfsetGuncelle(ad, val) { if(!state.mcrAyarlari.ofsetler) state.mcrAyarlari.ofsetler = {}; state.mcrAyarlari.ofsetler[ad] = parseInt(val); save(); }
     function excelIndir() { /* Excel Kodu */ alert("Excel indiriliyor..."); }
     function whatsappGonder() { /* WP Kodu */ window.open(`https://wa.me/?text=Vardiya Listesi Güncellendi!`); }
     function vardiyaSifirla() { if(confirm("Haftayı temizle?")) { const hKey = currentMonday.toISOString().split('T')[0]; Object.keys(state.manuelAtamalar).forEach(k => { if(k.startsWith(hKey)) delete state.manuelAtamalar[k]; }); save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); } }
@@ -581,33 +584,14 @@
     function drop(e, ns, ng) { if(!isAdmin) return; e.preventDefault(); const p = e.dataTransfer.getData("p"); const hKey = currentMonday.toISOString().split('T')[0]; cakismaKontrol(p, ng, ns); state.manuelAtamalar[`${hKey}_${p}_${ng}`] = ns === 'BOŞ' ? null : ns; save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); }
     function toggleTheme() { const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"; document.documentElement.setAttribute("data-theme", t); localStorage.setItem("theme", t); }
 
-    // --- ÖNEMLİ: VERİTABANI BAĞLANTISI VE BAŞLANGIÇ ---
-    
-    // Veritabanı Değişikliklerini Dinle
-    database.ref('vardiya_data').on('value', snap => {
-        if(snap.exists()) {
-            const val = snap.val();
-            // Güvenli State Güncelleme (Veri yoksa boş obje ata)
-            state = {
-                birimler: val.birimler || Object.keys(CONFIG.colors),
-                saatler: val.saatler || ["06:30–16:00", "09:00–18:00", "16:00–00:00", "00:00–07:00"],
-                personeller: val.personeller || [],
-                kapasite: val.kapasite || {},
-                manuelAtamalar: val.manuelAtamalar || {},
-                haftaIciSabitler: val.haftaIciSabitler || {},
-                mcrAyarlari: val.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
-            };
-            save();
-            tabloyuOlustur();
-            if(isAdmin) refreshUI();
-            if(activeUser) renderPersonalDashboard(activeUser);
-        }
-    });
-
     window.onload = async () => { 
-        if(localStorage.getItem("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark");
-        // HATA VEREN FONKSİYON KALDIRILDI.
-        // Veritabanı dinleyicisi yukarıda zaten kurulu.
+        if(localStorage.getItem("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); 
+        
+        // Veritabanını baştan dinle
+        database.ref('vardiya_data').once('value').then(snap => {
+            if(snap.exists()) { state = snap.val(); }
+            tabloyuOlustur(); 
+        });
     };
   </script>
 </body>
