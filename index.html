@@ -287,6 +287,29 @@
     function showPersonelSelect() { document.getElementById('loginButtons').style.display = 'none'; const sel = document.getElementById('girisPersonelSec'); sel.innerHTML = `<option value="">İsminizi Seçiniz...</option>` + state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); document.getElementById('personelSecimDiv').style.display = 'block'; }
     function hidePersonelSelect() { document.getElementById('personelSecimDiv').style.display = 'none'; document.getElementById('loginButtons').style.display = 'block'; }
 
+    // --- GÜVENLİ VERİ YÜKLEME YARDIMCISI ---
+    // Bu fonksiyon, gelen veriyi state'e aktarırken eksik listeleri (undefined) boş dizi olarak tamamlar.
+    // Böylece "forEach" hatası engellenir.
+    function guvenliStateGuncelle(gelenVeri) {
+        if (!gelenVeri) return;
+        state = {
+            birimler: gelenVeri.birimler || state.birimler, // Varsa yenisini al, yoksa eskisini koru
+            saatler: gelenVeri.saatler || state.saatler,
+            personeller: gelenVeri.personeller || [], // Liste yoksa BOŞ LİSTE yap (undefined olmasın)
+            kapasite: gelenVeri.kapasite || {},
+            manuelAtamalar: gelenVeri.manuelAtamalar || {},
+            haftaIciSabitler: gelenVeri.haftaIciSabitler || {},
+            mcrAyarlari: gelenVeri.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
+        };
+        // Eğer personeller dizisi hala boşsa veya tanımsızsa, boş dizi ata
+        if (!Array.isArray(state.personeller)) state.personeller = [];
+        if (!Array.isArray(state.birimler)) state.birimler = [];
+        if (!Array.isArray(state.saatler)) state.saatler = [];
+        
+        save();
+        tabloyuOlustur();
+    }
+
     async function enterSystem(role) {
         if (role === 'admin') {
             const email = prompt("Yönetici E-posta:"); const password = prompt("Yönetici Şifresi:");
@@ -301,8 +324,12 @@
             setTimeout(() => { document.getElementById('talepPersonel').value = activeUser; }, 500);
         }
         
+        // GİRİŞ YAPILDIĞINDA VERİYİ ÇEK VE GÜVENLE YÜKLE
         database.ref('vardiya_data').once('value').then(snap => {
-            if(snap.exists()) { state = snap.val(); save(); tabloyuOlustur(); if(!isAdmin && activeUser) renderPersonalDashboard(activeUser); }
+            if(snap.exists()) { 
+                guvenliStateGuncelle(snap.val()); // GÜVENLİ FONKSİYON KULLANILDI
+                if(!isAdmin && activeUser) renderPersonalDashboard(activeUser); 
+            }
             document.getElementById('loginOverlay').style.opacity = '0'; 
             setTimeout(() => { document.getElementById('loginOverlay').style.display = 'none'; document.getElementById('appMain').style.display = 'block'; }, 500);
         }).catch(e => {
@@ -367,6 +394,12 @@
         headerHtml += `</tr>`; document.getElementById("tableHeader").innerHTML = headerHtml;
         
         let prog = {}; let calis = {};
+        
+        // HATA ÖNLEYİCİ: Eğer personeller undefined ise boş dizi ata
+        if (!state.personeller) state.personeller = [];
+        if (!state.saatler) state.saatler = [];
+        if (!state.birimler) state.birimler = [];
+
         state.personeller.forEach(p => { prog[p.ad] = Array(7).fill(null); calis[p.ad] = 0; for(let i=0; i<7; i++) { let mKey = `${hKey}_${p.ad}_${i}`; if(state.manuelAtamalar[mKey]) prog[p.ad][i] = state.manuelAtamalar[mKey]; if(prog[p.ad][i] && !["İZİNLİ","BOŞ",null].includes(prog[p.ad][i])) calis[p.ad]++; } });
 
         document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => {
@@ -496,6 +529,7 @@
     }
 
     function refreshUI() {
+        if(!state.birimler) state.birimler = []; // Güvenlik
         document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
         
         const swapSourceSel = document.getElementById("swapSource");
@@ -514,7 +548,7 @@
             return `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;"><div style="display:flex; justify-content:space-between; align-items:center;"><span><strong>${p.ad}</strong> ${birimSecimHtml}</span><div><input type="number" placeholder="Öncelik" value="${p.oncelik||0}" onchange="oncelikGuncelle('${p.ad}', this.value)" style="width:50px; margin-right:5px; border:1px solid var(--border); padding:3px;" title="Öncelik Puanı"><button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button></div></div><div style="margin-top:5px;">${GUNLER.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div>${mcrHtml}</div>`;
         }).join('');
         
-        let capHtml = ""; state.birimler.forEach(b => { capHtml += `<div style="margin-bottom:15px; background:var(--bg); padding:10px; border-radius:8px;"><strong>${b}</strong>`; state.saatler.forEach(s => { const v = state.kapasite[`${b}_${s}`] || [0,0,0,0,0,0,0]; capHtml += `<div style="font-size:9px; margin-top:5px;">${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">${GUNLER.map((g, gi) => `<input type="number" value="${v[gi]}" style="width:100%; text-align:center;" onchange="capUp('${b}_${s}',${gi},this.value)">`).join('')}</div>`; }); capHtml += `</div>`; });
+        let capHtml = ""; state.birimler.forEach(b => { capHtml += `<div style="margin-bottom:15px; background:var(--bg); padding:10px; border-radius:8px;"><strong>${b}</strong>`; state.saatler.forEach(s => { const v = (state.kapasite && state.kapasite[`${b}_${s}`]) ? state.kapasite[`${b}_${s}`] : [0,0,0,0,0,0,0]; capHtml += `<div style="font-size:9px; margin-top:5px;">${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">${GUNLER.map((g, gi) => `<input type="number" value="${v[gi]}" style="width:100%; text-align:center;" onchange="capUp('${b}_${s}',${gi},this.value)">`).join('')}</div>`; }); capHtml += `</div>`; });
         document.getElementById("kapasiteTable").innerHTML = capHtml;
         document.getElementById("sabitListeAdmin").innerHTML = `<div style="background:#e0f2fe; padding:10px; border-radius:8px; margin-bottom:10px;"><strong>Döngü Başlangıç Tarihi:</strong><br><input type="date" value="${state.mcrAyarlari.baslangicTarihi}" onchange="state.mcrAyarlari.baslangicTarihi = this.value; save();" style="width:100%; padding:5px; margin-top:5px;"></div>` + state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--bg); padding:5px; border-radius:5px;"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
         document.getElementById("birimListesiAdmin").innerHTML = state.birimler.map((b,i) => `<div style="padding:5px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between;">${b} <button onclick="birimSil(${i})" style="color:red;border:none;background:none;cursor:pointer;">x</button></div>`).join('');
@@ -586,15 +620,12 @@
     function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); refreshUI(); }
     
     // --- GÜNCELLENEN FONKSİYON: BULUTTAN YÜKLE ---
+    // Güvenli State Guncelleme ile hatayı önler
     function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); }
     function buluttanYukle() { 
         database.ref('vardiya_data').once('value').then(snap => { 
             if(snap.exists()){ 
-                state = snap.val(); 
-                save(); 
-                // location.reload() YERİNE DOĞRUDAN GÜNCELLEME YAP
-                tabloyuOlustur(); 
-                if(isAdmin) refreshUI();
+                guvenliStateGuncelle(snap.val()); // GÜVENLİ FONKSİYON
                 alert("Buluttan veriler başarıyla yüklendi!");
             } else {
                 alert("Bulutta kayıtlı veri bulunamadı.");
@@ -621,10 +652,9 @@
             try { 
                 const response = await fetch(url); 
                 if (!response.ok) throw new Error("Dosya bulunamadı veya erişim yok (Kod: " + response.status + ")"); 
-                state = await response.json(); 
-                save(); 
-                alert("Başarıyla Yüklendi! Sayfa yenileniyor..."); 
-                location.reload(); 
+                const json = await response.json(); 
+                guvenliStateGuncelle(json); // GÜVENLİ FONKSİYON
+                alert("Başarıyla Yüklendi!"); 
             } catch (error) { 
                 alert("Github Hatası: " + error.message + "\nLütfen internet bağlantınızı kontrol edin."); 
             } 
@@ -633,13 +663,13 @@
     
     function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); }
     function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
-    function anlikSenkronizasyonBaslat() { database.ref().on('value', (snap) => { if (snap.exists()) { const data = snap.val(); if(data.vardiya_data) { state = data.vardiya_data; save(); tabloyuOlustur(); if(isAdmin) refreshUI(); if(activeUser) renderPersonalDashboard(activeUser); } if(isAdmin) talepleriYukle(); } }); }
+    function anlikSenkronizasyonBaslat() { database.ref().on('value', (snap) => { if (snap.exists()) { const data = snap.val(); if(data.vardiya_data) { guvenliStateGuncelle(data.vardiya_data); if(isAdmin) refreshUI(); if(activeUser) renderPersonalDashboard(activeUser); } } if(isAdmin) talepleriYukle(); }); }
     
     // --- GÜNCELLENEN FONKSİYON: ONLOAD ---
     window.onload = async () => { 
         if(localStorage.getItem(PREFIX + "theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); 
         
-        // HASSAS AYARLARI BEKLEMEDEN (AWAIT KALDIRILDI) BAŞLAT
+        // HASSAS AYARLARI BEKLEMEDEN BAŞLAT
         hassasAyarlariYukle(); 
         
         anlikSenkronizasyonBaslat(); 
