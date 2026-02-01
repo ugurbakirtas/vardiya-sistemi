@@ -287,22 +287,26 @@
     function showPersonelSelect() { document.getElementById('loginButtons').style.display = 'none'; const sel = document.getElementById('girisPersonelSec'); sel.innerHTML = `<option value="">İsminizi Seçiniz...</option>` + state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); document.getElementById('personelSecimDiv').style.display = 'block'; }
     function hidePersonelSelect() { document.getElementById('personelSecimDiv').style.display = 'none'; document.getElementById('loginButtons').style.display = 'block'; }
 
-    // --- KRİTİK GÜNCELLEME: GÜVENLİ VERİ YÜKLEME ---
-    // Bu fonksiyon eksik veya hatalı veri geldiğinde sistemin çökmesini engeller.
+    // --- GÜVENLİ VE ZIRHLI STATE GÜNCELLEME ---
     function guvenliStateGuncelle(gelenVeri) {
         if (!gelenVeri) return;
+        // GitHub bazen array olarak değil, obje içinde personeller olarak dönebilir. Kontrol et:
+        let pList = gelenVeri.personeller || [];
+        if(!Array.isArray(pList) && gelenVeri.vardiya_data && gelenVeri.vardiya_data.personeller) {
+             pList = gelenVeri.vardiya_data.personeller; // Eğer alt obje içindeyse
+        }
+
         state = {
             birimler: gelenVeri.birimler || state.birimler,
             saatler: gelenVeri.saatler || state.saatler,
-            personeller: Array.isArray(gelenVeri.personeller) ? gelenVeri.personeller : [], // LİSTE KONTROLÜ
+            personeller: Array.isArray(pList) ? pList : [],
             kapasite: gelenVeri.kapasite || {},
             manuelAtamalar: gelenVeri.manuelAtamalar || {},
             haftaIciSabitler: gelenVeri.haftaIciSabitler || {},
             mcrAyarlari: gelenVeri.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
         };
         save();
-        // Sadece tabloyu değil, tüm sayfayı yenileyerek listeleri güncelle
-        // location.reload() aşağıda çağrılacak.
+        tabloyuOlustur();
     }
 
     async function enterSystem(role) {
@@ -319,11 +323,9 @@
             setTimeout(() => { document.getElementById('talepPersonel').value = activeUser; }, 500);
         }
         
-        // GİRİŞTE VERİYİ ÇEK VE GÜVENLE YÜKLE
         database.ref('vardiya_data').once('value').then(snap => {
             if(snap.exists()) { 
                 guvenliStateGuncelle(snap.val()); 
-                tabloyuOlustur();
                 if(!isAdmin && activeUser) renderPersonalDashboard(activeUser); 
             }
             document.getElementById('loginOverlay').style.opacity = '0'; 
@@ -391,7 +393,7 @@
         
         let prog = {}; let calis = {};
         
-        // HATA ÖNLEYİCİ: Eğer personeller undefined ise boş dizi ata
+        // HATA ÖNLEYİCİ
         if (!state.personeller) state.personeller = [];
         if (!state.saatler) state.saatler = [];
         if (!state.birimler) state.birimler = [];
