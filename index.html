@@ -13,7 +13,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   
   <style>
-    /* --- CSS (TASARIM) --- */
+    /* --- SENİN ORİJİNAL CSS TASARIMIN --- */
     :root { --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff; --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --table-head: #f8fafc; --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed; --izin-bg: #fef2f2; }
     [data-theme="dark"] { --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9; --border: #334155; --table-head: #0f172a; --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12; --izin-bg: #450a0a; }
     
@@ -576,7 +576,26 @@
     function vardiyaSifirla() { if(confirm("Haftayı temizle?")) { const hKey = currentMonday.toISOString().split('T')[0]; Object.keys(state.manuelAtamalar).forEach(k => { if(k.startsWith(hKey)) delete state.manuelAtamalar[k]; }); save(); tabloyuOlustur(); database.ref('vardiya_data').set(state); } }
     async function tamSifirla() { if(confirm("DİKKAT: TÜM VERİ SİLİNECEK!")) { await database.ref('vardiya_data').remove(); await database.ref('talepler').remove(); localStorage.clear(); location.reload(); } }
     function jsonYedekAl() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "Yedek.json"); dl.click(); }
-    async function githubdanYedekYukle() { const url = "https://raw.githubusercontent.com/ugurbakirtas/vardiya-sistemi/main/ilk_kurulum.json?t=" + new Date().getTime(); if (confirm("Sıfırlanacak. Onay?")) { try { const response = await fetch(url); if (!response.ok) throw new Error("Hata."); state = await response.json(); save(); alert("Yüklendi!"); location.reload(); } catch (error) { alert("Hata: " + error.message); } } }
+    
+    // GÜNCELLENMİŞ GITHUB FONKSİYONU - HATA AYIKLAMA MODU EKLENDİ
+    async function githubdanYedekYukle() { 
+        const url = "https://raw.githubusercontent.com/ugurbakirtas/vardiya-sistemi/main/ilk_kurulum.json?t=" + new Date().getTime(); 
+        if (confirm("Sıfırlanacak. Onay?")) { 
+            try { 
+                // CORS hatasını önlemek için mode: 'cors' ekledim
+                const response = await fetch(url, { mode: 'cors' }); 
+                if (!response.ok) throw new Error("Dosya bulunamadı veya erişim yok (Hata: " + response.status + ")"); 
+                state = await response.json(); 
+                save(); 
+                alert("Yüklendi!"); 
+                location.reload(); 
+            } catch (error) { 
+                console.error("Github hatası:", error);
+                alert("Github'dan çekilemedi: " + error.message + "\nLütfen dosyanın 'public' olduğundan emin olun."); 
+            } 
+        } 
+    }
+    
     function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); }
     function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
     function cakismaKontrol(personelAd, hedefGun, hedefSaat) { const hKey = currentMonday.toISOString().split('T')[0]; if (["İZİNLİ", "BOŞ", null].includes(hedefSaat)) return; if (hedefGun > 0) { let dunKey = `${hKey}_${personelAd}_${hedefGun - 1}`; let dunVardiya = state.manuelAtamalar[dunKey]; if (["16:00–00:00", "00:00–07:00"].includes(dunVardiya) && ["06:30–16:00", "09:00–18:00"].includes(hedefSaat)) { alert(`⚠️ DİKKAT: ${personelAd} dinlenme süresi ihlali olabilir!`); } } }
@@ -587,8 +606,8 @@
     window.onload = async () => { 
         if(localStorage.getItem("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); 
         
-        // --- DÜZELTME BURADA ---
-        // await hassasAyarlariYukle(); // Bu satırı devre dışı bıraktım çünkü hata veriyordu.
+        // HATA VEREN FONKSİYON KALDIRILDI
+        // await hassasAyarlariYukle();
         
         // Veritabanını baştan dinle
         database.ref('vardiya_data').once('value').then(snap => {
