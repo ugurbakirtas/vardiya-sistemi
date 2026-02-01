@@ -3,12 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TURKMEDYA TEKNiK VARDiYA LiSTESi | Pro_Ugr</title>
+  <title>TURKMEDYA TEKNiK VARDiYA LiSTESi | V61 STABLE</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  
   <style>
+    /* --- ORJİNAL CSS TASARIMI (DOKUNULMADI) --- */
     :root {
       --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
       --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
@@ -287,37 +290,36 @@
     function showPersonelSelect() { document.getElementById('loginButtons').style.display = 'none'; const sel = document.getElementById('girisPersonelSec'); sel.innerHTML = `<option value="">İsminizi Seçiniz...</option>` + state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); document.getElementById('personelSecimDiv').style.display = 'block'; }
     function hidePersonelSelect() { document.getElementById('personelSecimDiv').style.display = 'none'; document.getElementById('loginButtons').style.display = 'block'; }
 
-    // --- YENİLENMİŞ VE ÇOK DAHA ESNEK STATE GÜNCELLEME ---
-    // Bu fonksiyon gelen veri dizi olmasa bile (Object olsa bile) onu kabul eder ve tabloyu doldurur.
+    // --- EN ÖNEMLİ KISIM: VERİ AKTARIM SİSTEMİ ---
     function guvenliStateGuncelle(gelenVeri) {
         if (!gelenVeri) return;
 
-        // Yardımcı fonksiyon: Veri varsa ve nesneyse diziye çevir, yoksa boş dizi dön
+        // Firebase bazen dizileri obje olarak döndürür (0: {}, 1: {}). 
+        // Bunu düzeltmek için bu yardımcı fonksiyonu kullanıyoruz.
         const toArray = (data) => {
             if (!data) return [];
             if (Array.isArray(data)) return data;
-            if (typeof data === 'object') return Object.values(data).filter(item => item !== null); // Null'ları temizle
+            if (typeof data === 'object') return Object.values(data).filter(item => item !== null);
             return [];
         };
 
-        // GitHub bazen alt obje içinde veri gönderir, kontrol et:
-        let pList = gelenVeri.personeller;
-        if (!pList && gelenVeri.vardiya_data && gelenVeri.vardiya_data.personeller) {
-             pList = gelenVeri.vardiya_data.personeller;
-             gelenVeri = gelenVeri.vardiya_data; // Kök dizini değiştir
-        }
+        // Gelen verinin içinde vardiya_data var mı kontrol et (Firebase yapısı)
+        let rootData = gelenVeri;
+        if(gelenVeri.vardiya_data) rootData = gelenVeri.vardiya_data;
 
+        // Veriyi güvenli şekilde state'e işle
         state = {
-            birimler: toArray(gelenVeri.birimler || state.birimler),
-            saatler: toArray(gelenVeri.saatler || state.saatler),
-            personeller: toArray(pList), // ARTIK NESNE GELSE BİLE KABUL EDER!
-            kapasite: gelenVeri.kapasite || {},
-            manuelAtamalar: gelenVeri.manuelAtamalar || {},
-            haftaIciSabitler: gelenVeri.haftaIciSabitler || {},
-            mcrAyarlari: gelenVeri.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
+            birimler: toArray(rootData.birimler || state.birimler),
+            saatler: toArray(rootData.saatler || state.saatler),
+            personeller: toArray(rootData.personeller || []), 
+            kapasite: rootData.kapasite || {},
+            manuelAtamalar: rootData.manuelAtamalar || {},
+            haftaIciSabitler: rootData.haftaIciSabitler || {},
+            mcrAyarlari: rootData.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }
         };
+        
         save();
-        // Sayfayı yenileme (location.reload) fonksiyonun çağrıldığı yerde yapılacak
+        tabloyuOlustur();
     }
 
     async function enterSystem(role) {
@@ -334,10 +336,10 @@
             setTimeout(() => { document.getElementById('talepPersonel').value = activeUser; }, 500);
         }
         
+        // Giriş yapınca veriyi çek
         database.ref('vardiya_data').once('value').then(snap => {
             if(snap.exists()) { 
                 guvenliStateGuncelle(snap.val()); 
-                tabloyuOlustur();
                 if(!isAdmin && activeUser) renderPersonalDashboard(activeUser); 
             }
             document.getElementById('loginOverlay').style.opacity = '0'; 
@@ -405,7 +407,7 @@
         
         let prog = {}; let calis = {};
         
-        // HATA ÖNLEYİCİ: Eğer listeler yoksa boş tanımla
+        // HATA ÖNLEYİCİ
         if (!state.personeller) state.personeller = [];
         if (!state.saatler) state.saatler = [];
         if (!state.birimler) state.birimler = [];
