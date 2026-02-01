@@ -504,7 +504,6 @@ function talepIslem(id, tip) {
                     const donguIndex = (diffDays + persOfset) % 8;
                     const modIndex = donguIndex < 0 ? donguIndex + 8 : donguIndex;
                     tempProg[p.ad][g] = mcrDongu[modIndex];
-                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
                 }
             } 
             else if(p.birim.includes("INGEST")) {
@@ -516,7 +515,6 @@ function talepIslem(id, tip) {
                     const donguIndex = (diffDays + persOfset) % 6; 
                     const modIndex = donguIndex < 0 ? donguIndex + 6 : donguIndex;
                     tempProg[p.ad][g] = ingestDongu[modIndex];
-                    if(!["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
                 }
             }
             else {
@@ -525,7 +523,6 @@ function talepIslem(id, tip) {
                     const sabitSaat = state.haftaIciSabitler[p.ad];
                     for(let i=0; i<5; i++) tempProg[p.ad][i] = sabitSaat;
                     tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
-                    calis[p.ad] = 5;
                 }
                 // --- DEĞİŞİKLİK BAŞLANGICI ---
                 // TEKNİK YÖNETMEN HARİÇ DİĞERLERİ İÇİN 2 GÜN PEŞ PEŞE İZİN MANTIĞI
@@ -541,6 +538,20 @@ function talepIslem(id, tip) {
                      if(tempProg[p.ad][nextDay] === null) tempProg[p.ad][nextDay] = "İZİNLİ";
                 }
                 // --- DEĞİŞİKLİK SONU ---
+            }
+
+            // --- YENİ EKLENEN KISIM: MEVCUT MANUEL ATAMALARI (TALEPLERİ) KORU ---
+            // Bu döngü, otomatik atamalardan sonra çalışır ve onaylanmış talepleri (veya elle girilmiş verileri)
+            // geçici programa (tempProg) zorla yazar. Böylece "Vardiya Oluştur" denildiğinde talepler silinmez.
+            for(let g=0; g<7; g++) {
+                let mKey = `${hKey}_${p.ad}_${g}`;
+                if(state.manuelAtamalar[mKey]) {
+                    tempProg[p.ad][g] = state.manuelAtamalar[mKey];
+                }
+                // Çalışma gün sayısını tekrar doğru hesapla
+                if(tempProg[p.ad][g] && !["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) {
+                    calis[p.ad]++;
+                }
             }
         });
 
