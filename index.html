@@ -87,73 +87,17 @@
     
     .admin-only { display: none; } 
 
-/* MOBİL UYUMLULUK AYARLARI */
 @media screen and (max-width: 768px) { 
-/* Tablo yapısını dikey karta çevir */
     #vardiyaTablosu, #vardiyaTablosu thead, #vardiyaTablosu tbody, #vardiyaTablosu th, #vardiyaTablosu td, #vardiyaTablosu tr {
-        display: block;
-        width: 100% !important;
-        min-width: 100% !important;
+        display: block; width: 100% !important; min-width: 100% !important;
     }
-
-    /* Başlıkları gizle (kart içinde göstereceğiz) */
     #tableHeader { display: none; }
-
-    /* Her satırı (saat dilimini) bir kart gibi yap */
-    #tableBody tr, #tableFooter tr {
-        margin-bottom: 20px;
-        border: 2px solid var(--border);
-        border-radius: 12px;
-        overflow: hidden;
-        background: var(--card-bg);
-    }
-
-    /* Saat hücresini kart başlığına çevir */
-    .saat-col {
-        display: block;
-        width: 100% !important;
-        background: var(--primary);
-        color: white !important;
-        padding: 10px;
-        text-align: left !important;
-        border-left: none !important;
-        font-size: 14px;
-    }
-
-    /* Gün hücrelerini belirginleştir */
-    td:not(.saat-col)::before {
-    content: attr(data-label);
-    font-weight: 800;
-    text-transform: uppercase;
-    font-size: 12px;
-    display: block;
-    margin-bottom: 10px;
-    color: var(--blue);
-    background: var(--bg); /* Arka plan ekleyerek netliği artırır */
-    padding: 4px;
-    border-radius: 4px;
-    text-align: center;
-    }
-
-    /* Hücrenin hangi güne ait olduğunu sol üste ekle */
-    td:not(.saat-col) {
-    display: flex;
-    flex-direction: column;
-    gap: 8px; /* Kartlar arası boşluk */
-    height: auto !important; /* Sabit yüksekliği kaldır */
-    min-height: 50px;
-    }
-
-    /* Yan paneli mobilde tam ekran yap */
-    .side-panel {
-        width: 100%;
-        right: -100%;
-    }
-    
-    .main-header {
-        flex-direction: column;
-        text-align: center;
-    }
+    #tableBody tr, #tableFooter tr { margin-bottom: 20px; border: 2px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card-bg); }
+    .saat-col { display: block; width: 100% !important; background: var(--primary); color: white !important; padding: 10px; text-align: left !important; border-left: none !important; font-size: 14px; }
+    td:not(.saat-col)::before { content: attr(data-label); font-weight: 800; text-transform: uppercase; font-size: 12px; display: block; margin-bottom: 10px; color: var(--blue); background: var(--bg); padding: 4px; border-radius: 4px; text-align: center; }
+    td:not(.saat-col) { display: flex; flex-direction: column; gap: 8px; height: auto !important; min-height: 50px; }
+    .side-panel { width: 100%; right: -100%; }
+    .main-header { flex-direction: column; text-align: center; }
 }  
 </style>
 </head>
@@ -283,7 +227,6 @@
   </div>
 
   <script>
-    // --- TELEGRAM AYARLARI (YENİ) ---
     let TELEGRAM_API = ""; 
     let TELEGRAM_ID = "";
 
@@ -307,7 +250,6 @@
 
     let currentMonday = getMonday(new Date());
 
-    // --- GİRİŞ FONKSİYONU (GÜNCELLENDİ) ---
     async function hassasAyarlariYukle() {
         try {
             const snap = await database.ref('config').once('value');
@@ -354,7 +296,6 @@
         }, 500);
     }
       
-    // --- TALEP SİSTEMİ FONKSİYONLARI ---
     function talepModalAc() {
         const sel = document.getElementById('talepPersonel');
         sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join('');
@@ -441,7 +382,6 @@ function talepIslem(id, tip) {
     });
 }
 
-    // --- MEVCUT DİĞER FONKSİYONLAR ---
     function getMonday(d) { d = new Date(d); let day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day == 0 ? -6 : 1))); }
     function save() { Object.keys(state).forEach(k => localStorage.setItem(PREFIX + k, JSON.stringify(state[k]))); }
     function getBirimColor(birim) { return BIRIM_RENKLERI[birim] || "#64748b"; }
@@ -578,24 +518,44 @@ function talepIslem(id, tip) {
     function vardiyaUretVeKaydet() {
         if(!isAdmin) return;
         const hKey = currentMonday.toISOString().split('T')[0];
-        const prevMonday = new Date(currentMonday); prevMonday.setDate(prevMonday.getDate() - 7);
-        const prevHKey = prevMonday.toISOString().split('T')[0];
+        
+        // --- OTOMATİK GRUP DAĞITIM MOTORU (Auto-Balancer) ---
+        // Sadece grubu OLMAYANLARI (0 veya null) dengeli bir şekilde dağıtır.
+        let dagitilacaklar = state.personeller.filter(p => 
+            !p.birim.includes("MCR") && 
+            !p.birim.includes("INGEST") && 
+            !state.haftaIciSabitler[p.ad] && 
+            (!p.donguGrubu || p.donguGrubu == 0)
+        );
+
+        if (dagitilacaklar.length > 0) {
+            let counts = [0,0,0,0]; 
+            state.personeller.forEach(p => {
+                if(p.donguGrubu > 0) counts[p.donguGrubu - 1]++;
+            });
+
+            dagitilacaklar.forEach(p => {
+                let minGroupIdx = counts.indexOf(Math.min(...counts));
+                p.donguGrubu = minGroupIdx + 1;
+                counts[minGroupIdx]++; 
+            });
+            save(); 
+            // Kullanıcıya bilgi vermek istersen burayı açabilirsin:
+            // alert("Otomatik grup dağıtımı yapıldı (Sadece grubu olmayanlar eklendi).");
+        }
+        // ----------------------------------------------------
 
         let tempProg = {}; let calis = {};
         
         const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
         const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
         
-        // --- YENİ: 4 HAFTALIK ÖZEL DÖNGÜ ŞABLONU ---
-        // 1: Pzt OFF, Cmt Çalışır, Pazar OFF (Sabah-Akşam-Cmt Akşam)
-        // 2: Pzt OFF, Cmt OFF, Pazar Çalışır (Sabah-Akşam-Paz Sabah)
-        // 3: Pzt Sabah, Per/Cum OFF
-        // 4: Pzt Akşam, Sal/Çar OFF
+        // 4 HAFTALIK ONAYLI DÖNGÜ
         const TURKMEDYA_DONGU = [
-            ["İZİNLİ", "06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "16:00–00:00", "İZİNLİ"], // Grup 1
-            ["16:00–00:00", "İZİNLİ", "İZİNLİ", "06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00"], // Grup 4 (Akış mantığı için yeri değişti)
-            ["İZİNLİ", "06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "06:30–16:00"], // Grup 2
-            ["06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ", "06:30–16:00", "06:30–16:00"]  // Grup 3
+            ["İZİNLİ", "06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "16:00–00:00"], // Grup 1
+            ["İZİNLİ", "06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "16:00–00:00", "İZİNLİ"], // Grup 2
+            ["16:00–00:00", "İZİNLİ", "İZİNLİ", "06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00"], // Grup 3
+            ["06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ", "06:30–16:00", "06:30–16:00"]  // Grup 4
         ];
 
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
@@ -603,7 +563,6 @@ function talepIslem(id, tip) {
         state.personeller.forEach(p => { 
             tempProg[p.ad] = Array(7).fill(null); 
             
-            // --- 1. MCR KONTROLÜ ---
             if(p.birim.includes("MCR")) {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
                 for(let g=0; g<7; g++) {
@@ -614,7 +573,6 @@ function talepIslem(id, tip) {
                     tempProg[p.ad][g] = mcrDongu[modIndex];
                 }
             } 
-            // --- 2. INGEST KONTROLÜ ---
             else if(p.birim.includes("INGEST")) {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
                 for(let g=0; g<7; g++) {
@@ -625,20 +583,15 @@ function talepIslem(id, tip) {
                     tempProg[p.ad][g] = ingestDongu[modIndex];
                 }
             }
-            // --- 3. YENİ: DÖNGÜ GRUBU OLANLAR (Playout/Ses/KJ için) ---
             else if(p.donguGrubu && parseInt(p.donguGrubu) > 0) {
-                // Hafta sayısını hesapla
                 let diffTime = currentMonday.getTime() - baseDate.getTime();
                 let diffWeeks = Math.floor(diffTime / (1000 * 3600 * 24 * 7));
                 
-                // (HaftaSayisi + PersonelGrubu) % 4 formülü ile rotasyon
-                // -1 yapıyoruz çünkü dizi 0'dan başlıyor ama grup 1'den
                 let templateIndex = (diffWeeks + (parseInt(p.donguGrubu) - 1)) % 4;
                 if(templateIndex < 0) templateIndex += 4;
                 
-                tempProg[p.ad] = [...TURKMEDYA_DONGU[templateIndex]]; // Şablonu kopyala
+                tempProg[p.ad] = [...TURKMEDYA_DONGU[templateIndex]];
             }
-            // --- 4. SABİT HAFTA İÇİ ---
             else {
                 if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
                 if (state.haftaIciSabitler[p.ad]) {
@@ -648,7 +601,6 @@ function talepIslem(id, tip) {
                 }
             }
 
-            // --- MANUEL ATAMALAR ---
             calis[p.ad] = 0; 
             for(let g=0; g<7; g++) {
                 let mKey = `${hKey}_${p.ad}_${g}`;
@@ -657,15 +609,10 @@ function talepIslem(id, tip) {
             }
         });
 
-        // --- KAPASİTEYE GÖRE DOLDURMA (Geriye Kalanlar İçin) ---
-        // Sadece Döngü grubu OLMAYANLAR ve MCR/Ingest OLMAYANLAR için çalışır
-        // Ama gece vardiyası gibi özel durumlar için herkesi tarayabilir
         for (let gun = 0; gun < 7; gun++) {
-            // Gece Vardiyası: Sadece KAPASİTE girildiyse çalışır
             state.birimler.forEach(birim => {
                 const geceSaati = "00:00–07:00";
                 const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
-                // Eğer yönetici gece kapasitesini 0 girdiyse burası hiç çalışmaz (İstediğin gibi)
                 if(hedef > 0) {
                     let atanan = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === geceSaati).length;
                     if (atanan < hedef) {
@@ -679,14 +626,12 @@ function talepIslem(id, tip) {
                 }
             });
 
-            // Diğer Saatler (Döngüye girmeyenler için tamamlayıcı)
             state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
                 state.birimler.forEach(birim => {
                     const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
                     let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
                     
                     if (mevcut < hedef) {
-                        // Sadece döngü grubu olmayanları aday göster
                         let adaylar = state.personeller.filter(p => p.birim === birim && !p.donguGrubu && !p.birim.includes("MCR") && !p.birim.includes("INGEST") && tempProg[p.ad][gun] === null);
                         seededShuffle(adaylar, hKey);
                         adaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
@@ -700,7 +645,6 @@ function talepIslem(id, tip) {
             });
         }
 
-        // --- BOŞ KALANLARA İZİN YAZ ---
         state.personeller.forEach(p => {
             for(let g=0; g<7; g++) {
                 if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = "İZİNLİ";
@@ -776,7 +720,6 @@ function talepIslem(id, tip) {
                 <input type="number" value="${p.yuzde || 0}" style="width:50px; padding:3px; border-radius:4px; border:1px solid #ccc;" onchange="yuzdeGuncelle(${i}, this.value)">
             </div>`;
             
-            // YENİ: DÖNGÜ GRUBU SEÇİMİ
             let donguHtml = `<div style="margin-top:5px; font-size:10px;">
                 <span style="font-weight:bold;">Döngü Grubu (1-4):</span>
                 <input type="number" min="0" max="4" value="${p.donguGrubu || 0}" style="width:50px; padding:3px; border-radius:4px; border:1px solid #ccc;" onchange="donguGuncelle(${i}, this.value)">
@@ -945,7 +888,7 @@ function talepIslem(id, tip) {
 
     function mcrOfsetGuncelle(ad, val) { if(!state.mcrAyarlari.ofsetler) state.mcrAyarlari.ofsetler = {}; state.mcrAyarlari.ofsetler[ad] = parseInt(val); save(); }
     function yuzdeGuncelle(idx, val) { state.personeller[idx].yuzde = val; save(); }
-    function donguGuncelle(idx, val) { state.personeller[idx].donguGrubu = val; save(); } // YENİ EKLENDİ
+    function donguGuncelle(idx, val) { state.personeller[idx].donguGrubu = val; save(); }
 
     function whatsappGonder() { const hKey = currentMonday.toISOString().split('T')[0]; let m = `*📅 ${currentMonday.toLocaleDateString('tr-TR')} VARDİYASI*\n\n`; GUNLER.forEach((g, i) => { m += `*${g.toUpperCase()}*\n`; state.saatler.forEach(s => { let pList = state.personeller.filter(p => state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] === s).map(p => p.ad).join(", "); if (pList) m += `• ${s}: ${pList}\n`; }); m += `\n`; }); window.open(`https://wa.me/?text=${encodeURIComponent(m)}`, '_blank'); }
     function capUp(k, g, v) { if(!state.kapasite[k]) state.kapasite[k] = [0,0,0,0,0,0,0]; state.kapasite[k][g] = parseInt(v) || 0; save(); }
