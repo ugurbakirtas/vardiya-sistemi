@@ -465,7 +465,15 @@ function talepIslem(id, tip) {
     function tabloyuOlustur() {
         const hKey = currentMonday.toISOString().split('T')[0];
         document.getElementById("tarihAraligi").innerText = `${currentMonday.toLocaleDateString('tr-TR')} Haftası`;
-        document.getElementById("tableHeader").innerHTML = `<tr><th style="width:100px;">SAAT</th>${GUNLER.map((g,i)=>`<th class="${i>=5?'weekend-col':''}">${g}</th>`).join('')}</tr>`;
+        
+        // DEĞİŞİKLİK: Tarihli başlık yapısı
+        document.getElementById("tableHeader").innerHTML = `<tr><th style="width:100px;">SAAT</th>${GUNLER.map((g, i) => {
+            let d = new Date(currentMonday);
+            d.setDate(d.getDate() + i);
+            let dateStr = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            return `<th class="${i>=5?'weekend-col':''}">${g}<div style="font-size:9px; opacity:0.7; font-weight:normal;">${dateStr}</div></th>`;
+        }).join('')}</tr>`;
+
         let prog = {}; let calis = {};
         state.personeller.forEach(p => { 
             prog[p.ad] = Array(7).fill(null); calis[p.ad] = 0;
@@ -873,8 +881,32 @@ function talepIslem(id, tip) {
         </div>`;
         
         document.getElementById("sabitListeAdmin").innerHTML = mcrSistemHtml + state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--bg); padding:5px; border-radius:5px;"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
-        document.getElementById("birimListesiAdmin").innerHTML = state.birimler.map(b => `<div style="padding:5px; border-bottom:1px solid var(--border);">${b}</div>`).join('');
-        document.getElementById("saatListesiAdmin").innerHTML = state.saatler.map(s => `<div style="padding:5px; border-bottom:1px solid var(--border);">${s}</div>`).join('');
+        
+        // --- DEĞİŞİKLİK: BİRİM EKLEME/SİLME UI ---
+        document.getElementById("birimListesiAdmin").innerHTML = `
+            <div style="margin-bottom:10px; display:flex; gap:5px;">
+                <input type="text" id="yeniBirimInp" placeholder="Yeni Birim Adı" style="flex:1; padding:5px; border-radius:4px; border:1px solid #ccc;">
+                <button onclick="birimEkle()" class="btn-main-action" style="background:var(--success); padding:5px 10px;">EKLE</button>
+            </div>
+            ${state.birimler.map((b, i) => `
+                <div style="padding:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                    <span>${b}</span>
+                    <button onclick="birimSil(${i})" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:10px;">Sil</button>
+                </div>
+            `).join('')}`;
+
+        // --- DEĞİŞİKLİK: SAAT EKLEME/SİLME UI ---
+        document.getElementById("saatListesiAdmin").innerHTML = `
+            <div style="margin-bottom:10px; display:flex; gap:5px;">
+                <input type="text" id="yeniSaatInp" placeholder="Örn: 10:00–19:00" style="flex:1; padding:5px; border-radius:4px; border:1px solid #ccc;">
+                <button onclick="saatEkle()" class="btn-main-action" style="background:var(--success); padding:5px 10px;">EKLE</button>
+            </div>
+            ${state.saatler.map((s, i) => `
+                <div style="padding:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                    <span>${s}</span>
+                    <button onclick="saatSil(${i})" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:10px;">Sil</button>
+                </div>
+            `).join('')}`;
     }
     
     // YENİ YARDIMCI FONKSİYON: VARDİYAYI HER KAYNAKTAN ARAR (MANUEL > MCR/INGEST > SABİT)
@@ -987,6 +1019,40 @@ function talepIslem(id, tip) {
     function haftaDegistir(v) { currentMonday.setDate(currentMonday.getDate() + v); tabloyuOlustur(); }
     function personelEkle() { const ad = document.getElementById("yeniPersInp").value.toUpperCase(); const b = document.getElementById("yeniPersBirimSec").value; if(ad){ state.personeller.push({ad, birim:b, izinGunleri:[], yuzde:0}); save(); refreshUI(); document.getElementById("yeniPersInp").value=""; } }
     
+    // --- YENİ EKLENEN: BİRİM EKLEME/SİLME FONKSİYONLARI ---
+    function birimEkle() {
+        const val = document.getElementById("yeniBirimInp").value.toUpperCase().trim();
+        if(val && !state.birimler.includes(val)) {
+            state.birimler.push(val);
+            save(); refreshUI(); tabloyuOlustur();
+        } else if (state.birimler.includes(val)) {
+            alert("Bu birim zaten mevcut.");
+        }
+    }
+    function birimSil(index) {
+        if(confirm(state.birimler[index] + " birimini silmek istediğinize emin misiniz?")) {
+            state.birimler.splice(index, 1);
+            save(); refreshUI(); tabloyuOlustur();
+        }
+    }
+
+    // --- YENİ EKLENEN: SAAT EKLEME/SİLME FONKSİYONLARI ---
+    function saatEkle() {
+        const val = document.getElementById("yeniSaatInp").value.trim();
+        if(val && !state.saatler.includes(val)) {
+            state.saatler.push(val);
+            save(); refreshUI(); tabloyuOlustur();
+        } else if (state.saatler.includes(val)) {
+            alert("Bu saat zaten mevcut.");
+        }
+    }
+    function saatSil(index) {
+         if(confirm(state.saatler[index] + " saatini silmek istediğinize emin misiniz?")) {
+            state.saatler.splice(index, 1);
+            save(); refreshUI(); tabloyuOlustur();
+        }
+    }
+
     function drag(e, p, g, s) { 
         if(!isAdmin) return;
         e.dataTransfer.setData("p", p); e.dataTransfer.setData("oldG", g); 
