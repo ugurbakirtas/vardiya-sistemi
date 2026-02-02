@@ -603,107 +603,119 @@ function talepIslem(id, tip) {
                 }
             }
 
-            // --- MANUEL ATAMALARI (TALEPLERİ) KESİN OLARAK UYGULA ---
-            // Otomatik atamalar bittikten sonra, çalışma günü sayacını sıfırlıyoruz.
-            // Sadece onaylı taleplerin de dahil olduğu SON durumu sayıyoruz.
+            // --- MANUEL ATAMALARI UYGULA VE ÇALIŞMA GÜNÜNÜ HESAPLA ---
             calis[p.ad] = 0; 
             for(let g=0; g<7; g++) {
                 let mKey = `${hKey}_${p.ad}_${g}`;
                 if(state.manuelAtamalar[mKey]) {
                     tempProg[p.ad][g] = state.manuelAtamalar[mKey];
                 }
-                // Çalışma gününü doğru hesapla (İzinliyse sayma)
                 if(tempProg[p.ad][g] && !["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) {
                     calis[p.ad]++;
                 }
             }
         });
 
+        // --- ANA VARDİYA DAĞITIM DÖNGÜSÜ ---
         for (let gun = 0; gun < 7; gun++) {
-            // GECE VARDİYASI (00:00-07:00) VE SKOR MANTIĞI BURADA
+            // 1. GECE VARDİYASI (00:00-07:00)
             state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
                 const geceSaati = "00:00–07:00";
                 const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
-                let atanan = 0;
-                if (hedef > 0) {
+                // DÜZELTME: O anki mevcut atamayı sayarak başlıyoruz.
+                let atanan = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === geceSaati).length;
+                
+                if (atanan < hedef) {
                     const adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null)
                         .sort((a, b) => {
-                            // ÖNCELİK 1: YÜZDE SKORU (Yüksek olan üste çıkar)
                             let scoreA = parseInt(a.yuzde || 0);
                             let scoreB = parseInt(b.yuzde || 0);
                             if (scoreA !== scoreB) return scoreB - scoreA;
-                            
-                            // ÖNCELİK 2: EŞİTSE AZ ÇALIŞAN ÜSTE
                             return calis[a.ad] - calis[b.ad];
                         });
-                    for (let p of adaylar) { if (atanan < hedef && calis[p.ad] < 6) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++; } }
+                    
+                    // PAS 1: Limiti Aşmayanları Yerleştir
+                    for (let p of adaylar) { 
+                        if (atanan < hedef && calis[p.ad] < 6) { 
+                            tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++; 
+                        } 
+                    }
+                    // PAS 2 (ZORUNLU): Kapasite Dolmadıysa Limiti Yoksayarak Doldur
+                    if (atanan < hedef) {
+                        for (let p of adaylar) {
+                            if (atanan < hedef && tempProg[p.ad][gun] === null) {
+                                tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++;
+                            }
+                        }
+                    }
                 }
             });
 
-            // DİĞER SAATLER
+            // 2. DİĞER SAATLER (06:30, 09:00, 16:00 vs.)
             state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
                 state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
                     const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
+                    // DÜZELTME: O anki mevcut atamayı sayıyoruz
                     let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
+                    
                     if (mevcut < hedef) {
                         let adaylar = state.personeller.filter(p => {
                             let basic = p.birim === birim && tempProg[p.ad][gun] === null;
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
                             return basic && !(dunGece && saat === "06:30–16:00");
                         });
+                        
                         adaylar.sort((a, b) => {
-                            // Diğer saatlerde rastgelelik ve dengeyi koruyoruz
                             if(a.ad.includes("BARIŞ İNCE")) return Math.random() - 0.5;
                             return (calis[a.ad] * 10 + (a.ad.charCodeAt(0) % (weekOffset + 1))) - (calis[b.ad] * 10 + (b.ad.charCodeAt(0) % (weekOffset + 1)));
                         });
+
+                        // PAS 1: Limiti Aşmayanları Yerleştir (Normal)
+                        let limit = (gun >= 5) ? 6 : 5;
                         for (let p of adaylar) {
-                            let limit = (gun >= 5) ? 6 : 5;
-                            if (mevcut < hedef && calis[p.ad] < limit) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; }
+                            if (mevcut < hedef && calis[p.ad] < limit) { 
+                                tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; 
+                            }
+                        }
+                        // PAS 2 (ZORUNLU): Kapasite Dolmadıysa Limiti Yoksayarak Doldur
+                        if (mevcut < hedef) {
+                             for (let p of adaylar) {
+                                if (mevcut < hedef && tempProg[p.ad][gun] === null) {
+                                    tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++;
+                                }
+                            }
                         }
                     }
                 });
             });
         }
 
-        // --- 4. KURAL (BASİT VE NET): 1. KAPASİTE DOLUMU, 2. HAFTA SONUNA ATAMA ---
+        // --- YENİ EKLENEN: HAFTA SONU EKSİK GÜN TAMAMLAMA (5. GÜN KURALI) ---
         state.personeller.forEach(p => {
-            if(p.birim.includes("MCR") || p.birim.includes("INGEST")) return;
-            if(calis[p.ad] >= 5) return;
-
-            // 1. AŞAMA: KAPASİTE BOŞLUĞU KONTROLÜ (TÜM GÜNLER)
-            // Haftanın her günü için...
-            for(let g=0; g<7; g++) {
-                if(calis[p.ad] >= 5) break;
-                if(tempProg[p.ad][g] !== null) continue; // Gün doluysa atla
-
-                // ... sistemdeki TÜM SAATLERİ tara ve açık var mı bak
-                for (let s of state.saatler) {
-                    const hedefArray = state.kapasite[`${p.birim}_${s}`] || [0,0,0,0,0,0,0];
-                    const hedef = parseInt(hedefArray[g]) || 0;
-                    
-                    let mevcut = 0;
-                    state.personeller.forEach(otherP => {
-                        if(tempProg[otherP.ad][g] === s && otherP.birim === p.birim) mevcut++;
-                    });
-                    
-                    if (hedef > mevcut) {
-                        // Açık var! Personeli buraya yaz.
-                        tempProg[p.ad][g] = s;
-                        calis[p.ad]++;
-                        break; // Bu günü doldurduk, sonraki güne geç
+            // MCR, Ingest ve Sabitler hariç
+            if(!p.birim.includes("MCR") && !p.birim.includes("INGEST") && !state.haftaIciSabitler[p.ad]) {
+                // Eğer personel 5 günden az çalışmışsa
+                if (calis[p.ad] < 5) {
+                    // CUMARTESİ KONTROLÜ (İndex 5)
+                    let g = 5;
+                    // Eğer o gün boşsa ve Cuma gecesi vardiyasında değilse
+                    if (tempProg[p.ad][g] === null) {
+                        let dunGece = (tempProg[p.ad][4] === "00:00–07:00");
+                        if (!dunGece) {
+                            tempProg[p.ad][g] = "09:00–18:00"; calis[p.ad]++;
+                        }
                     }
                 }
-            }
-
-            // 2. AŞAMA: HAFTA SONU DOLDURMA (HALA EKSİKSE)
-            if(calis[p.ad] < 5) {
-                const weekends = [5, 6]; // Cumartesi, Pazar
-                for (let w of weekends) {
-                    if(calis[p.ad] >= 5) break;
-                    if(tempProg[p.ad][w] === null) {
-                        // Kapasite zorunluluğu yoksa standart 09:00-18:00 ver
-                        tempProg[p.ad][w] = "09:00–18:00";
-                        calis[p.ad]++;
+                
+                // Hala 5 günden azsa PAZAR KONTROLÜ (İndex 6)
+                if (calis[p.ad] < 5) {
+                    let g = 6;
+                    if (tempProg[p.ad][g] === null) {
+                        // Cumartesi gecesi vardiyası olma ihtimali düşük ama kontrol edelim
+                        let dunGece = (tempProg[p.ad][5] === "00:00–07:00");
+                        if (!dunGece) {
+                             tempProg[p.ad][g] = "09:00–18:00"; calis[p.ad]++;
+                        }
                     }
                 }
             }
