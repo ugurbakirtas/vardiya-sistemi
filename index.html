@@ -781,7 +781,49 @@ function talepIslem(id, tip) {
         document.getElementById("saatListesiAdmin").innerHTML = state.saatler.map(s => `<div style="padding:5px; border-bottom:1px solid var(--border);">${s}</div>`).join('');
     }
     
-    // --- SWAP İŞLEM FONKSİYONU ---
+    // YENİ YARDIMCI FONKSİYON: VARDİYAYI HER KAYNAKTAN ARAR (MANUEL > MCR/INGEST > SABİT)
+    function vardiyaBul(pAd, gIdx) {
+        const hKey = currentMonday.toISOString().split('T')[0];
+        const mKey = `${hKey}_${pAd}_${gIdx}`;
+
+        // 1. Önce Manuel/Onaylanmış var mı?
+        if (state.manuelAtamalar[mKey]) return state.manuelAtamalar[mKey];
+
+        const p = state.personeller.find(pers => pers.ad === pAd);
+        if (!p) return null;
+
+        // 2. MCR/Ingest Döngüsü Hesabı
+        const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
+        const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
+        const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
+        
+        let d = new Date(currentMonday);
+        d.setDate(d.getDate() + gIdx);
+        
+        if (p.birim.includes("MCR")) {
+            const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
+            const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
+            const donguIndex = (diffDays + persOfset) % 8;
+            const modIndex = donguIndex < 0 ? donguIndex + 8 : donguIndex;
+            return mcrDongu[modIndex];
+        } 
+        else if (p.birim.includes("INGEST")) {
+            const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
+            const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
+            const donguIndex = (diffDays + persOfset) % 6;
+            const modIndex = donguIndex < 0 ? donguIndex + 6 : donguIndex;
+            return ingestDongu[modIndex];
+        }
+        
+        // 3. Hafta İçi Sabitler
+        if (state.haftaIciSabitler[p.ad] && gIdx < 5) {
+            return state.haftaIciSabitler[p.ad];
+        }
+
+        return null;
+    }
+
+    // --- SWAP İŞLEM FONKSİYONU (TAM OTOMATİK VERSİYON) ---
     function degisimiUygula() {
         const pKaynakAd = document.getElementById('swapKaynakPersonel').value; // Ayrılan (Örn: MCR Op)
         const pHedefAd = document.getElementById('swapHedefPersonel').value;   // Yerine geçen (Reliever)
@@ -799,7 +841,7 @@ function talepIslem(id, tip) {
         checkboxes.forEach(cb => {
             const gunIdx = parseInt(cb.value);
             
-            // 1. Gecici Birim (Renk/Grup) Ayarı (Mevcut Mantık)
+            // 1. Gecici Birim (Renk/Grup) Ayarı
             let d = new Date(currentMonday);
             d.setDate(d.getDate() + gunIdx);
             const dateKey = d.toISOString().split('T')[0];
@@ -808,28 +850,25 @@ function talepIslem(id, tip) {
             if(!state.geciciGorevler) state.geciciGorevler = {};
             state.geciciGorevler[gKey] = hedefBirim;
 
-            // 2. Vardiya (Shift) Transferi ve İzin Ayarı (YENİ EKLENEN KISIM)
+            // 2. Vardiya Transferi (TAM OTOMATİK HESAPLAMA)
             const kLeaving = `${hKey}_${pKaynakAd}_${gunIdx}`;
             const kEntering = `${hKey}_${pHedefAd}_${gunIdx}`;
 
-            // Ayrılan kişinin vardiyasını al
-            let shift = state.manuelAtamalar[kLeaving];
+            // vardiyaBul fonksiyonu manual yoksa MCR/Ingest hesabını yapar!
+            let shift = vardiyaBul(pKaynakAd, gunIdx);
 
-            // Eğer ayrılan kişinin bir vardiyası varsa, yerine geçene ata
             if (shift && shift !== "İZİNLİ" && shift !== "BOŞ") {
                  state.manuelAtamalar[kEntering] = shift;
             } 
             
-            // Ayrılan kişiyi kesin olarak İZİNLİ yap
             state.manuelAtamalar[kLeaving] = "İZİNLİ";
         });
 
         save();
-        alert("Değişim uygulandı: Vardiyalar transfer edildi ve ayrılan kişi izinli yapıldı.");
+        alert("Tam Otomatik Değişim uygulandı. MCR/Ingest vardiyası hesaplanıp aktarıldı.");
         refreshUI();
         tabloyuOlustur();
         
-        // Formu temizle
         document.querySelectorAll('.swap-day-cb').forEach(cb => cb.checked = false);
         document.getElementById('swapKaynakPersonel').value = "";
         document.getElementById('swapHedefPersonel').value = "";
