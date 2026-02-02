@@ -665,34 +665,41 @@ function talepIslem(id, tip) {
             });
         }
 
-        // --- 4. KURAL: EKSİK GÜN TAMAMLAMA (HAFTA SONU ÖNCELİKLİ) ---
+        // --- 4. KURAL: EKSİK GÜN TAMAMLAMA (KAPASİTE ODAKLI) ---
         state.personeller.forEach(p => {
-            // MCR/Ingest ve zaten 5 günü dolduranları atla
             if(p.birim.includes("MCR") || p.birim.includes("INGEST")) return;
             if(calis[p.ad] >= 5) return;
 
-            // Boş günleri bul
-            let emptyDays = [];
+            let adayGunler = [];
             for(let g=0; g<7; g++) {
-                if(tempProg[p.ad][g] === null) emptyDays.push(g);
+                if(tempProg[p.ad][g] === null) {
+                    // Bu gün ve saat (09:00-18:00) için kapasite açığı var mı?
+                    const hedef = (state.kapasite[`${p.birim}_09:00–18:00`] || [0,0,0,0,0,0,0])[g];
+                    // Şu ana kadar tempProg'da buraya kaç kişi yazdık?
+                    let mevcut = 0;
+                    state.personeller.forEach(otherP => {
+                        if(tempProg[otherP.ad][g] === "09:00–18:00" && otherP.birim === p.birim) mevcut++;
+                    });
+                    
+                    let acik = hedef - mevcut;
+                    adayGunler.push({ gun: g, acik: acik });
+                }
             }
-            
-            // Sıralama: ÖNCE Hafta Sonu (5, 6), SONRA Hafta İçi (0-4)
-            // Böylece hafta içi doluysa hafta sonuna taşar.
-            emptyDays.sort((a, b) => {
-                const isWeekendA = (a >= 5);
-                const isWeekendB = (b >= 5);
-                if (isWeekendA && !isWeekendB) return -1; // A (Hafta Sonu) öne geçer
-                if (!isWeekendA && isWeekendB) return 1;  // B (Hafta Sonu) öne geçer
-                return a - b; // İkisi de aynı gruptaysa gün sırasına göre
+
+            // Sıralama Mantığı:
+            // 1. En çok açık olan gün (acik puanı yüksek olan)
+            // 2. Açıklar eşitse: Hafta sonu (5,6) öncelikli
+            adayGunler.sort((a, b) => {
+                if (b.acik !== a.acik) return b.acik - a.acik; // Önce açık olan yer
+                // Açıklar eşitse (örneğin hepsi doluysa veya hepsi boşsa)
+                // Hafta sonunu (>=5) öne al
+                return (b.gun >= 5) - (a.gun >= 5);
             });
 
-            // 5 güne tamamlayana kadar boşlukları doldur
-            for (let g of emptyDays) {
+            // Eksikleri doldur
+            for (let aday of adayGunler) {
                 if (calis[p.ad] >= 5) break;
-                // Manuel izin kontrolü (Zaten tempProg[g] === null ise manuel izin yoktur, ama yine de garanti olsun)
-                // "09:00–18:00" vardiyası ata
-                tempProg[p.ad][g] = "09:00–18:00";
+                tempProg[p.ad][aday.gun] = "09:00–18:00";
                 calis[p.ad]++;
             }
         });
