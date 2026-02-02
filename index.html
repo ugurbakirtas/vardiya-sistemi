@@ -24,6 +24,7 @@
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
     
+    /* GİRİŞ EKRANI CSS */
     #loginOverlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
       background: var(--primary); z-index: 9999; 
@@ -75,6 +76,7 @@
     .izin-gun-pill.active { background: var(--danger); color: white; }
     .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
     
+    /* YENİ SWAP UI STİLLERİ */
     .swap-container { border: 2px solid var(--blue); border-radius: 12px; padding: 15px; background: var(--saat3); margin-bottom: 15px; }
     .swap-header { font-weight: 800; color: var(--primary); margin-bottom: 10px; display: flex; align-items: center; gap: 5px; font-size: 13px; text-transform: uppercase; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
     .swap-row { margin-bottom: 10px; }
@@ -85,17 +87,73 @@
     
     .admin-only { display: none; } 
 
+/* MOBİL UYUMLULUK AYARLARI */
 @media screen and (max-width: 768px) { 
+/* Tablo yapısını dikey karta çevir */
     #vardiyaTablosu, #vardiyaTablosu thead, #vardiyaTablosu tbody, #vardiyaTablosu th, #vardiyaTablosu td, #vardiyaTablosu tr {
-        display: block; width: 100% !important; min-width: 100% !important;
+        display: block;
+        width: 100% !important;
+        min-width: 100% !important;
     }
+
+    /* Başlıkları gizle (kart içinde göstereceğiz) */
     #tableHeader { display: none; }
-    #tableBody tr, #tableFooter tr { margin-bottom: 20px; border: 2px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card-bg); }
-    .saat-col { display: block; width: 100% !important; background: var(--primary); color: white !important; padding: 10px; text-align: left !important; border-left: none !important; font-size: 14px; }
-    td:not(.saat-col)::before { content: attr(data-label); font-weight: 800; text-transform: uppercase; font-size: 12px; display: block; margin-bottom: 10px; color: var(--blue); background: var(--bg); padding: 4px; border-radius: 4px; text-align: center; }
-    td:not(.saat-col) { display: flex; flex-direction: column; gap: 8px; height: auto !important; min-height: 50px; }
-    .side-panel { width: 100%; right: -100%; }
-    .main-header { flex-direction: column; text-align: center; }
+
+    /* Her satırı (saat dilimini) bir kart gibi yap */
+    #tableBody tr, #tableFooter tr {
+        margin-bottom: 20px;
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--card-bg);
+    }
+
+    /* Saat hücresini kart başlığına çevir */
+    .saat-col {
+        display: block;
+        width: 100% !important;
+        background: var(--primary);
+        color: white !important;
+        padding: 10px;
+        text-align: left !important;
+        border-left: none !important;
+        font-size: 14px;
+    }
+
+    /* Gün hücrelerini belirginleştir */
+    td:not(.saat-col)::before {
+    content: attr(data-label);
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 12px;
+    display: block;
+    margin-bottom: 10px;
+    color: var(--blue);
+    background: var(--bg); /* Arka plan ekleyerek netliği artırır */
+    padding: 4px;
+    border-radius: 4px;
+    text-align: center;
+    }
+
+    /* Hücrenin hangi güne ait olduğunu sol üste ekle */
+    td:not(.saat-col) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* Kartlar arası boşluk */
+    height: auto !important; /* Sabit yüksekliği kaldır */
+    min-height: 50px;
+    }
+
+    /* Yan paneli mobilde tam ekran yap */
+    .side-panel {
+        width: 100%;
+        right: -100%;
+    }
+    
+    .main-header {
+        flex-direction: column;
+        text-align: center;
+    }
 }  
 </style>
 </head>
@@ -225,6 +283,7 @@
   </div>
 
   <script>
+    // --- TELEGRAM AYARLARI (YENİ) ---
     let TELEGRAM_API = ""; 
     let TELEGRAM_ID = "";
 
@@ -243,11 +302,13 @@
         manuelAtamalar: JSON.parse(localStorage.getItem(PREFIX + "manuelAtamalar")) || {},
         haftaIciSabitler: JSON.parse(localStorage.getItem(PREFIX + "haftaIciSabitler")) || {},
         mcrAyarlari: JSON.parse(localStorage.getItem(PREFIX + "mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} },
-        geciciGorevler: JSON.parse(localStorage.getItem(PREFIX + "geciciGorevler")) || {} 
+        geciciGorevler: JSON.parse(localStorage.getItem(PREFIX + "geciciGorevler")) || {} // YENİ EKLENEN
     };
 
     let currentMonday = getMonday(new Date());
 
+    // --- GİRİŞ FONKSİYONU (GÜNCELLENDİ) ---
+    // --- GÜVENLİ GİRİŞ VE AYAR YÜKLEME ---
     async function hassasAyarlariYukle() {
         try {
             const snap = await database.ref('config').once('value');
@@ -294,6 +355,8 @@
         }, 500);
     }
       
+
+    // --- TALEP SİSTEMİ FONKSİYONLARI (YENİ) ---
     function talepModalAc() {
         const sel = document.getElementById('talepPersonel');
         sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join('');
@@ -313,10 +376,12 @@
     const gunIdx = (secilenTarih.getDay() + 6) % 7; 
     const talepId = Date.now().toString();
 
+    // Veritabanına Kayıt
     database.ref('talepler/' + talepId).set({
         id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor"
     });
 
+    // Telegram'a Butonlu Gönderim
     fetch(`https://api.telegram.org/bot${TELEGRAM_API}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -380,15 +445,20 @@ function talepIslem(id, tip) {
     });
 }
 
+    // --- MEVCUT DİĞER FONKSİYONLAR (BOZULMADI) ---
     function getMonday(d) { d = new Date(d); let day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day == 0 ? -6 : 1))); }
     function save() { Object.keys(state).forEach(k => localStorage.setItem(PREFIX + k, JSON.stringify(state[k]))); }
     function getBirimColor(birim) { return BIRIM_RENKLERI[birim] || "#64748b"; }
 
+    // --- YENİ FONKSİYON: GEÇİCİ BİRİM HESAPLAMA ---
     function getGecerliBirim(p, g) {
+        // Bu fonksiyon, personelin o gün için özel bir görevi varsa onu döndürür.
+        // Yoksa orijinal birimini döndürür.
         let d = new Date(currentMonday);
         d.setDate(d.getDate() + g);
         const dateKey = d.toISOString().split('T')[0];
         const key = `${dateKey}_${p.ad}`;
+        
         return state.geciciGorevler[key] || p.birim;
     }
 
@@ -396,6 +466,7 @@ function talepIslem(id, tip) {
         const hKey = currentMonday.toISOString().split('T')[0];
         document.getElementById("tarihAraligi").innerText = `${currentMonday.toLocaleDateString('tr-TR')} Haftası`;
         
+        // DEĞİŞİKLİK: Tarihli başlık yapısı
         document.getElementById("tableHeader").innerHTML = `<tr><th style="width:100px;">SAAT</th>${GUNLER.map((g, i) => {
             let d = new Date(currentMonday);
             d.setDate(d.getDate() + i);
@@ -416,6 +487,7 @@ function talepIslem(id, tip) {
         document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => {
             let rowHtml = `<tr class="row-saat-${sIdx}"><td class="saat-col">${s}</td>`;
             for(let g=0; g<7; g++) {
+                // --- DEĞİŞİKLİK: SIRALAMA VE GRUPLAMA ARTIK 'GEÇERLİ BİRİM'E GÖRE ---
                 let sortedPers = state.personeller
                     .filter(p => prog[p.ad][g] === s)
                     .sort((a, b) => {
@@ -427,7 +499,7 @@ function talepIslem(id, tip) {
                 let cellContent = "";
                 let lastBirim = "";
                 sortedPers.forEach((p) => {
-                    let gecerliBirim = getGecerliBirim(p, g);
+                    let gecerliBirim = getGecerliBirim(p, g); // O günkü birimi al
                     let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : "";
                     let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : "";
                     let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, '${s}')"` : "";
@@ -488,6 +560,7 @@ function talepIslem(id, tip) {
         }
     }
 
+    // --- YENİ EKLENEN: PRNG (Kumarhane Usulü Rastgele Sayı Üreteci) ---
     function mulberry32(a) {
       return function() {
         var t = a += 0x6D2B79F5;
@@ -497,12 +570,15 @@ function talepIslem(id, tip) {
       }
     }
 
+    // --- YENİ EKLENEN: SEEDED SHUFFLE (Tohumlu Karıştırma) ---
     function seededShuffle(array, seed) {
+        // Seed string'ini sayısal bir hash'e dönüştür
         let hash = 0;
         for (let i = 0; i < seed.length; i++) {
             hash = Math.imul(31, hash) + seed.charCodeAt(i) | 0;
         }
-        let rng = mulberry32(hash);
+        let rng = mulberry32(hash); // Özel rastgele sayı üreteci
+        
         let m = array.length, t, i;
         while (m) {
             i = Math.floor(rng() * m--);
@@ -513,73 +589,47 @@ function talepIslem(id, tip) {
         return array;
     }
 
+    // --- ANA VARDİYA OLUŞTURMA ALGORİTMASI ---
     function vardiyaUretVeKaydet() {
         if(!isAdmin) return;
         const hKey = currentMonday.toISOString().split('T')[0];
-        
-        // --- 1. OTOMATİK GRUP DAĞITIM (BİRİM BAZLI) ---
-        state.birimler.forEach(birim => {
-            let birimPersoneli = state.personeller.filter(p => 
-                p.birim === birim && 
-                !p.birim.includes("MCR") && 
-                !p.birim.includes("INGEST") && 
-                !state.haftaIciSabitler[p.ad]
-            );
-
-            birimPersoneli.forEach((p, index) => {
-                p.donguGrubu = (index % 4) + 1;
-            });
-        });
-        save();
+        // Önceki haftanın Pazar gününü bul (Geçmiş vardiyayı okumak için)
+        const prevMonday = new Date(currentMonday); prevMonday.setDate(prevMonday.getDate() - 7);
+        const prevHKey = prevMonday.toISOString().split('T')[0];
 
         let tempProg = {}; let calis = {};
         
         const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
         const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
-        
-        // --- SENİN ONAYLADIĞIN 4'LÜ ADALET DÖNGÜSÜ ---
-        const TURKMEDYA_DONGU = [
-            ["İZİNLİ", "06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "16:00–00:00"], // Grup 1
-            ["İZİNLİ", "06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "16:00–00:00", "İZİNLİ"], // Grup 2
-            ["16:00–00:00", "İZİNLİ", "İZİNLİ", "06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00"], // Grup 3
-            ["06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ", "06:30–16:00", "06:30–16:00"]  // Grup 4
-        ];
-
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
 
-        // --- 2. VARDİYA HESAPLAMA (ÖNCE DÖNGÜYÜ HESAPLA) ---
+        // --- 1. AŞAMA: ÖZEL DÖNGÜLER VE SABİT AYARLAR ---
         state.personeller.forEach(p => { 
             tempProg[p.ad] = Array(7).fill(null); 
             
+            // A) MCR
             if(p.birim.includes("MCR")) {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
                 for(let g=0; g<7; g++) {
                     let d = new Date(currentMonday); d.setDate(d.getDate() + g);
                     const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                    const donguIndex = (diffDays + persOfset) % 8;
-                    const modIndex = donguIndex < 0 ? donguIndex + 8 : donguIndex;
-                    tempProg[p.ad][g] = mcrDongu[modIndex];
+                    tempProg[p.ad][g] = mcrDongu[((diffDays + persOfset) % 8 + 8) % 8];
                 }
             } 
+            // B) INGEST
             else if(p.birim.includes("INGEST")) {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
                 for(let g=0; g<7; g++) {
                     let d = new Date(currentMonday); d.setDate(d.getDate() + g);
                     const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                    const donguIndex = (diffDays + persOfset) % 6; 
-                    const modIndex = donguIndex < 0 ? donguIndex + 6 : donguIndex;
-                    tempProg[p.ad][g] = ingestDongu[modIndex];
+                    tempProg[p.ad][g] = ingestDongu[((diffDays + persOfset) % 6 + 6) % 6];
                 }
             }
-            else if(p.donguGrubu && parseInt(p.donguGrubu) > 0) {
-                let diffTime = currentMonday.getTime() - baseDate.getTime();
-                let diffWeeks = Math.floor(diffTime / (1000 * 3600 * 24 * 7));
-                
-                let templateIndex = (diffWeeks + (parseInt(p.donguGrubu) - 1)) % 4;
-                if(templateIndex < 0) templateIndex += 4;
-                
-                tempProg[p.ad] = [...TURKMEDYA_DONGU[templateIndex]];
+            // C) PLAYOUT, SES, KJ (Özel Ayrılmış Blok - Burayı Boş Geçiyoruz, Aşağıda İşlenecek)
+            else if (["PLAYOUT OPERATÖRÜ", "SES OPERATÖRÜ", "KJ OPERATÖRÜ"].includes(p.birim)) {
+                // Özel işlem yapılacak, loop içinde atama yapma.
             }
+            // D) Diğerleri (Standart Sabitler)
             else {
                 if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
                 if (state.haftaIciSabitler[p.ad]) {
@@ -590,49 +640,157 @@ function talepIslem(id, tip) {
             }
         });
 
-        // --- 3. KAPASİTE MAKASI (HARD LIMITER) ---
-        // Döngüden gelen personel sayısı, kapasiteyi aşıyorsa fazlalıkları "İZİNLİ"ye çıkar.
-        for (let gun = 0; gun < 7; gun++) {
-            state.birimler.forEach(birim => {
-                let birimPersoneli = state.personeller.filter(p => p.birim === birim);
-                
-                let saatSayimlari = {};
-                birimPersoneli.forEach(p => {
-                    let atanmisSaat = tempProg[p.ad][gun];
-                    if(atanmisSaat && atanmisSaat !== "İZİNLİ" && atanmisSaat !== "BOŞ") {
-                         if(!saatSayimlari[atanmisSaat]) saatSayimlari[atanmisSaat] = [];
-                         saatSayimlari[atanmisSaat].push(p);
-                    }
-                });
+        // --- 2. AŞAMA: PLAYOUT / SES / KJ İÇİN ÖZEL 3 GRUPLU DÖNGÜ ---
+        ["PLAYOUT OPERATÖRÜ", "SES OPERATÖRÜ", "KJ OPERATÖRÜ"].forEach(ozelBirim => {
+            let personelListesi = state.personeller.filter(p => p.birim === ozelBirim);
+            if (personelListesi.length === 0) return;
 
-                Object.keys(saatSayimlari).forEach(saat => {
-                     const hedefKapasite = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
-                     let mevcutList = saatSayimlari[saat];
-                     
-                     // KAPASİTE AŞIMI VARSA FAZLALIKLARI KES
-                     if(mevcutList.length > hedefKapasite) {
-                         let silinecekSayisi = mevcutList.length - hedefKapasite;
-                         // Fazlalık olanları İZİNLİ yap
-                         for(let i=0; i<silinecekSayisi; i++) {
-                             let sanssizKisi = mevcutList.pop(); // Listeden birini al (Sondan)
-                             tempProg[sanssizKisi.ad][gun] = "İZİNLİ"; 
-                         }
-                     }
-                });
+            // Grupları Belirle (Geçen haftanın Pazartesi gününe göre)
+            let grupA = []; // Hedef: Bu Hafta SABAH Başlayacaklar (Eski İzinliler)
+            let grupB = []; // Hedef: Bu Hafta AKŞAM Başlayacaklar (Eski Sabahçılar)
+            let grupC = []; // Hedef: Bu Hafta İZİN Başlayacaklar  (Eski Akşamcılar)
+
+            personelListesi.forEach((p, index) => {
+                // Geçen hafta Pazartesi (0. gün) ne yaptı?
+                let gecenPzt = state.manuelAtamalar[`${prevHKey}_${p.ad}_0`];
+
+                if (gecenPzt === "İZİNLİ" || gecenPzt === "BOŞ" || !gecenPzt) {
+                    // Geçen hafta Pzt izinliymiş -> Bu hafta Grup A (Sabahçı)
+                    grupA.push(p);
+                } else if (gecenPzt === "06:30–16:00" || gecenPzt === "09:00–18:00") {
+                    // Geçen hafta Pzt sabahçıymış -> Bu hafta Grup B (Akşamcı)
+                    grupB.push(p);
+                } else {
+                    // Geçen hafta Pzt akşamcıymış -> Bu hafta Grup C (İzinli)
+                    grupC.push(p);
+                }
             });
 
-            // Kapasite eksiği varsa doldur (Opsiyonel ama güvenlik için)
-             state.saatler.forEach(saat => {
-                state.birimler.forEach(birim => {
+            // Eğer veri yoksa (İlk Kurulum), rastgele 3'e böl
+            if (grupA.length === 0 && grupB.length === 0 && grupC.length === 0) {
+                personelListesi.forEach((p, i) => {
+                    if (i % 3 === 0) grupA.push(p);
+                    else if (i % 3 === 1) grupB.push(p);
+                    else grupC.push(p);
+                });
+            }
+
+            // --- DESENLERİ UYGULA ---
+
+            // GRUP A (Pazartesi Sabahçı Olanlar)
+            // Kural: Pzt Sabah -> Salı/Çarş Akşam -> Per/Cum İzin -> Cmt/Paz Sabah
+            grupA.forEach(p => {
+                tempProg[p.ad][0] = "06:30–16:00"; // Pzt
+                tempProg[p.ad][1] = "16:00–00:00"; // Sal
+                tempProg[p.ad][2] = "16:00–00:00"; // Çar
+                tempProg[p.ad][3] = "İZİNLİ";      // Per
+                tempProg[p.ad][4] = "İZİNLİ";      // Cum
+                tempProg[p.ad][5] = "06:30–16:00"; // Cmt
+                tempProg[p.ad][6] = "06:30–16:00"; // Paz
+            });
+
+            // GRUP B (Pazartesi Akşamcı Olanlar)
+            // Kural: Pzt Akşam -> Salı/Çarş İzin -> Per/Cum Sabah -> Cmt/Paz Akşam
+            grupB.forEach(p => {
+                tempProg[p.ad][0] = "16:00–00:00"; // Pzt
+                tempProg[p.ad][1] = "İZİNLİ";      // Sal
+                tempProg[p.ad][2] = "İZİNLİ";      // Çar
+                tempProg[p.ad][3] = "06:30–16:00"; // Per
+                tempProg[p.ad][4] = "06:30–16:00"; // Cum
+                tempProg[p.ad][5] = "16:00–00:00"; // Cmt
+                tempProg[p.ad][6] = "16:00–00:00"; // Paz
+            });
+
+            // GRUP C (Pazartesi İzinli Olanlar)
+            // Kural: Pzt İzin -> Salı/Çarş Sabah -> Per/Cum Akşam -> Cmt (1 İzin/1 Akşam) -> Paz (1 İzin/1 Sabah)
+            // Not: Haftasonu kırılması için bu grubu "SeedShuffle" ile karıştırıyoruz.
+            seededShuffle(grupC, hKey); 
+
+            grupC.forEach((p, index) => {
+                tempProg[p.ad][0] = "İZİNLİ";      // Pzt
+                tempProg[p.ad][1] = "06:30–16:00"; // Sal
+                tempProg[p.ad][2] = "06:30–16:00"; // Çar
+                tempProg[p.ad][3] = "16:00–00:00"; // Per
+                tempProg[p.ad][4] = "16:00–00:00"; // Cum
+                
+                // Haftasonu Kırılması
+                // Index çift ise: Cmt İZİN, Pazar SABAH
+                // Index tek ise: Cmt AKŞAM, Pazar İZİN
+                if (index % 2 === 0) {
+                    tempProg[p.ad][5] = "İZİNLİ";      // Cmt
+                    tempProg[p.ad][6] = "06:30–16:00"; // Paz
+                } else {
+                    tempProg[p.ad][5] = "16:00–00:00"; // Cmt
+                    tempProg[p.ad][6] = "İZİNLİ";      // Paz
+                }
+            });
+        });
+
+        // --- 3. AŞAMA: MANUEL ATAMALARI OKU VE SAYAÇLARI GÜNCELLE ---
+        state.personeller.forEach(p => {
+            calis[p.ad] = 0; 
+            for(let g=0; g<7; g++) {
+                let mKey = `${hKey}_${p.ad}_${g}`;
+                if(state.manuelAtamalar[mKey]) tempProg[p.ad][g] = state.manuelAtamalar[mKey];
+                if(tempProg[p.ad][g] && !["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
+            }
+        });
+
+        // --- 4. AŞAMA: STANDART DAĞITIM (Kalan Boşluklar / Diğer Birimler İçin) ---
+        for (let gun = 0; gun < 7; gun++) {
+            // GECE VARDİYASI (00:00-07:00)
+            state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
+                const geceSaati = "00:00–07:00";
+                const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
+                let atanan = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === geceSaati).length;
+                
+                if (atanan < hedef) {
+                    let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null);
+                    
+                    seededShuffle(adaylar, hKey); // Adalet için karıştır
+
+                    // İş yüküne göre sırala
+                    adaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
+                    
+                    for (let p of adaylar) { 
+                        if (atanan < hedef && calis[p.ad] < 6) { 
+                            tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++; 
+                        } 
+                    }
+                }
+            });
+
+            // DİĞER SAATLER
+            state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
+                state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
+                    // Eğer Playout/Ses/KJ ise ve zaten atanmışsa burayı atla (ama manuel silindiyse doldur)
+                    
                     const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
                     let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
                     
                     if (mevcut < hedef) {
-                        let adaylar = state.personeller.filter(p => p.birim === birim && (tempProg[p.ad][gun] === null || tempProg[p.ad][gun] === "BOŞ"));
+                        let adaylar = state.personeller.filter(p => {
+                            let basic = p.birim === birim && tempProg[p.ad][gun] === null;
+                            // Playout için özel koruma: Eğer desene göre izinliyse, burası onu zorla doldurmasın
+                            // Sadece "null" ise doldursun.
+                            
+                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
+                            // Pazartesi Koruması
+                            let pazarGecesiSorunu = false;
+                            if (gun === 0 && (saat === "06:30–16:00" || saat === "09:00–18:00")) {
+                                let prevShift = state.manuelAtamalar[`${prevHKey}_${p.ad}_6`];
+                                if (prevShift === "00:00–07:00" || prevShift === "16:00–00:00") pazarGecesiSorunu = true;
+                            }
+                            return basic && !(dunGece && saat === "06:30–16:00") && !pazarGecesiSorunu;
+                        });
+                        
                         seededShuffle(adaylar, hKey);
+                        adaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
+
+                        let limit = (gun >= 5) ? 6 : 5;
                         for (let p of adaylar) {
-                            if (mevcut < hedef) { 
-                                tempProg[p.ad][gun] = saat; mevcut++; 
+                            if (mevcut < hedef && calis[p.ad] < limit) { 
+                                tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; 
                             }
                         }
                     }
@@ -640,14 +798,37 @@ function talepIslem(id, tip) {
             });
         }
 
+        // --- 5. AŞAMA: EKSİK GÜNLERİ TAMAMLAMA VE KAPANIŞ ---
+        state.personeller.forEach(p => {
+            // Playout/Ses/KJ zaten desenle doldu. Diğerleri için:
+            if(!p.birim.includes("MCR") && !p.birim.includes("INGEST") && !state.haftaIciSabitler[p.ad] && !["PLAYOUT OPERATÖRÜ", "SES OPERATÖRÜ", "KJ OPERATÖRÜ"].includes(p.birim)) {
+                if (calis[p.ad] < 5) {
+                    let g = 5; // Cumartesi
+                    if (tempProg[p.ad][g] === null) {
+                        let dunGece = (tempProg[p.ad][4] === "00:00–07:00");
+                        if (!dunGece) { tempProg[p.ad][g] = "09:00–18:00"; calis[p.ad]++; }
+                    }
+                }
+                if (calis[p.ad] < 5) {
+                    let g = 6; // Pazar
+                    if (tempProg[p.ad][g] === null) {
+                        let dunGece = (tempProg[p.ad][5] === "00:00–07:00");
+                        if (!dunGece) { tempProg[p.ad][g] = "09:00–18:00"; calis[p.ad]++; }
+                    }
+                }
+            }
+        });
+
+        // SON OLARAK BOŞ KALANLARA İZİN YAZ
         state.personeller.forEach(p => {
             for(let g=0; g<7; g++) {
                 if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = "İZİNLİ";
             }
         });
 
+        // VERİTABANINA KAYDET
         state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu! (Özel 4'lü Döngü + Kapasite Makası)");
+        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (Özel 3'lü Grup Deseni Dahil).");
     }
 
     function excelIndir() {
@@ -710,11 +891,12 @@ function talepIslem(id, tip) {
                     <input type="number" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:40px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)">
                 </div>`;
             }
+            // YÜZDE PUAN GİRİŞİ
             let yuzdeHtml = `<div style="margin-top:5px; font-size:10px;">
                 <span style="font-weight:bold;">Vardiya Öncelik Puanı (%):</span>
                 <input type="number" value="${p.yuzde || 0}" style="width:50px; padding:3px; border-radius:4px; border:1px solid #ccc;" onchange="yuzdeGuncelle(${i}, this.value)">
             </div>`;
-            
+
             return `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;">
                 <strong>${p.ad}</strong> <small>(${p.birim})</small>
                 <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer; float:right;">Sil</button>
@@ -724,20 +906,24 @@ function talepIslem(id, tip) {
             </div>`;
         }).join('');
         
+        // --- SWAP DROPDOWN DOLDURMA ---
         const swapKaynak = document.getElementById('swapKaynakPersonel');
         const swapHedef = document.getElementById('swapHedefPersonel');
         const optionsHtml = "<option value=''>Seçiniz...</option>" + state.personeller.sort((a,b) => a.ad.localeCompare(b.ad)).map(p => `<option value="${p.ad}">${p.ad} (${p.birim})</option>`).join('');
         if(swapKaynak) swapKaynak.innerHTML = optionsHtml;
         if(swapHedef) swapHedef.innerHTML = optionsHtml;
         
+        // --- AKTİF DEĞİŞİMLERİ LİSTELE ---
         if(!state.geciciGorevler) state.geciciGorevler = {};
         let degisimHtml = "<strong>Aktif Değişimler (Bu Hafta):</strong><br>";
         let hasDegisim = false;
         Object.keys(state.geciciGorevler).forEach(k => {
             const [dateStr, pName] = k.split('_');
             const targetUnit = state.geciciGorevler[k];
+            // Sadece bu haftaya ait olanları gösterelim
             let d = new Date(dateStr);
             let nextMonday = new Date(currentMonday); nextMonday.setDate(nextMonday.getDate() + 7);
+            
             if(d >= currentMonday && d < nextMonday) {
                 degisimHtml += `<div style="font-size:10px; border-bottom:1px solid #eee; padding:2px;">📅 ${dateStr} - <b>${pName}</b> ➡️ ${targetUnit}</div>`;
                 hasDegisim = true;
@@ -749,12 +935,13 @@ function talepIslem(id, tip) {
         document.getElementById("kapasiteTable").innerHTML = capHtml;
         
         let mcrSistemHtml = `<div style="background:#e0f2fe; padding:10px; border-radius:8px; margin-bottom:10px;">
-            <strong>MCR/INGEST/DÖNGÜ Başlangıç Tarihi:</strong><br>
+            <strong>MCR/INGEST Döngü Başlangıç Tarihi:</strong><br>
             <input type="date" value="${state.mcrAyarlari.baslangicTarihi}" onchange="state.mcrAyarlari.baslangicTarihi = this.value; save();" style="width:100%; padding:5px; margin-top:5px;">
         </div>`;
         
         document.getElementById("sabitListeAdmin").innerHTML = mcrSistemHtml + state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--bg); padding:5px; border-radius:5px;"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
         
+        // --- DEĞİŞİKLİK: BİRİM EKLEME/SİLME UI ---
         document.getElementById("birimListesiAdmin").innerHTML = `
             <div style="margin-bottom:10px; display:flex; gap:5px;">
                 <input type="text" id="yeniBirimInp" placeholder="Yeni Birim Adı" style="flex:1; padding:5px; border-radius:4px; border:1px solid #ccc;">
@@ -767,6 +954,7 @@ function talepIslem(id, tip) {
                 </div>
             `).join('')}`;
 
+        // --- DEĞİŞİKLİK: SAAT EKLEME/SİLME UI ---
         document.getElementById("saatListesiAdmin").innerHTML = `
             <div style="margin-bottom:10px; display:flex; gap:5px;">
                 <input type="text" id="yeniSaatInp" placeholder="Örn: 10:00–19:00" style="flex:1; padding:5px; border-radius:4px; border:1px solid #ccc;">
@@ -780,15 +968,18 @@ function talepIslem(id, tip) {
             `).join('')}`;
     }
     
+    // YENİ YARDIMCI FONKSİYON: VARDİYAYI HER KAYNAKTAN ARAR (MANUEL > MCR/INGEST > SABİT)
     function vardiyaBul(pAd, gIdx) {
         const hKey = currentMonday.toISOString().split('T')[0];
         const mKey = `${hKey}_${pAd}_${gIdx}`;
 
+        // 1. Önce Manuel/Onaylanmış var mı?
         if (state.manuelAtamalar[mKey]) return state.manuelAtamalar[mKey];
 
         const p = state.personeller.find(pers => pers.ad === pAd);
         if (!p) return null;
 
+        // 2. MCR/Ingest Döngüsü Hesabı
         const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
         const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
@@ -811,6 +1002,7 @@ function talepIslem(id, tip) {
             return ingestDongu[modIndex];
         }
         
+        // 3. Hafta İçi Sabitler
         if (state.haftaIciSabitler[p.ad] && gIdx < 5) {
             return state.haftaIciSabitler[p.ad];
         }
@@ -818,9 +1010,10 @@ function talepIslem(id, tip) {
         return null;
     }
 
+    // --- SWAP İŞLEM FONKSİYONU (TAM OTOMATİK VERSİYON) ---
     function degisimiUygula() {
-        const pKaynakAd = document.getElementById('swapKaynakPersonel').value; 
-        const pHedefAd = document.getElementById('swapHedefPersonel').value;   
+        const pKaynakAd = document.getElementById('swapKaynakPersonel').value; // Ayrılan (Örn: MCR Op)
+        const pHedefAd = document.getElementById('swapHedefPersonel').value;   // Yerine geçen (Reliever)
         
         if(!pKaynakAd || !pHedefAd) { alert("Lütfen iki personeli de seçiniz."); return; }
         if(pKaynakAd === pHedefAd) { alert("Aynı personeli seçemezsiniz."); return; }
@@ -835,6 +1028,7 @@ function talepIslem(id, tip) {
         checkboxes.forEach(cb => {
             const gunIdx = parseInt(cb.value);
             
+            // 1. Gecici Birim (Renk/Grup) Ayarı
             let d = new Date(currentMonday);
             d.setDate(d.getDate() + gunIdx);
             const dateKey = d.toISOString().split('T')[0];
@@ -843,9 +1037,11 @@ function talepIslem(id, tip) {
             if(!state.geciciGorevler) state.geciciGorevler = {};
             state.geciciGorevler[gKey] = hedefBirim;
 
+            // 2. Vardiya Transferi (TAM OTOMATİK HESAPLAMA)
             const kLeaving = `${hKey}_${pKaynakAd}_${gunIdx}`;
             const kEntering = `${hKey}_${pHedefAd}_${gunIdx}`;
 
+            // vardiyaBul fonksiyonu manual yoksa MCR/Ingest hesabını yapar!
             let shift = vardiyaBul(pKaynakAd, gunIdx);
 
             if (shift && shift !== "İZİNLİ" && shift !== "BOŞ") {
@@ -875,15 +1071,14 @@ function talepIslem(id, tip) {
     }
 
     function mcrOfsetGuncelle(ad, val) { if(!state.mcrAyarlari.ofsetler) state.mcrAyarlari.ofsetler = {}; state.mcrAyarlari.ofsetler[ad] = parseInt(val); save(); }
-    function yuzdeGuncelle(idx, val) { state.personeller[idx].yuzde = val; save(); }
-    function donguGuncelle(idx, val) { state.personeller[idx].donguGrubu = val; save(); }
-
+    function yuzdeGuncelle(idx, val) { state.personeller[idx].yuzde = val; save(); } // YENİ FONKSİYON
     function whatsappGonder() { const hKey = currentMonday.toISOString().split('T')[0]; let m = `*📅 ${currentMonday.toLocaleDateString('tr-TR')} VARDİYASI*\n\n`; GUNLER.forEach((g, i) => { m += `*${g.toUpperCase()}*\n`; state.saatler.forEach(s => { let pList = state.personeller.filter(p => state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] === s).map(p => p.ad).join(", "); if (pList) m += `• ${s}: ${pList}\n`; }); m += `\n`; }); window.open(`https://wa.me/?text=${encodeURIComponent(m)}`, '_blank'); }
     function capUp(k, g, v) { if(!state.kapasite[k]) state.kapasite[k] = [0,0,0,0,0,0,0]; state.kapasite[k][g] = parseInt(v) || 0; save(); }
     function izinGunuTetikle(pi, gi) { if(!state.personeller[pi].izinGunleri) state.personeller[pi].izinGunleri = []; const idx = state.personeller[pi].izinGunleri.indexOf(gi); if(idx > -1) state.personeller[pi].izinGunleri.splice(idx, 1); else state.personeller[pi].izinGunleri.push(gi); save(); refreshUI(); }
     function haftaDegistir(v) { currentMonday.setDate(currentMonday.getDate() + v); tabloyuOlustur(); }
     function personelEkle() { const ad = document.getElementById("yeniPersInp").value.toUpperCase(); const b = document.getElementById("yeniPersBirimSec").value; if(ad){ state.personeller.push({ad, birim:b, izinGunleri:[], yuzde:0}); save(); refreshUI(); document.getElementById("yeniPersInp").value=""; } }
     
+    // --- YENİ EKLENEN: BİRİM EKLEME/SİLME FONKSİYONLARI ---
     function birimEkle() {
         const val = document.getElementById("yeniBirimInp").value.toUpperCase().trim();
         if(val && !state.birimler.includes(val)) {
@@ -900,6 +1095,7 @@ function talepIslem(id, tip) {
         }
     }
 
+    // --- YENİ EKLENEN: SAAT EKLEME/SİLME FONKSİYONLARI ---
     function saatEkle() {
         const val = document.getElementById("yeniSaatInp").value.trim();
         if(val && !state.saatler.includes(val)) {
@@ -972,12 +1168,15 @@ function talepIslem(id, tip) {
 }
     function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); }
     function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
-
+// Bu fonksiyonu mevcut olanla değiştir veya üzerine yaz
 function anlikSenkronizasyonBaslat() {
+    // Sadece 'vardiya_data' değil, tüm veritabanını dinleyerek 
+    // hem vardiya değişimlerini hem de yeni gelen talepleri anında yakalarız.
     database.ref().on('value', (snap) => {
         if (snap.exists()) {
             const data = snap.val();
             
+            // 1. Vardiya Verilerini Güncelle
             if(data.vardiya_data) {
                 state = data.vardiya_data;
                 save();
@@ -985,6 +1184,7 @@ function anlikSenkronizasyonBaslat() {
                 if(isAdmin) refreshUI();
             }
             
+            // 2. Bekleyen Talepleri Güncelle (Yönetici Paneli İçin)
             if(isAdmin) {
                 talepleriYukle(); 
             }
@@ -994,12 +1194,15 @@ function anlikSenkronizasyonBaslat() {
     });
 }
        window.onload = async () => { 
+    // Tema ayarını uygula
     if(localStorage.getItem(PREFIX + "theme") === "dark") {
         document.documentElement.setAttribute("data-theme", "dark");
     }
     
+    // ÖNEMLİ: Hassas ayarları (Telegram API vb.) giriş yapmadan önce yükle
     await hassasAyarlariYukle(); 
     
+    // Canlı senkronizasyonu ve talepleri başlat
     anlikSenkronizasyonBaslat();
     talepleriYukle(); 
 };
