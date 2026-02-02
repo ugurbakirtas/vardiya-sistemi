@@ -465,7 +465,14 @@ function talepIslem(id, tip) {
     function tabloyuOlustur() {
         const hKey = currentMonday.toISOString().split('T')[0];
         document.getElementById("tarihAraligi").innerText = `${currentMonday.toLocaleDateString('tr-TR')} Haftası`;
-        document.getElementById("tableHeader").innerHTML = `<tr><th style="width:100px;">SAAT</th>${GUNLER.map((g,i)=>`<th class="${i>=5?'weekend-col':''}">${g}</th>`).join('')}</tr>`;
+        
+        // --- DİNAMİK TARİH BAŞLIĞI ---
+        document.getElementById("tableHeader").innerHTML = `<tr><th style="width:100px;">SAAT</th>${GUNLER.map((g,i)=>{
+            let d = new Date(currentMonday); d.setDate(d.getDate() + i);
+            let dateStr = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'numeric' });
+            return `<th class="${i>=5?'weekend-col':''}">${g}<br><span style="font-size:9px; font-weight:normal; opacity:0.8">${dateStr}</span></th>`;
+        }).join('')}</tr>`;
+
         let prog = {}; let calis = {};
         state.personeller.forEach(p => { 
             prog[p.ad] = Array(7).fill(null); calis[p.ad] = 0;
@@ -648,6 +655,14 @@ function talepIslem(id, tip) {
                 izinTercihleri[p.ad].push(0, 6);
             } else {
                 // Diğerleri: Salı'dan başlayarak Bitişik 2 Gün
+                // (idx-2) % 4 -> 0,1,2,3... +1 -> 1(Sal), 2(Çar), 3(Per), 4(Cum)
+                // Ama Pazar (6) ile çakışmaması için 4 gün döngüsü yeterli mi?
+                // Biz % 4 dedik. 
+                // idx=2 -> 1 (Sal, Çar)
+                // idx=3 -> 2 (Çar, Per)
+                // idx=4 -> 3 (Per, Cum)
+                // idx=5 -> 4 (Cum, Cmt) 
+                // Sonra döngü başa döner.
                 let startDay = ((idx - 2) % 4) + 1; 
                 izinTercihleri[p.ad].push(startDay, startDay+1);
             }
@@ -692,11 +707,19 @@ function talepIslem(id, tip) {
                     // PAS 1: Normal Atama (İzin tercihi olanlara dokunma)
                     for (let p of adaylar) { 
                         let tercihVar = (izinTercihleri[p.ad] && izinTercihleri[p.ad].includes(gun));
-                        if (atanan < hedef && !tercihVar && calis[p.ad] < 6) { 
+                        // Zincir Koruması: Eğer bugün izin istiyor VE (dün izinliydi VEYA yarın izin istiyorsa) -> Dokunma!
+                        let zincirRiski = false;
+                        if(tercihVar) {
+                            if ((gun>0 && tempProg[p.ad][gun-1] === "İZİNLİ") || (izinTercihleri[p.ad].includes(gun+1))) {
+                                zincirRiski = true;
+                            }
+                        }
+
+                        if (atanan < hedef && !zincirRiski && !tercihVar && calis[p.ad] < 6) { 
                             tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++; 
                         } 
                     }
-                     // PAS 2: Kapasite Dolmadıysa Tercihleri Eziyoruz (PANİK MODU)
+                     // PAS 2: Kapasite Dolmadıysa Mecburen Doldur (PANİK MODU)
                     if (atanan < hedef) {
                         for (let p of adaylar) {
                             if (atanan < hedef && tempProg[p.ad][gun] === null) {
@@ -732,10 +755,18 @@ function talepIslem(id, tip) {
 
                         // --- AKILLI SIRALAMA ---
                         adaylar.sort((a, b) => {
-                            // 1. İzin Tercihi Cezası (Bugün izin isteyenleri sona at)
-                            let tercihCezaA = (izinTercihleri[a.ad] && izinTercihleri[a.ad].includes(gun)) ? 1000 : 0;
-                            let tercihCezaB = (izinTercihleri[b.ad] && izinTercihleri[b.ad].includes(gun)) ? 1000 : 0;
-                            if(tercihCezaA !== tercihCezaB) return tercihCezaA - tercihCezaB;
+                            // 1. ZİNCİR KORUMASI (En önemli kural)
+                            // Eğer birinin blok izni varsa onu sona at (+5000 puan)
+                            let zincirA = 0, zincirB = 0;
+                            if (izinTercihleri[a.ad] && izinTercihleri[a.ad].includes(gun)) {
+                                if ((gun>0 && tempProg[a.ad][gun-1] === "İZİNLİ") || (izinTercihleri[a.ad].includes(gun+1))) zincirA = 5000;
+                                else zincirA = 1000; // Tekil izin tercihi
+                            }
+                            if (izinTercihleri[b.ad] && izinTercihleri[b.ad].includes(gun)) {
+                                if ((gun>0 && tempProg[b.ad][gun-1] === "İZİNLİ") || (izinTercihleri[b.ad].includes(gun+1))) zincirB = 5000;
+                                else zincirB = 1000;
+                            }
+                            if(zincirA !== zincirB) return zincirA - zincirB;
 
                             // 2. Akış Kuralı: Sabah (06/09) için Dün İzinli/Boş olan öne
                             if (saat.startsWith("06") || saat.startsWith("09")) {
