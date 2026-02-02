@@ -611,6 +611,18 @@ function talepIslem(id, tip) {
             }
         });
 
+        // --- YENİ EKLENEN: HAFTALIK SEEDED RANDOM SCORE HESAPLAMA ---
+        // Bu fonksiyon her hafta için o personele özel ama sabit bir sayı üretir.
+        function getWeeklyScore(pAd) {
+            let str = pAd + hKey; // İsim + Bu Haftanın Tarihi
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0; // 32bit integer dönüşümü
+            }
+            return hash;
+        }
+
         // --- ANA VARDİYA DAĞITIM DÖNGÜSÜ ---
         for (let gun = 0; gun < 7; gun++) {
             // 1. GECE VARDİYASI (00:00-07:00)
@@ -625,7 +637,10 @@ function talepIslem(id, tip) {
                             let scoreA = parseInt(a.yuzde || 0);
                             let scoreB = parseInt(b.yuzde || 0);
                             if (scoreA !== scoreB) return scoreB - scoreA;
-                            return calis[a.ad] - calis[b.ad];
+                            
+                            // Çalışma günleri eşitse haftalık rastgele puana bak
+                            if (calis[a.ad] !== calis[b.ad]) return calis[a.ad] - calis[b.ad];
+                            return getWeeklyScore(a.ad) - getWeeklyScore(b.ad);
                         });
                     
                     // PAS 1: Limiti Aşmayanları Yerleştir
@@ -658,16 +673,14 @@ function talepIslem(id, tip) {
                             return basic && !(dunGece && saat === "06:30–16:00");
                         });
                         
-                        // --- DÖNÜŞÜMLÜ (ROTATION) SIRALAMA ---
+                        // --- DÖNÜŞÜMLÜ (SEEDED RANDOM) SIRALAMA ---
                         adaylar.sort((a, b) => {
                             // 1. İş Yükü (Az çalışan öne)
                             if (calis[a.ad] !== calis[b.ad]) return calis[a.ad] - calis[b.ad];
                             
-                            // 2. Haftalık Döngü (Round-Robin)
-                            // weekOffset her hafta 1 artar. Bu sayede sıralama her hafta kayar.
-                            let rotIndexA = (state.personeller.indexOf(a) + weekOffset) % state.personeller.length;
-                            let rotIndexB = (state.personeller.indexOf(b) + weekOffset) % state.personeller.length;
-                            return rotIndexA - rotIndexB; 
+                            // 2. Haftalık Rastgelelik (Seeded Shuffle)
+                            // Tarih değiştiğinde sıralama tamamen değişir ve adil dağılım sağlar.
+                            return getWeeklyScore(a.ad) - getWeeklyScore(b.ad); 
                         });
 
                         // PAS 1: Limiti Aşmayanları Yerleştir (Normal)
