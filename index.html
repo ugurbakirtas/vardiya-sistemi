@@ -665,62 +665,47 @@ function talepIslem(id, tip) {
             });
         }
 
-        // --- 4. KURAL (KESİN ÇÖZÜM): AĞIRLIKLI PUANLAMA İLE EKSİK GÜN TAMAMLAMA ---
+        // --- 4. KURAL (BASİT VE NET): 1. KAPASİTE DOLUMU, 2. HAFTA SONUNA ATAMA ---
         state.personeller.forEach(p => {
-            // MCR/Ingest ve zaten 5 günü dolduranları atla
             if(p.birim.includes("MCR") || p.birim.includes("INGEST")) return;
             if(calis[p.ad] >= 5) return;
 
-            let adayGunler = [];
-            
-            // Haftanın 7 gününü puanla
+            // 1. AŞAMA: KAPASİTE BOŞLUĞU KONTROLÜ (TÜM GÜNLER)
+            // Haftanın her günü için...
             for(let g=0; g<7; g++) {
-                // Eğer o gün zaten doluysa (başka vardiya varsa) pas geç
-                if(tempProg[p.ad][g] !== null) continue;
+                if(calis[p.ad] >= 5) break;
+                if(tempProg[p.ad][g] !== null) continue; // Gün doluysa atla
 
-                let puan = 0;
-                const isWeekend = (g >= 5); // 5:Cmt, 6:Paz
-
-                // Kapasite Kontrolü: Bu günde bu birimden 09:00-18:00 için ihtiyaç (açık) var mı?
-                const hedefArray = state.kapasite[`${p.birim}_09:00–18:00`] || [0,0,0,0,0,0,0];
-                const hedef = parseInt(hedefArray[g]) || 0; // Hedef girilmemişse 0 say
-                
-                // Şu ana kadar tempProg'da buraya kaç kişi yazdık?
-                let mevcut = 0;
-                state.personeller.forEach(otherP => {
-                    if(tempProg[otherP.ad][g] === "09:00–18:00" && otherP.birim === p.birim) mevcut++;
-                });
-                
-                let acik = hedef - mevcut;
-
-                // --- PUANLAMA ALGORİTMASI ---
-                
-                // 1. KRİTİK HEDEF: Kapasite açığı varsa DEVAS PUAN (+10.000)
-                if(acik > 0) {
-                    puan += 10000;
-                    puan += (acik * 100); // Ne kadar çok açık varsa o kadar öncelikli
+                // ... sistemdeki TÜM SAATLERİ tara ve açık var mı bak
+                for (let s of state.saatler) {
+                    const hedefArray = state.kapasite[`${p.birim}_${s}`] || [0,0,0,0,0,0,0];
+                    const hedef = parseInt(hedefArray[g]) || 0;
+                    
+                    let mevcut = 0;
+                    state.personeller.forEach(otherP => {
+                        if(tempProg[otherP.ad][g] === s && otherP.birim === p.birim) mevcut++;
+                    });
+                    
+                    if (hedef > mevcut) {
+                        // Açık var! Personeli buraya yaz.
+                        tempProg[p.ad][g] = s;
+                        calis[p.ad]++;
+                        break; // Bu günü doldurduk, sonraki güne geç
+                    }
                 }
-
-                // 2. HAFTA SONU ÖNCELİĞİ: (+5.000)
-                // Açık olsun olmasın, hafta sonu her zaman hafta içine göre daha öncelikli olsun
-                // (Kullanıcı: "hafta içi kapasite dolu ise fazlalığı hafta sonuna versin")
-                if(isWeekend) {
-                    puan += 5000;
-                } else {
-                    puan += 100; // Hafta içi standart puan
-                }
-
-                adayGunler.push({ gun: g, puan: puan });
             }
 
-            // Puanı EN YÜKSEK olan günü en başa al
-            adayGunler.sort((a, b) => b.puan - a.puan);
-
-            // Eksik günleri tamamla (En yüksek puanlı günlerden başlayarak)
-            for (let aday of adayGunler) {
-                if (calis[p.ad] >= 5) break;
-                tempProg[p.ad][aday.gun] = "09:00–18:00";
-                calis[p.ad]++;
+            // 2. AŞAMA: HAFTA SONU DOLDURMA (HALA EKSİKSE)
+            if(calis[p.ad] < 5) {
+                const weekends = [5, 6]; // Cumartesi, Pazar
+                for (let w of weekends) {
+                    if(calis[p.ad] >= 5) break;
+                    if(tempProg[p.ad][w] === null) {
+                        // Kapasite zorunluluğu yoksa standart 09:00-18:00 ver
+                        tempProg[p.ad][w] = "09:00–18:00";
+                        calis[p.ad]++;
+                    }
+                }
             }
         });
 
