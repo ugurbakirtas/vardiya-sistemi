@@ -594,6 +594,7 @@ function talepIslem(id, tip) {
         const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
 
+        // --- ÖNCE: TEMEL ATAMALARI YAP (MCR/INGEST/SABIT) ---
         state.personeller.forEach(p => { 
             tempProg[p.ad] = Array(7).fill(null); 
             
@@ -626,11 +627,43 @@ function talepIslem(id, tip) {
                     for(let i=0; i<5; i++) tempProg[p.ad][i] = sabitSaat;
                     tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
                 }
-                // Otomatik izin ataması YOK.
             }
+        });
 
-            // --- MANUEL ATAMALARI UYGULA VE ÇALIŞMA GÜNÜNÜ HESAPLA ---
-            calis[p.ad] = 0; 
+        // --- YENİ ADIM: İZİN GÜNLERİNİ ÖNCEDEN DAĞIT (AKILLI ROTASYON) ---
+        // MCR, Ingest ve Sabitler hariç
+        let rotasyonAdaylari = state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST") && !state.haftaIciSabitler[p.ad]);
+        
+        // Bu adayları karıştır (Adalet)
+        seededShuffle(rotasyonAdaylari, hKey);
+
+        // İzinleri Ata
+        rotasyonAdaylari.forEach((p, idx) => {
+            // Var olan manuel izinleri koru
+            if (p.izinGunleri && p.izinGunleri.length > 0) return;
+
+            if (idx === 0) {
+                // 1. Kişi: Pazartesi + Cumartesi
+                if(tempProg[p.ad][0] === null) tempProg[p.ad][0] = "İZİNLİ";
+                if(tempProg[p.ad][5] === null) tempProg[p.ad][5] = "İZİNLİ";
+            } else if (idx === 1) {
+                // 2. Kişi: Pazartesi + Pazar
+                if(tempProg[p.ad][0] === null) tempProg[p.ad][0] = "İZİNLİ";
+                if(tempProg[p.ad][6] === null) tempProg[p.ad][6] = "İZİNLİ";
+            } else {
+                // Diğerleri: Salı'dan başlayarak Bitişik 2 Gün (Sal-Çar, Çar-Per...)
+                // idx=2 -> (0%4)+1 = 1 (Salı) -> Salı+Çarşamba
+                // idx=3 -> (1%4)+1 = 2 (Çarşamba) -> Çarşamba+Perşembe
+                let startDay = ((idx - 2) % 4) + 1; 
+                if(tempProg[p.ad][startDay] === null) tempProg[p.ad][startDay] = "İZİNLİ";
+                if(tempProg[p.ad][startDay+1] === null) tempProg[p.ad][startDay+1] = "İZİNLİ";
+            }
+        });
+
+
+        // --- MANUEL ATAMALARI YÜKLE ---
+        state.personeller.forEach(p => {
+             calis[p.ad] = 0; 
             for(let g=0; g<7; g++) {
                 let mKey = `${hKey}_${p.ad}_${g}`;
                 if(state.manuelAtamalar[mKey]) {
@@ -642,8 +675,9 @@ function talepIslem(id, tip) {
             }
         });
 
-        // --- ANA VARDİYA DAĞITIM DÖNGÜSÜ ---
+        // --- ANA VARDİYA DAĞITIM DÖNGÜSÜ (GÜNCELLENMİŞ FLOW MANTIĞI) ---
         for (let gun = 0; gun < 7; gun++) {
+            
             // 1. GECE VARDİYASI (00:00-07:00)
             state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
                 const geceSaati = "00:00–07:00";
@@ -652,29 +686,20 @@ function talepIslem(id, tip) {
                 
                 if (atanan < hedef) {
                     let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null);
-                    
-                    // --- KRİTİK: SEEDED SHUFFLE (Önce Rastgele Karıştır) ---
-                    // Bu işlem listeyi her hafta (hKey sayesinde) benzersiz bir şekilde karıştırır.
                     seededShuffle(adaylar, hKey);
-
-                    // --- SONRA: İŞ YÜKÜNE GÖRE SIRALA (Az Çalışan Öne) ---
-                    adaylar.sort((a, b) => {
-                         let scoreA = parseInt(a.yuzde || 0);
-                         let scoreB = parseInt(b.yuzde || 0);
-                         if (scoreA !== scoreB) return scoreB - scoreA;
-                         return calis[a.ad] - calis[b.ad];
-                    });
                     
-                    // PAS 1: Limiti Aşmayanları Yerleştir
+                    // Gece için: Yarın izinli olanları tercih ETME (Yorgun girmesin)
+                    // Daha çok ortada kalanları seç
+                    adaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
+                    
                     for (let p of adaylar) { 
-                        if (atanan < hedef && calis[p.ad] < 6) { 
-                            tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++; 
-                        } 
+                        if (atanan < hedef && calis[p.ad] < 6) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++; } 
                     }
-                    // PAS 2 (ZORUNLU): Kapasite Dolmadıysa
+                     // Panik Modu
                     if (atanan < hedef) {
                         for (let p of adaylar) {
-                            if (atanan < hedef && tempProg[p.ad][gun] === null) {
+                            // "İZİNLİ" olsa bile kapasite için boz
+                            if (atanan < hedef && tempProg[p.ad][gun] !== geceSaati) {
                                 tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++;
                             }
                         }
@@ -690,41 +715,66 @@ function talepIslem(id, tip) {
                     
                     if (mevcut < hedef) {
                         let adaylar = state.personeller.filter(p => {
-                            let basic = p.birim === birim && tempProg[p.ad][gun] === null;
-                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
+                            // Temel Uygunluk: O gün boş mu? (İzinli ise Panik modunda bakacağız)
+                            let basic = p.birim === birim && (tempProg[p.ad][gun] === null); 
                             
-                            // --- YENİ EKLENEN: PAZARTESİ KORUMASI (GEÇMİŞ HAFTA KONTROLÜ) ---
+                            // Pazartesi Koruması
                             let pazarGecesiSorunu = false;
-                            if (gun === 0 && (saat === "06:30–16:00" || saat === "09:00–18:00")) {
-                                // Önceki haftanın Pazar günü (Index 6)
+                            if (gun === 0 && (saat.startsWith("06") || saat.startsWith("09"))) {
                                 let prevShift = state.manuelAtamalar[`${prevHKey}_${p.ad}_6`];
-                                // Eğer Pazar günü gece veya akşam çalıştıysa, Pazartesi sabahına gelmesin
-                                if (prevShift === "00:00–07:00" || prevShift === "16:00–00:00") {
-                                    pazarGecesiSorunu = true;
-                                }
+                                if (prevShift === "00:00–07:00" || prevShift === "16:00–00:00") pazarGecesiSorunu = true;
                             }
+                            // Dün Gece Koruması
+                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
 
-                            return basic && !(dunGece && saat === "06:30–16:00") && !pazarGecesiSorunu;
+                            return basic && !(dunGece && saat.startsWith("06")) && !pazarGecesiSorunu;
                         });
                         
-                        // --- KRİTİK: SEEDED SHUFFLE (Önce Rastgele Karıştır) ---
                         seededShuffle(adaylar, hKey);
 
-                        // --- SONRA: İŞ YÜKÜNE GÖRE SIRALA ---
-                        adaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
+                        // --- AKILLI ROTASYON SIRALAMASI (FLOW LOGIC) ---
+                        adaylar.sort((a, b) => {
+                            // Kural 1: Giriş Vardiyası (06:30/09:00) -> Dün İzinli olan öne geçsin
+                            if (saat.startsWith("06") || saat.startsWith("09")) {
+                                let aDunIzin = (gun > 0 && tempProg[a.ad][gun-1] === "İZİNLİ") ? 1 : 0;
+                                let bDunIzin = (gun > 0 && tempProg[b.ad][gun-1] === "İZİNLİ") ? 1 : 0;
+                                if (aDunIzin !== bDunIzin) return bDunIzin - aDunIzin; // İzinli olan öne
+                            }
 
-                        // PAS 1: Limiti Aşmayanları Yerleştir (Normal)
-                        let limit = (gun >= 5) ? 6 : 5;
+                            // Kural 2: Çıkış Vardiyası (16:00) -> Yarın İzinli olan öne geçsin
+                            if (saat.startsWith("16")) {
+                                let aYarinIzin = (gun < 6 && tempProg[a.ad][gun+1] === "İZİNLİ") ? 1 : 0;
+                                let bYarinIzin = (gun < 6 && tempProg[b.ad][gun+1] === "İZİNLİ") ? 1 : 0;
+                                if (aYarinIzin !== bYarinIzin) return bYarinIzin - aYarinIzin; // İzne çıkacak olan öne
+                            }
+                            
+                            // Kural 3: İş Yükü
+                            return calis[a.ad] - calis[b.ad];
+                        });
+
+                        // PAS 1: Normal Atama
+                        let limit = 6; // Artık 5 gün kuralı esnek, izinler önceden verildiği için 6 güne kadar dolabilir
                         for (let p of adaylar) {
                             if (mevcut < hedef && calis[p.ad] < limit) { 
                                 tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; 
                             }
                         }
-                        // PAS 2 (ZORUNLU): Kapasite Dolmadıysa Doldur
+                        
+                        // PAS 2 (PANİK MODU): Kapasite Dolmadıysa Kural Boz
                         if (mevcut < hedef) {
-                             for (let p of adaylar) {
-                                if (mevcut < hedef && tempProg[p.ad][gun] === null) {
-                                    tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++;
+                            // "İZİNLİ" olanları da dahil et (Çünkü yukarıdaki adaylar sadece 'null' olanlardı)
+                            let zorunluAdaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] !== saat);
+                            
+                            // En az çalışanı bul
+                             zorunluAdaylar.sort((a,b) => calis[a.ad] - calis[b.ad]);
+
+                             for (let p of zorunluAdaylar) {
+                                if (mevcut < hedef) {
+                                    // Eğer dün gece 00-07 çalışıp sabah 06-16 geliyorsa çok acımasız olur, onu es geçelim (insaf)
+                                    let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
+                                    if (!(dunGece && saat.startsWith("06"))) {
+                                         tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++;
+                                    }
                                 }
                             }
                         }
@@ -732,26 +782,6 @@ function talepIslem(id, tip) {
                 });
             });
         }
-
-        // --- HAFTA SONU EKSİK GÜN TAMAMLAMA ---
-        state.personeller.forEach(p => {
-            if(!p.birim.includes("MCR") && !p.birim.includes("INGEST") && !state.haftaIciSabitler[p.ad]) {
-                if (calis[p.ad] < 5) {
-                    let g = 5; // Cumartesi
-                    if (tempProg[p.ad][g] === null) {
-                        let dunGece = (tempProg[p.ad][4] === "00:00–07:00");
-                        if (!dunGece) { tempProg[p.ad][g] = "09:00–18:00"; calis[p.ad]++; }
-                    }
-                }
-                if (calis[p.ad] < 5) {
-                    let g = 6; // Pazar
-                    if (tempProg[p.ad][g] === null) {
-                        let dunGece = (tempProg[p.ad][5] === "00:00–07:00");
-                        if (!dunGece) { tempProg[p.ad][g] = "09:00–18:00"; calis[p.ad]++; }
-                    }
-                }
-            }
-        });
 
         // --- SON OLARAK BOŞ KALANLARA İZİN YAZ ---
         state.personeller.forEach(p => {
