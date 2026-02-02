@@ -664,6 +664,39 @@ function talepIslem(id, tip) {
                 });
             });
         }
+
+        // --- 4. KURAL: EKSİK GÜN TAMAMLAMA (HAFTA SONU ÖNCELİKLİ) ---
+        state.personeller.forEach(p => {
+            // MCR/Ingest ve zaten 5 günü dolduranları atla
+            if(p.birim.includes("MCR") || p.birim.includes("INGEST")) return;
+            if(calis[p.ad] >= 5) return;
+
+            // Boş günleri bul
+            let emptyDays = [];
+            for(let g=0; g<7; g++) {
+                if(tempProg[p.ad][g] === null) emptyDays.push(g);
+            }
+            
+            // Sıralama: ÖNCE Hafta Sonu (5, 6), SONRA Hafta İçi (0-4)
+            // Böylece hafta içi doluysa hafta sonuna taşar.
+            emptyDays.sort((a, b) => {
+                const isWeekendA = (a >= 5);
+                const isWeekendB = (b >= 5);
+                if (isWeekendA && !isWeekendB) return -1; // A (Hafta Sonu) öne geçer
+                if (!isWeekendA && isWeekendB) return 1;  // B (Hafta Sonu) öne geçer
+                return a - b; // İkisi de aynı gruptaysa gün sırasına göre
+            });
+
+            // 5 güne tamamlayana kadar boşlukları doldur
+            for (let g of emptyDays) {
+                if (calis[p.ad] >= 5) break;
+                // Manuel izin kontrolü (Zaten tempProg[g] === null ise manuel izin yoktur, ama yine de garanti olsun)
+                // "09:00–18:00" vardiyası ata
+                tempProg[p.ad][g] = "09:00–18:00";
+                calis[p.ad]++;
+            }
+        });
+
         state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
         save(); tabloyuOlustur(); alert("Vardiya oluşturuldu.");
     }
