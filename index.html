@@ -759,7 +759,6 @@ function talepIslem(id, tip) {
             const targetUnit = state.geciciGorevler[k];
             // Sadece bu haftaya ait olanları gösterelim
             let d = new Date(dateStr);
-            let mondayStr = currentMonday.toISOString().split('T')[0];
             let nextMonday = new Date(currentMonday); nextMonday.setDate(nextMonday.getDate() + 7);
             
             if(d >= currentMonday && d < nextMonday) {
@@ -784,8 +783,8 @@ function talepIslem(id, tip) {
     
     // --- SWAP İŞLEM FONKSİYONU ---
     function degisimiUygula() {
-        const pKaynakAd = document.getElementById('swapKaynakPersonel').value;
-        const pHedefAd = document.getElementById('swapHedefPersonel').value;
+        const pKaynakAd = document.getElementById('swapKaynakPersonel').value; // Ayrılan (Örn: MCR Op)
+        const pHedefAd = document.getElementById('swapHedefPersonel').value;   // Yerine geçen (Reliever)
         
         if(!pKaynakAd || !pHedefAd) { alert("Lütfen iki personeli de seçiniz."); return; }
         if(pKaynakAd === pHedefAd) { alert("Aynı personeli seçemezsiniz."); return; }
@@ -794,21 +793,39 @@ function talepIslem(id, tip) {
         if(checkboxes.length === 0) { alert("Lütfen en az bir gün seçiniz."); return; }
 
         const pKaynak = state.personeller.find(p => p.ad === pKaynakAd);
-        const hedefBirim = pKaynak.birim; // Hedef kişi bu birime geçecek
+        const hedefBirim = pKaynak.birim; 
+        const hKey = currentMonday.toISOString().split('T')[0];
 
         checkboxes.forEach(cb => {
             const gunIdx = parseInt(cb.value);
+            
+            // 1. Gecici Birim (Renk/Grup) Ayarı (Mevcut Mantık)
             let d = new Date(currentMonday);
             d.setDate(d.getDate() + gunIdx);
             const dateKey = d.toISOString().split('T')[0];
-            const key = `${dateKey}_${pHedefAd}`; // Key: TARIH_YERINE_GECECEK_KISI
+            const gKey = `${dateKey}_${pHedefAd}`; 
             
             if(!state.geciciGorevler) state.geciciGorevler = {};
-            state.geciciGorevler[key] = hedefBirim;
+            state.geciciGorevler[gKey] = hedefBirim;
+
+            // 2. Vardiya (Shift) Transferi ve İzin Ayarı (YENİ EKLENEN KISIM)
+            const kLeaving = `${hKey}_${pKaynakAd}_${gunIdx}`;
+            const kEntering = `${hKey}_${pHedefAd}_${gunIdx}`;
+
+            // Ayrılan kişinin vardiyasını al
+            let shift = state.manuelAtamalar[kLeaving];
+
+            // Eğer ayrılan kişinin bir vardiyası varsa, yerine geçene ata
+            if (shift && shift !== "İZİNLİ" && shift !== "BOŞ") {
+                 state.manuelAtamalar[kEntering] = shift;
+            } 
+            
+            // Ayrılan kişiyi kesin olarak İZİNLİ yap
+            state.manuelAtamalar[kLeaving] = "İZİNLİ";
         });
 
         save();
-        alert("Değişim uygulandı. Tablo güncelleniyor.");
+        alert("Değişim uygulandı: Vardiyalar transfer edildi ve ayrılan kişi izinli yapıldı.");
         refreshUI();
         tabloyuOlustur();
         
