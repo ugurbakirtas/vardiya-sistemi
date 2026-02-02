@@ -665,43 +665,58 @@ function talepIslem(id, tip) {
             });
         }
 
-        // --- 4. KURAL (GÜNCELLENMİŞ): EKSİK GÜN TAMAMLAMA (PUANLAMA SİSTEMİ) ---
+        // --- 4. KURAL (KESİN ÇÖZÜM): AĞIRLIKLI PUANLAMA İLE EKSİK GÜN TAMAMLAMA ---
         state.personeller.forEach(p => {
+            // MCR/Ingest ve zaten 5 günü dolduranları atla
             if(p.birim.includes("MCR") || p.birim.includes("INGEST")) return;
             if(calis[p.ad] >= 5) return;
 
             let adayGunler = [];
+            
+            // Haftanın 7 gününü puanla
             for(let g=0; g<7; g++) {
-                if(tempProg[p.ad][g] !== null) continue; // Dolu günü atla
+                // Eğer o gün zaten doluysa (başka vardiya varsa) pas geç
+                if(tempProg[p.ad][g] !== null) continue;
 
                 let puan = 0;
-                const isWeekend = (g >= 5);
+                const isWeekend = (g >= 5); // 5:Cmt, 6:Paz
 
-                // Kapasite Kontrolü: Bu günde bu birimden 09:00-18:00 için ihtiyaç var mı?
-                const hedef = (state.kapasite[`${p.birim}_09:00–18:00`] || [0,0,0,0,0,0,0])[g];
+                // Kapasite Kontrolü: Bu günde bu birimden 09:00-18:00 için ihtiyaç (açık) var mı?
+                const hedefArray = state.kapasite[`${p.birim}_09:00–18:00`] || [0,0,0,0,0,0,0];
+                const hedef = parseInt(hedefArray[g]) || 0; // Hedef girilmemişse 0 say
+                
+                // Şu ana kadar tempProg'da buraya kaç kişi yazdık?
                 let mevcut = 0;
                 state.personeller.forEach(otherP => {
                     if(tempProg[otherP.ad][g] === "09:00–18:00" && otherP.birim === p.birim) mevcut++;
                 });
+                
                 let acik = hedef - mevcut;
 
-                // PUANLAMA MANTIĞI
-                if(acik > 0) {
-                    puan += 500; // Kapasite açığı varsa büyük öncelik
-                    puan += acik; // Açık sayısı kadar ekstra puan (çok açık olan gün daha öncelikli)
-                }
+                // --- PUANLAMA ALGORİTMASI ---
                 
+                // 1. KRİTİK HEDEF: Kapasite açığı varsa DEVAS PUAN (+10.000)
+                if(acik > 0) {
+                    puan += 10000;
+                    puan += (acik * 100); // Ne kadar çok açık varsa o kadar öncelikli
+                }
+
+                // 2. HAFTA SONU ÖNCELİĞİ: (+5.000)
+                // Açık olsun olmasın, hafta sonu her zaman hafta içine göre daha öncelikli olsun
+                // (Kullanıcı: "hafta içi kapasite dolu ise fazlalığı hafta sonuna versin")
                 if(isWeekend) {
-                    puan += 100; // Hafta sonuna her türlü +100 puan (Boşsa buraya yazar)
+                    puan += 5000;
+                } else {
+                    puan += 100; // Hafta içi standart puan
                 }
 
                 adayGunler.push({ gun: g, puan: puan });
             }
 
-            // Puanı yüksek olan günü (yani hafta sonunu veya açığı olan günü) en başa al
+            // Puanı EN YÜKSEK olan günü en başa al
             adayGunler.sort((a, b) => b.puan - a.puan);
 
-            // Eksikleri doldur
+            // Eksik günleri tamamla (En yüksek puanlı günlerden başlayarak)
             for (let aday of adayGunler) {
                 if (calis[p.ad] >= 5) break;
                 tempProg[p.ad][aday.gun] = "09:00–18:00";
