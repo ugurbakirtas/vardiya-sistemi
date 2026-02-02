@@ -519,30 +519,18 @@ function talepIslem(id, tip) {
         if(!isAdmin) return;
         const hKey = currentMonday.toISOString().split('T')[0];
         
-        // --- OTOMATİK GRUP DAĞITIM MOTORU (Auto-Balancer) ---
-        // Sadece grubu OLMAYANLARI (0 veya null) dengeli bir şekilde dağıtır.
-        let dagitilacaklar = state.personeller.filter(p => 
-            !p.birim.includes("MCR") && 
-            !p.birim.includes("INGEST") && 
-            !state.haftaIciSabitler[p.ad] && 
-            (!p.donguGrubu || p.donguGrubu == 0)
-        );
-
-        if (dagitilacaklar.length > 0) {
-            let counts = [0,0,0,0]; 
-            state.personeller.forEach(p => {
-                if(p.donguGrubu > 0) counts[p.donguGrubu - 1]++;
-            });
-
-            dagitilacaklar.forEach(p => {
-                let minGroupIdx = counts.indexOf(Math.min(...counts));
-                p.donguGrubu = minGroupIdx + 1;
-                counts[minGroupIdx]++; 
-            });
-            save(); 
-            // Kullanıcıya bilgi vermek istersen burayı açabilirsin:
-            // alert("Otomatik grup dağıtımı yapıldı (Sadece grubu olmayanlar eklendi).");
-        }
+        // --- TAM OTOMATİK GRUP DAĞITIM (Sequential Assignment) ---
+        // Sadece uygun personelleri (MCR/Ingest/Sabit olmayan) seç
+        // ve onlara listedeki sırasına göre 1-2-3-4-1-2... ataması yap.
+        // Bu işlem her "Vardiya Oluştur" dendiğinde sırayı yeniden düzenler,
+        // böylece gruplar her zaman matematiksel olarak eşit kalır.
+        let eligible = state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST") && !state.haftaIciSabitler[p.ad]);
+        
+        eligible.forEach((p, index) => {
+            // (index % 4) + 1 formülü ile 1, 2, 3, 4, 1, 2... şeklinde dağıtır.
+            p.donguGrubu = (index % 4) + 1;
+        });
+        save(); // Yeni grup atamalarını kaydet
         // ----------------------------------------------------
 
         let tempProg = {}; let calis = {};
@@ -550,7 +538,7 @@ function talepIslem(id, tip) {
         const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
         const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
         
-        // 4 HAFTALIK ONAYLI DÖNGÜ
+        // 4 HAFTALIK ONAYLI DÖNGÜ (Senin Verdiğin Tablo)
         const TURKMEDYA_DONGU = [
             ["İZİNLİ", "06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "16:00–00:00"], // Grup 1
             ["İZİNLİ", "06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "16:00–00:00", "İZİNLİ"], // Grup 2
@@ -583,6 +571,7 @@ function talepIslem(id, tip) {
                     tempProg[p.ad][g] = ingestDongu[modIndex];
                 }
             }
+            // ARTIK HERKESİN BİR GRUBU VAR (Otomatik Atandı)
             else if(p.donguGrubu && parseInt(p.donguGrubu) > 0) {
                 let diffTime = currentMonday.getTime() - baseDate.getTime();
                 let diffWeeks = Math.floor(diffTime / (1000 * 3600 * 24 * 7));
@@ -593,6 +582,9 @@ function talepIslem(id, tip) {
                 tempProg[p.ad] = [...TURKMEDYA_DONGU[templateIndex]];
             }
             else {
+                // Burası teorik olarak MCR/Ingest olmayan ve Sabit olmayanlar için asla çalışmaz
+                // Çünkü yukarıda hepsine donguGrubu atadık.
+                // Yine de güvenlik için bırakıyorum.
                 if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
                 if (state.haftaIciSabitler[p.ad]) {
                     const sabitSaat = state.haftaIciSabitler[p.ad];
@@ -609,6 +601,7 @@ function talepIslem(id, tip) {
             }
         });
 
+        // KAPASİTE KONTROLÜ (Sadece Gece Vardiyası veya Ekstra Durumlar İçin)
         for (let gun = 0; gun < 7; gun++) {
             state.birimler.forEach(birim => {
                 const geceSaati = "00:00–07:00";
@@ -626,13 +619,15 @@ function talepIslem(id, tip) {
                 }
             });
 
+            // Diğer saatler için de boşluk varsa doldurmaya çalışır (Ama genelde döngü doldurur)
             state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
                 state.birimler.forEach(birim => {
                     const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
                     let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
                     
                     if (mevcut < hedef) {
-                        let adaylar = state.personeller.filter(p => p.birim === birim && !p.donguGrubu && !p.birim.includes("MCR") && !p.birim.includes("INGEST") && tempProg[p.ad][gun] === null);
+                        // Sadece hala boşta olan varsa (ki döngüde herkes doludur)
+                        let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null);
                         seededShuffle(adaylar, hKey);
                         adaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
                         for (let p of adaylar) {
@@ -652,7 +647,7 @@ function talepIslem(id, tip) {
         });
 
         state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (Döngüler Dahil).");
+        save(); tabloyuOlustur(); alert("Vardiya ve Gruplar Otomatik Oluşturuldu!");
     }
 
     function excelIndir() {
@@ -720,18 +715,14 @@ function talepIslem(id, tip) {
                 <input type="number" value="${p.yuzde || 0}" style="width:50px; padding:3px; border-radius:4px; border:1px solid #ccc;" onchange="yuzdeGuncelle(${i}, this.value)">
             </div>`;
             
-            let donguHtml = `<div style="margin-top:5px; font-size:10px;">
-                <span style="font-weight:bold;">Döngü Grubu (1-4):</span>
-                <input type="number" min="0" max="4" value="${p.donguGrubu || 0}" style="width:50px; padding:3px; border-radius:4px; border:1px solid #ccc;" onchange="donguGuncelle(${i}, this.value)">
-                <small style="color:#666; display:block;">(0 = Devre Dışı)</small>
-            </div>`;
+            // DÖNGÜ GRUBU ARTIK OTOMATİK OLDUĞU İÇİN BURADAN KALDIRILDI
+            // Sadece bilgilendirme amaçlı gösterilebilir ama kafa karıştırmasın diye tamamen gizledim.
 
             return `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;">
                 <strong>${p.ad}</strong> <small>(${p.birim})</small>
                 <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer; float:right;">Sil</button>
                 <div style="margin-top:5px;">${GUNLER.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div>
                 ${yuzdeHtml}
-                ${donguHtml}
                 ${mcrHtml}
             </div>`;
         }).join('');
