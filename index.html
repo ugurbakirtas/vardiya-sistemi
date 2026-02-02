@@ -493,7 +493,7 @@ function talepIslem(id, tip) {
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
 
         state.personeller.forEach(p => { 
-            tempProg[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
+            tempProg[p.ad] = Array(7).fill(null); 
             
             if(p.birim.includes("MCR")) {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
@@ -524,31 +524,25 @@ function talepIslem(id, tip) {
                     for(let i=0; i<5; i++) tempProg[p.ad][i] = sabitSaat;
                     tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
                 }
-                // --- DEĞİŞİKLİK BAŞLANGICI ---
-                // TEKNİK YÖNETMEN HARİÇ DİĞERLERİ İÇİN 2 GÜN PEŞ PEŞE İZİN MANTIĞI
                 else if (p.birim !== "TEKNİK YÖNETMEN") {
-                     // Personel indexi ve hafta ofsetine göre izin günlerini kaydırarak dağıt
-                     // Böylece herkes aynı gün izinli olup kapasiteyi düşürmez
                      const pIndex = state.personeller.indexOf(p);
                      const startDay = (pIndex + weekOffset) % 7; 
                      const nextDay = (startDay + 1) % 7; 
-                     
-                     // Eğer manuel izin veya başka bir engel yoksa 2 gün üst üste izin yaz
                      if(tempProg[p.ad][startDay] === null) tempProg[p.ad][startDay] = "İZİNLİ";
                      if(tempProg[p.ad][nextDay] === null) tempProg[p.ad][nextDay] = "İZİNLİ";
                 }
-                // --- DEĞİŞİKLİK SONU ---
             }
 
-            // --- YENİ EKLENEN KISIM: MEVCUT MANUEL ATAMALARI (TALEPLERİ) KORU ---
-            // Bu döngü, otomatik atamalardan sonra çalışır ve onaylanmış talepleri (veya elle girilmiş verileri)
-            // geçici programa (tempProg) zorla yazar. Böylece "Vardiya Oluştur" denildiğinde talepler silinmez.
+            // --- MANUEL ATAMALARI (TALEPLERİ) KESİN OLARAK UYGULA ---
+            // Otomatik atamalar bittikten sonra, çalışma günü sayacını sıfırlıyoruz.
+            // Sadece onaylı taleplerin de dahil olduğu SON durumu sayıyoruz.
+            calis[p.ad] = 0; 
             for(let g=0; g<7; g++) {
                 let mKey = `${hKey}_${p.ad}_${g}`;
                 if(state.manuelAtamalar[mKey]) {
                     tempProg[p.ad][g] = state.manuelAtamalar[mKey];
                 }
-                // Çalışma gün sayısını tekrar doğru hesapla
+                // Çalışma gününü doğru hesapla (İzinliyse sayma)
                 if(tempProg[p.ad][g] && !["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) {
                     calis[p.ad]++;
                 }
