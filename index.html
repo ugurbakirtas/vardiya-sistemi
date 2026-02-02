@@ -519,18 +519,23 @@ function talepIslem(id, tip) {
         if(!isAdmin) return;
         const hKey = currentMonday.toISOString().split('T')[0];
         
-        // --- TAM OTOMATİK GRUP DAĞITIM (Sequential Assignment) ---
-        // Sadece uygun personelleri (MCR/Ingest/Sabit olmayan) seç
-        // ve onlara listedeki sırasına göre 1-2-3-4-1-2... ataması yap.
-        // Bu işlem her "Vardiya Oluştur" dendiğinde sırayı yeniden düzenler,
-        // böylece gruplar her zaman matematiksel olarak eşit kalır.
-        let eligible = state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST") && !state.haftaIciSabitler[p.ad]);
-        
-        eligible.forEach((p, index) => {
-            // (index % 4) + 1 formülü ile 1, 2, 3, 4, 1, 2... şeklinde dağıtır.
-            p.donguGrubu = (index % 4) + 1;
+        // --- 1. OTOMATİK GRUP DAĞITIM (BİRİM BAZLI) ---
+        // Önceki hatamız: Tüm personeli karıştırıp 1-2-3-4 yapıyorduk.
+        // Düzeltme: Her birimi kendi içinde 1-2-3-4 diye dağıtıyoruz ki her birimden her grupta adam olsun.
+        state.birimler.forEach(birim => {
+            let birimPersoneli = state.personeller.filter(p => 
+                p.birim === birim && 
+                !p.birim.includes("MCR") && 
+                !p.birim.includes("INGEST") && 
+                !state.haftaIciSabitler[p.ad]
+            );
+
+            // Bu birimdeki personeli sırayla 1-2-3-4 gruplarına ata
+            birimPersoneli.forEach((p, index) => {
+                p.donguGrubu = (index % 4) + 1;
+            });
         });
-        save(); // Yeni grup atamalarını kaydet
+        save();
         // ----------------------------------------------------
 
         let tempProg = {}; let calis = {};
@@ -548,6 +553,7 @@ function talepIslem(id, tip) {
 
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
 
+        // --- 2. VARDİYA HESAPLAMA (ÖNCE DÖNGÜYÜ HESAPLA) ---
         state.personeller.forEach(p => { 
             tempProg[p.ad] = Array(7).fill(null); 
             
@@ -571,7 +577,6 @@ function talepIslem(id, tip) {
                     tempProg[p.ad][g] = ingestDongu[modIndex];
                 }
             }
-            // ARTIK HERKESİN BİR GRUBU VAR (Otomatik Atandı)
             else if(p.donguGrubu && parseInt(p.donguGrubu) > 0) {
                 let diffTime = currentMonday.getTime() - baseDate.getTime();
                 let diffWeeks = Math.floor(diffTime / (1000 * 3600 * 24 * 7));
@@ -582,9 +587,6 @@ function talepIslem(id, tip) {
                 tempProg[p.ad] = [...TURKMEDYA_DONGU[templateIndex]];
             }
             else {
-                // Burası teorik olarak MCR/Ingest olmayan ve Sabit olmayanlar için asla çalışmaz
-                // Çünkü yukarıda hepsine donguGrubu atadık.
-                // Yine de güvenlik için bırakıyorum.
                 if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
                 if (state.haftaIciSabitler[p.ad]) {
                     const sabitSaat = state.haftaIciSabitler[p.ad];
@@ -592,47 +594,62 @@ function talepIslem(id, tip) {
                     tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
                 }
             }
-
-            calis[p.ad] = 0; 
-            for(let g=0; g<7; g++) {
-                let mKey = `${hKey}_${p.ad}_${g}`;
-                if(state.manuelAtamalar[mKey]) tempProg[p.ad][g] = state.manuelAtamalar[mKey];
-                if(tempProg[p.ad][g] && !["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
-            }
         });
 
-        // KAPASİTE KONTROLÜ (Sadece Gece Vardiyası veya Ekstra Durumlar İçin)
+        // --- 3. KAPASİTE KONTROLÜ (DÖNGÜ FAZLALIKLARINI TEMİZLE) ---
+        // Döngü "Sabah" diyor ama Kapasite "0" diyorsa, adamı "BOŞ" yap.
         for (let gun = 0; gun < 7; gun++) {
+            // Önce tüm atanmışları kontrol et
             state.birimler.forEach(birim => {
-                const geceSaati = "00:00–07:00";
-                const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
-                if(hedef > 0) {
-                    let atanan = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === geceSaati).length;
-                    if (atanan < hedef) {
-                        let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null);
-                        seededShuffle(adaylar, hKey);
-                        adaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
-                        for (let p of adaylar) { 
-                            if (atanan < hedef) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++; } 
-                        }
+                let birimPersoneli = state.personeller.filter(p => p.birim === birim);
+                
+                // O birimde, o gün için atanmış saatleri say
+                let saatSayimlari = {};
+                birimPersoneli.forEach(p => {
+                    let atanmisSaat = tempProg[p.ad][gun];
+                    if(atanmisSaat && atanmisSaat !== "İZİNLİ" && atanmisSaat !== "BOŞ") {
+                         if(!saatSayimlari[atanmisSaat]) saatSayimlari[atanmisSaat] = [];
+                         saatSayimlari[atanmisSaat].push(p);
                     }
-                }
+                });
+
+                // Kapasiteye bak
+                Object.keys(saatSayimlari).forEach(saat => {
+                     const hedefKapasite = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
+                     let mevcutList = saatSayimlari[saat];
+                     
+                     // Eğer döngüden gelen adam sayısı, kapasiteden fazlaysa:
+                     if(mevcutList.length > hedefKapasite) {
+                         // Fazlalıkları çıkar (Sondan başla ki 1. grup avantajlı olsun veya tam tersi)
+                         // Veya random çıkar. Şimdilik sondan çıkaralım.
+                         let silinecekSayisi = mevcutList.length - hedefKapasite;
+                         
+                         // Fazlalık olanları "BOŞ" yap (Yönetici görsün ve elle düzeltsin diye)
+                         // veya "İZİNLİ" yapabilirsiniz.
+                         for(let i=0; i<silinecekSayisi; i++) {
+                             let sanssizKisi = mevcutList.pop(); // Listeden birini al
+                             // tempProg[sanssizKisi.ad][gun] = "BOŞ"; // Kapasite fazlası
+                             // İsteğe bağlı: Kapasite fazlası olanı "İZİNLİ" yap
+                             tempProg[sanssizKisi.ad][gun] = "BOŞ"; 
+                         }
+                     }
+                });
             });
 
-            // Diğer saatler için de boşluk varsa doldurmaya çalışır (Ama genelde döngü doldurur)
-            state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
+            // --- 4. KAPASİTE BOŞLUĞU VARSA DOLDURMA (OPSİYONEL) ---
+            // Eğer Kapasite 2 istiyor ama döngüden 1 kişi geldiyse,
+            // "BOŞ" durumdaki (henüz atanmamış) personeli oraya çek.
+             state.saatler.forEach(saat => {
                 state.birimler.forEach(birim => {
                     const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
                     let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
                     
                     if (mevcut < hedef) {
-                        // Sadece hala boşta olan varsa (ki döngüde herkes doludur)
-                        let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null);
+                        let adaylar = state.personeller.filter(p => p.birim === birim && (tempProg[p.ad][gun] === null || tempProg[p.ad][gun] === "BOŞ"));
                         seededShuffle(adaylar, hKey);
-                        adaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
                         for (let p of adaylar) {
-                            if (mevcut < hedef && calis[p.ad] < 6) { 
-                                tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; 
+                            if (mevcut < hedef) { 
+                                tempProg[p.ad][gun] = saat; mevcut++; 
                             }
                         }
                     }
@@ -640,14 +657,26 @@ function talepIslem(id, tip) {
             });
         }
 
-        state.personeller.forEach(p => {
+        // --- MANUEL ATAMALARI KORU VE KAYDET ---
+        state.personeller.forEach(p => { 
+            calis[p.ad] = 0;
             for(let g=0; g<7; g++) {
+                let mKey = `${hKey}_${p.ad}_${g}`;
+                // Manuel bir atama varsa, otomatik hesaplananı ez:
+                if(state.manuelAtamalar[mKey]) {
+                    tempProg[p.ad][g] = state.manuelAtamalar[mKey];
+                }
+                
+                // Son temizlik: Hala null ise İZİNLİ yap
                 if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = "İZİNLİ";
+
+                if(!["İZİNLİ","BOŞ"].includes(tempProg[p.ad][g])) calis[p.ad]++;
             }
+            // Veritabanına işle
+            for(let i=0; i<7; i++) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; 
         });
 
-        state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); tabloyuOlustur(); alert("Vardiya ve Gruplar Otomatik Oluşturuldu!");
+        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu! (Kapasite limitlerine uyuldu)");
     }
 
     function excelIndir() {
@@ -715,9 +744,6 @@ function talepIslem(id, tip) {
                 <input type="number" value="${p.yuzde || 0}" style="width:50px; padding:3px; border-radius:4px; border:1px solid #ccc;" onchange="yuzdeGuncelle(${i}, this.value)">
             </div>`;
             
-            // DÖNGÜ GRUBU ARTIK OTOMATİK OLDUĞU İÇİN BURADAN KALDIRILDI
-            // Sadece bilgilendirme amaçlı gösterilebilir ama kafa karıştırmasın diye tamamen gizledim.
-
             return `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;">
                 <strong>${p.ad}</strong> <small>(${p.birim})</small>
                 <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer; float:right;">Sil</button>
