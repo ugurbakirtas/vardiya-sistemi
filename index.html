@@ -283,7 +283,7 @@
   </div>
 
   <script>
-    // --- TELEGRAM AYARLARI ---
+    // --- TELEGRAM AYARLARI (YENİ) ---
     let TELEGRAM_API = ""; 
     let TELEGRAM_ID = "";
 
@@ -302,11 +302,13 @@
         manuelAtamalar: JSON.parse(localStorage.getItem(PREFIX + "manuelAtamalar")) || {},
         haftaIciSabitler: JSON.parse(localStorage.getItem(PREFIX + "haftaIciSabitler")) || {},
         mcrAyarlari: JSON.parse(localStorage.getItem(PREFIX + "mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} },
-        geciciGorevler: JSON.parse(localStorage.getItem(PREFIX + "geciciGorevler")) || {} 
+        geciciGorevler: JSON.parse(localStorage.getItem(PREFIX + "geciciGorevler")) || {} // YENİ EKLENEN
     };
 
     let currentMonday = getMonday(new Date());
 
+    // --- GİRİŞ FONKSİYONU (GÜNCELLENDİ) ---
+    // --- GÜVENLİ GİRİŞ VE AYAR YÜKLEME ---
     async function hassasAyarlariYukle() {
         try {
             const snap = await database.ref('config').once('value');
@@ -354,6 +356,7 @@
     }
       
 
+    // --- TALEP SİSTEMİ FONKSİYONLARI (YENİ) ---
     function talepModalAc() {
         const sel = document.getElementById('talepPersonel');
         sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join('');
@@ -373,10 +376,12 @@
     const gunIdx = (secilenTarih.getDay() + 6) % 7; 
     const talepId = Date.now().toString();
 
+    // Veritabanına Kayıt
     database.ref('talepler/' + talepId).set({
         id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor"
     });
 
+    // Telegram'a Butonlu Gönderim
     fetch(`https://api.telegram.org/bot${TELEGRAM_API}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -440,15 +445,20 @@ function talepIslem(id, tip) {
     });
 }
 
+    // --- MEVCUT DİĞER FONKSİYONLAR (BOZULMADI) ---
     function getMonday(d) { d = new Date(d); let day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day == 0 ? -6 : 1))); }
     function save() { Object.keys(state).forEach(k => localStorage.setItem(PREFIX + k, JSON.stringify(state[k]))); }
     function getBirimColor(birim) { return BIRIM_RENKLERI[birim] || "#64748b"; }
 
+    // --- YENİ FONKSİYON: GEÇİCİ BİRİM HESAPLAMA ---
     function getGecerliBirim(p, g) {
+        // Bu fonksiyon, personelin o gün için özel bir görevi varsa onu döndürür.
+        // Yoksa orijinal birimini döndürür.
         let d = new Date(currentMonday);
         d.setDate(d.getDate() + g);
         const dateKey = d.toISOString().split('T')[0];
         const key = `${dateKey}_${p.ad}`;
+        
         return state.geciciGorevler[key] || p.birim;
     }
 
@@ -456,6 +466,7 @@ function talepIslem(id, tip) {
         const hKey = currentMonday.toISOString().split('T')[0];
         document.getElementById("tarihAraligi").innerText = `${currentMonday.toLocaleDateString('tr-TR')} Haftası`;
         
+        // --- DİNAMİK TARİH BAŞLIĞI (YIL EKLENDİ) ---
         document.getElementById("tableHeader").innerHTML = `<tr><th style="width:100px;">SAAT</th>${GUNLER.map((g,i)=>{
             let d = new Date(currentMonday); d.setDate(d.getDate() + i);
             let dateStr = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -475,6 +486,7 @@ function talepIslem(id, tip) {
         document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => {
             let rowHtml = `<tr class="row-saat-${sIdx}"><td class="saat-col">${s}</td>`;
             for(let g=0; g<7; g++) {
+                // --- DEĞİŞİKLİK: SIRALAMA VE GRUPLAMA ARTIK 'GEÇERLİ BİRİM'E GÖRE ---
                 let sortedPers = state.personeller
                     .filter(p => prog[p.ad][g] === s)
                     .sort((a, b) => {
@@ -486,7 +498,7 @@ function talepIslem(id, tip) {
                 let cellContent = "";
                 let lastBirim = "";
                 sortedPers.forEach((p) => {
-                    let gecerliBirim = getGecerliBirim(p, g); 
+                    let gecerliBirim = getGecerliBirim(p, g); // O günkü birimi al
                     let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : "";
                     let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : "";
                     let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, '${s}')"` : "";
@@ -536,6 +548,25 @@ function talepIslem(id, tip) {
                 alert(`⚠️ DİKKAT: ${personelAd} dün AKŞAM/GECE vardiyasındaydı. Bugün SABAH vardiyasına yazıyorsunuz. Dinlenme süresi yetersiz olabilir!`);
             }
         }
+        if (hedefGun < 6) {
+            let yarinKey = `${hKey}_${personelAd}_${hedefGun + 1}`;
+            let yarinVardiya = state.manuelAtamalar[yarinKey];
+            let sabahVardiyalari = ["06:30–16:00", "09:00–18:00"];
+            let aksamVardiyalari = ["16:00–00:00", "00:00–07:00"];
+            if (aksamVardiyalari.includes(hedefSaat) && sabahVardiyalari.includes(yarinVardiya)) {
+                alert(`⚠️ DİKKAT: ${personelAd} yarın SABAH vardiyasında görünüyor. Bugün AKŞAM/GECE vardiyasına yazıyorsunuz. Dinlenme süresi yetersiz olabilir!`);
+            }
+        }
+    }
+
+    // --- YENİ EKLENEN: PRNG (Kumarhane Usulü Rastgele Sayı Üreteci) ---
+    function mulberry32(a) {
+      return function() {
+        var t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      }
     }
 
     // --- KRİTİK GÜNCELLEME: ADALETLİ PAZARTESİ ROTASYONU ---
@@ -547,32 +578,46 @@ function talepIslem(id, tip) {
         const weekOffset = Math.floor(currentMonday.getTime() / (1000 * 60 * 60 * 24 * 7)) % 10;
 
         let tempProg = {}; let calis = {};
+        
+        const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
+        const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
 
-        // 1. TEMEL ATAMALAR (MCR/INGEST)
+        // --- 1. ÖNCE TEMEL ATAMALARI YAP (MCR/INGEST/SABIT) ---
         state.personeller.forEach(p => { 
             tempProg[p.ad] = Array(7).fill(null); 
+            
             if(p.birim.includes("MCR")) {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
-                const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
                 for(let g=0; g<7; g++) {
                     let d = new Date(currentMonday); d.setDate(d.getDate() + g);
-                    let diff = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                    tempProg[p.ad][g] = mcrDongu[(diff + persOfset) % 8];
+                    const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
+                    const donguIndex = (diffDays + persOfset) % 8;
+                    const modIndex = donguIndex < 0 ? donguIndex + 8 : donguIndex;
+                    tempProg[p.ad][g] = mcrDongu[modIndex];
                 }
             } 
             else if(p.birim.includes("INGEST")) {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
-                const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
                 for(let g=0; g<7; g++) {
                     let d = new Date(currentMonday); d.setDate(d.getDate() + g);
-                    let diff = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                    tempProg[p.ad][g] = ingestDongu[(diff + persOfset) % 6];
+                    const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
+                    const donguIndex = (diffDays + persOfset) % 6; 
+                    const modIndex = donguIndex < 0 ? donguIndex + 6 : donguIndex;
+                    tempProg[p.ad][g] = ingestDongu[modIndex];
+                }
+            }
+            else {
+                if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
+                if (state.haftaIciSabitler[p.ad]) {
+                    const sabitSaat = state.haftaIciSabitler[p.ad];
+                    for(let i=0; i<5; i++) tempProg[p.ad][i] = sabitSaat;
+                    tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
                 }
             }
         });
 
-        // 2. ADALETLİ PAZARTESİ ROTASYONU (DİĞER BİRİMLER)
+        // --- 2. GRUP BAZLI İZİN ATAMA (ADALETLİ PAZARTESİ ROTASYONU) ---
         state.birimler.forEach(birim => {
             if(birim.includes("MCR") || birim.includes("INGEST")) return;
 
@@ -587,12 +632,12 @@ function talepIslem(id, tip) {
             rotatingList.forEach((p, idx) => {
                 if (p.izinGunleri && p.izinGunleri.length > 0) return;
 
-                // ANALİZ EDİLEN MANTIK:
-                // İlk kişi: Pzt - Cmt bölünmüş
+                // --- ANALİZ EDİLEN MANTIK: ---
+                // İlk kişi: Pzt - Cmt bölünmüş (idx === 0)
                 if(idx === 0) {
                     tempProg[p.ad][0] = "İZİNLİ"; tempProg[p.ad][5] = "İZİNLİ";
                 }
-                // İkinci kişi: Pzt - Paz bölünmüş
+                // İkinci kişi: Pzt - Paz bölünmüş (idx === 1)
                 else if(idx === 1) {
                     tempProg[p.ad][0] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
                 }
@@ -605,7 +650,7 @@ function talepIslem(id, tip) {
             });
         });
 
-        // 3. MANUEL ATAMALAR VE KAPASİTE DAĞITIMI
+        // --- 3. MANUEL ATAMALARI YÜKLE ---
         state.personeller.forEach(p => {
              calis[p.ad] = 0; 
             for(let g=0; g<7; g++) {
@@ -615,6 +660,7 @@ function talepIslem(id, tip) {
             }
         });
 
+        // --- 4. ANA VARDİYA DAĞITIM DÖNGÜSÜ ---
         for (let gun = 0; gun < 7; gun++) {
             state.saatler.forEach(saat => {
                 state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
@@ -634,6 +680,7 @@ function talepIslem(id, tip) {
             });
         }
 
+        // --- TEMİZLİK ---
         state.personeller.forEach(p => {
             for(let g=0; g<7; g++) {
                 if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = "İZİNLİ";
@@ -645,16 +692,28 @@ function talepIslem(id, tip) {
 
     function excelIndir() {
         const hKey = currentMonday.toISOString().split('T')[0];
-        let html = `<html><head><meta charset="UTF-8"></head><body><table border="1">`;
+        let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>
+            table { border-collapse: collapse; font-family: Arial; } td { border: 1px solid #000; text-align: center; padding: 4px; font-size: 8pt; }
+            .title { background: #312e81; color: white; font-weight: bold; font-size: 12pt; }
+            .header { background: #1e1b4b; color: white; font-weight: bold; }
+        </style></head><body><table><tr><th colspan="8" class="title">TEKNİK PERSONEL ÇALIŞMA LİSTESİ</th></tr>
+        <tr><th class="header">SAAT</th>${GUNLER.map(g => `<th class="header">${g.toUpperCase()}</th>`).join('')}</tr>`;
+        
         state.birimler.forEach(birim => {
-            html += `<tr><th colspan="8">${birim}</th></tr>`;
-            state.saatler.concat(["İZİNLİ"]).forEach(s => {
-                html += `<tr><td>${s}</td>`;
+            html += `<tr><td colspan="8" style="background:${getBirimColor(birim)}; color:white; font-weight:bold;">${birim}</td></tr>`;
+            [...state.saatler, "İZİN"].forEach(s => {
+                let pByDay = []; let maxRow = 1;
                 for(let i=0; i<7; i++) {
-                    let names = state.personeller.filter(p => p.birim === birim && state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] === s).map(p => p.ad).join(", ");
-                    html += `<td>${names}</td>`;
+                    let list = state.personeller.filter(p => {
+                        let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
+                        if(s === "İZİN") return p.birim === birim && (v === "İZİNLİ" || v === "BOŞ" || !v);
+                        return p.birim === birim && v === s;
+                    });
+                    pByDay[i] = list; if(list.length > maxRow) maxRow = list.length;
                 }
-                html += `</tr>`;
+                for(let r=0; r<maxRow; r++) {
+                    html += `<tr>${r===0 ? `<td rowspan="${maxRow}">${s}</td>`:""}${pByDay.map(d => `<td>${d[r]?d[r].ad:""}</td>`).join('')}</tr>`;
+                }
             });
         });
         html += `</table></body></html>`;
@@ -666,50 +725,112 @@ function talepIslem(id, tip) {
         if(!isAdmin) return;
         const p = document.getElementById("sidePanel"); 
         const o = document.getElementById("panelOverlay"); 
-        p.classList.toggle("open"); o.style.display = p.classList.contains("open") ? "block" : "none"; 
+        p.classList.toggle("open"); 
+        o.style.display = p.classList.contains("open") ? "block" : "none"; 
         if(p.classList.contains("open")) tabDegistir('personel'); 
     }
     
-    function tabDegistir(t) { 
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); 
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); 
-        document.getElementById('tab-' + t).classList.remove('hidden'); 
-        document.getElementById('btn-tab-' + t).classList.add('active'); 
-        refreshUI(); 
-    }
-
+    function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); refreshUI(); }
+    function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); }
+    function buluttanYukle() { database.ref('vardiya_data').once('value').then(snap => { if(snap.exists()){ state = snap.val(); save(); location.reload(); } }); }
+    
     function refreshUI() {
         document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
-        document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => `
-            <div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;">
+        document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => {
+            let mcrHtml = "";
+            if(p.birim.includes("MCR") || p.birim.includes("INGEST")) {
+                mcrHtml = `<div class="mcr-ayarlar">
+                    <span>Ofset: </span>
+                    <input type="number" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:40px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)">
+                </div>`;
+            }
+            return `<div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:5px;">
                 <strong>${p.ad}</strong> <small>(${p.birim})</small>
-                <button onclick="state.personeller.splice(${i},1); save(); refreshUI();" style="color:var(--danger); float:right; border:none; background:none; cursor:pointer;">Sil</button>
-            </div>`).join('');
+                <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer; float:right;">Sil</button>
+                <div style="margin-top:5px;">${GUNLER.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div>
+                ${mcrHtml}
+            </div>`;
+        }).join('');
         
-        let capHtml = ""; state.birimler.forEach(b => { 
-            capHtml += `<div style="margin-bottom:15px; background:var(--bg); padding:10px;"><strong>${b}</strong>`; 
-            state.saatler.forEach(s => { 
-                const v = state.kapasite[`${b}_${s}`] || [0,0,0,0,0,0,0]; 
-                capHtml += `<div>${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">${GUNLER.map((g, gi) => `<input type="number" value="${v[gi]}" style="width:100%;" onchange="capUp('${b}_${s}',${gi},this.value)">`).join('')}</div>`; 
-            }); 
-            capHtml += `</div>`; 
-        });
+        const swapKaynak = document.getElementById('swapKaynakPersonel');
+        const swapHedef = document.getElementById('swapHedefPersonel');
+        const optionsHtml = "<option value=''>Seçiniz...</option>" + state.personeller.sort((a,b) => a.ad.localeCompare(b.ad)).map(p => `<option value="${p.ad}">${p.ad} (${p.birim})</option>`).join('');
+        if(swapKaynak) swapKaynak.innerHTML = optionsHtml;
+        if(swapHedef) swapHedef.innerHTML = optionsHtml;
+        
+        let capHtml = ""; state.birimler.forEach(b => { capHtml += `<div style="margin-bottom:15px; background:var(--bg); padding:10px; border-radius:8px;"><strong>${b}</strong>`; state.saatler.forEach(s => { const v = state.kapasite[`${b}_${s}`] || [0,0,0,0,0,0,0]; capHtml += `<div>${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">${GUNLER.map((g, gi) => `<input type="number" value="${v[gi]}" style="width:100%; text-align:center;" onchange="capUp('${b}_${s}',${gi},this.value)">`).join('')}</div>`; }); capHtml += `</div>`; });
         document.getElementById("kapasiteTable").innerHTML = capHtml;
+        
+        document.getElementById("sabitListeAdmin").innerHTML = state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--bg); padding:5px; border-radius:5px;"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
+        document.getElementById("birimListesiAdmin").innerHTML = state.birimler.map(b => `<div style="padding:5px; border-bottom:1px solid var(--border);">${b}</div>`).join('');
+        document.getElementById("saatListesiAdmin").innerHTML = state.saatler.map(s => `<div style="padding:5px; border-bottom:1px solid var(--border);">${s}</div>`).join('');
+    }
+    
+    function vardiyaBul(pAd, gIdx) {
+        const hKey = currentMonday.toISOString().split('T')[0];
+        const mKey = `${hKey}_${pAd}_${gIdx}`;
+        if (state.manuelAtamalar[mKey]) return state.manuelAtamalar[mKey];
+        const p = state.personeller.find(pers => pers.ad === pAd);
+        if (!p) return null;
+        const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
+        const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
+        let d = new Date(currentMonday); d.setDate(d.getDate() + gIdx);
+        if (p.birim.includes("MCR")) {
+            const ofset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
+            let diff = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
+            return mcrDongu[(diff + ofset) % 8];
+        } 
+        return null;
     }
 
+    function degisimiUygula() {
+        const pKaynakAd = document.getElementById('swapKaynakPersonel').value;
+        const pHedefAd = document.getElementById('swapHedefPersonel').value;
+        if(!pKaynakAd || !pHedefAd) return;
+        const checkboxes = document.querySelectorAll('.swap-day-cb:checked');
+        const hKey = currentMonday.toISOString().split('T')[0];
+        checkboxes.forEach(cb => {
+            const gunIdx = parseInt(cb.value);
+            let d = new Date(currentMonday); d.setDate(d.getDate() + gunIdx);
+            const dateKey = d.toISOString().split('T')[0];
+            state.geciciGorevler[`${dateKey}_${pHedefAd}`] = state.personeller.find(p => p.ad === pKaynakAd).birim;
+            let shift = vardiyaBul(pKaynakAd, gunIdx);
+            if (shift) state.manuelAtamalar[`${hKey}_${pHedefAd}_${gunIdx}`] = shift;
+            state.manuelAtamalar[`${hKey}_${pKaynakAd}_${gunIdx}`] = "İZİNLİ";
+        });
+        save(); refreshUI(); tabloyuOlustur();
+    }
+
+    function mcrOfsetGuncelle(ad, val) { if(!state.mcrAyarlari.ofsetler) state.mcrAyarlari.ofsetler = {}; state.mcrAyarlari.ofsetler[ad] = parseInt(val); save(); }
+    function whatsappGonder() { alert("Hazırlanıyor..."); }
     function capUp(k, g, v) { if(!state.kapasite[k]) state.kapasite[k] = [0,0,0,0,0,0,0]; state.kapasite[k][g] = parseInt(v) || 0; save(); }
+    function izinGunuTetikle(pi, gi) { if(!state.personeller[pi].izinGunleri) state.personeller[pi].izinGunleri = []; const idx = state.personeller[pi].izinGunleri.indexOf(gi); if(idx > -1) state.personeller[pi].izinGunleri.splice(idx, 1); else state.personeller[pi].izinGunleri.push(gi); save(); refreshUI(); }
     function haftaDegistir(v) { currentMonday.setDate(currentMonday.getDate() + v); tabloyuOlustur(); }
     function personelEkle() { const ad = document.getElementById("yeniPersInp").value.toUpperCase(); const b = document.getElementById("yeniPersBirimSec").value; if(ad){ state.personeller.push({ad, birim:b, izinGunleri:[]}); save(); refreshUI(); document.getElementById("yeniPersInp").value=""; } }
+    function drag(e, p, g, s) { if(!isAdmin) return; e.dataTransfer.setData("p", p); e.dataTransfer.setData("oldG", g); }
+    function drop(e, ns, ng) { if(!isAdmin) return; e.preventDefault(); const p = e.dataTransfer.getData("p"); const hKey = currentMonday.toISOString().split('T')[0]; state.manuelAtamalar[`${hKey}_${p}_${ng}`] = ns === 'BOŞ' ? null : ns; save(); tabloyuOlustur(); }
+    function vardiyaDegistir(p, g) { if(!isAdmin) return; const s = prompt("1:06:30, 2:09:00, 3:16:00, 4:00:00, 5:İZİN"); if(s){ let v = s=="1"?"06:30–16:00":s=="2"?"09:00–18:00":s=="3"?"16:00–00:00":s=="4"?"00:00–07:00":"İZİNLİ"; state.manuelAtamalar[`${currentMonday.toISOString().split('T')[0]}_${p}_${g}`] = v; save(); tabloyuOlustur(); } }
     function toggleTheme() { const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"; document.documentElement.setAttribute("data-theme", t); localStorage.setItem(PREFIX + "theme", t); }
-    function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")); }
-    function buluttanYukle() { database.ref('vardiya_data').once('value').then(snap => { if(snap.exists()){ state = snap.val(); save(); location.reload(); } }); }
-    function whatsappGonder() { alert("Hazırlanıyor..."); }
+    function vardiyaSifirla() { if(confirm("Haftayı temizle?")) { const hKey = currentMonday.toISOString().split('T')[0]; Object.keys(state.manuelAtamalar).forEach(k => { if(k.startsWith(hKey)) delete state.manuelAtamalar[k]; }); save(); tabloyuOlustur(); } }
+    function tamSifirla() { if(confirm("Sıfırla?")) { localStorage.clear(); location.reload(); } }
+    function jsonYedekAl() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "Yedek.json"); dl.click(); }
+    function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); }
+    function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
+
+    function anlikSenkronizasyonBaslat() {
+        database.ref().on('value', (snap) => {
+            if (snap.exists()) {
+                const data = snap.val();
+                if(data.vardiya_data) { state = data.vardiya_data; save(); tabloyuOlustur(); if(isAdmin) refreshUI(); }
+                if(isAdmin) talepleriYukle(); 
+            }
+        });
+    }
 
     window.onload = async () => { 
         if(localStorage.getItem(PREFIX + "theme") === "dark") document.documentElement.setAttribute("data-theme", "dark");
-        await hassasAyarlariYukle();
-        talepleriYukle();
-        tabloyuOlustur();
+        await hassasAyarlariYukle(); 
+        anlikSenkronizasyonBaslat();
     };
   </script>
 </body>
