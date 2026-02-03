@@ -599,74 +599,91 @@ function talepIslem(id, tip) {
 
         let tempProg = {}; let calis = {};
         
+        // --- ADIM 0: TEMİZLE VE MANUEL/SABİT ATAMALARI ÖNCELİKLE DOLDUR ---
+        // Bu adımda kapasite kontrolü YAPILMAZ. Manuel emir her şeyden üstündür.
+        state.personeller.forEach(p => {
+             tempProg[p.ad] = Array(7).fill(null);
+             
+             // 1. Manuel Atamaları Yerleştir
+             for(let g=0; g<7; g++) {
+                 let mKey = `${hKey}_${p.ad}_${g}`;
+                 if(state.manuelAtamalar[mKey]) {
+                     tempProg[p.ad][g] = state.manuelAtamalar[mKey];
+                 }
+             }
+             
+             // 2. Hafta İçi Sabitleri Yerleştir (Eğer manuel yoksa)
+             if (state.haftaIciSabitler[p.ad]) {
+                 for(let i=0; i<5; i++) {
+                     if(!tempProg[p.ad][i]) tempProg[p.ad][i] = state.haftaIciSabitler[p.ad];
+                 }
+                 // Sabit personelin haftasonu izinleri (Manuel yoksa)
+                 if(!tempProg[p.ad][5]) tempProg[p.ad][5] = "İZİNLİ";
+                 if(!tempProg[p.ad][6]) tempProg[p.ad][6] = "İZİNLİ";
+             }
+             
+             // 3. İzin Günlerini Yerleştir (Manuel yoksa)
+             if(p.izinGunleri) {
+                 p.izinGunleri.forEach(gi => {
+                     if(!tempProg[p.ad][gi]) tempProg[p.ad][gi] = "İZİNLİ";
+                 });
+             }
+        });
+
+        // --- GÜVENLİ ATAMA FONKSİYONU (DESEN İÇİN) ---
+        // Bu fonksiyon sadece desen uygulanırken kullanılır.
+        // Manuel ve Sabitler zaten yukarıda doldurulduğu için onları ezmez.
+        const safeAssign = (p, day, shift) => {
+             // 1. Eğer hücre zaten doluysa (Manuel/Sabit), DOKUNMA.
+             if (tempProg[p.ad][day] !== null) return;
+
+             // 2. İZİN için kapasite kontrolüne gerek yok.
+             if (shift === "İZİNLİ") { tempProg[p.ad][day] = shift; return; }
+
+             // 3. KAPASİTE KONTROLÜ
+             const cap = (state.kapasite[`${p.birim}_${shift}`] || [0,0,0,0,0,0,0])[day];
+             
+             // Mevcut doluluğu say (Manuel atananlar dahil)
+             let currentCount = 0;
+             state.personeller.filter(x => x.birim === p.birim).forEach(x => {
+                 if(tempProg[x.ad][day] === shift) currentCount++;
+             });
+
+             // Eğer kapasite dolmamışsa ata, yoksa BOŞ bırak.
+             if (currentCount < cap) {
+                 tempProg[p.ad][day] = shift;
+             }
+        };
+
         const mcrDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "00:00–07:00", "00:00–07:00", "İZİNLİ", "İZİNLİ"];
         const ingestDongu = ["06:30–16:00", "06:30–16:00", "16:00–00:00", "16:00–00:00", "İZİNLİ", "İZİNLİ"];
         const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
 
-        // --- 1. AŞAMA: ÖZEL DÖNGÜLER VE SABİT AYARLAR ---
+        // --- ADIM 1: DÖNGÜSEL BİRİMLER (MCR / INGEST) ---
+        // Bunlar kapasiteden bağımsız döngüye sahiptir, ancak manuel varsa safeAssign (veya direkt atama) manueli korur.
+        // Mevcut yapıda manueli yukarıda koruduk. Burası sadece boşsa yazar.
         state.personeller.forEach(p => { 
-            tempProg[p.ad] = Array(7).fill(null); 
-            
-            // A) MCR
             if(p.birim.includes("MCR")) {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
                 for(let g=0; g<7; g++) {
+                    if(tempProg[p.ad][g]) continue; // Manuel varsa geç
                     let d = new Date(currentMonday); d.setDate(d.getDate() + g);
                     const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
                     tempProg[p.ad][g] = mcrDongu[((diffDays + persOfset) % 8 + 8) % 8];
                 }
             } 
-            // B) INGEST
             else if(p.birim.includes("INGEST")) {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
                 for(let g=0; g<7; g++) {
+                    if(tempProg[p.ad][g]) continue;
                     let d = new Date(currentMonday); d.setDate(d.getDate() + g);
                     const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
                     tempProg[p.ad][g] = ingestDongu[((diffDays + persOfset) % 6 + 6) % 6];
                 }
             }
-            // C) PLAYOUT, SES, KJ (Özel Ayrılmış Blok - Burayı Boş Geçiyoruz, Aşağıda İşlenecek)
-            else if (["PLAYOUT OPERATÖRÜ", "SES OPERATÖRÜ", "KJ OPERATÖRÜ"].includes(p.birim)) {
-                // Özel işlem yapılacak, loop içinde atama yapma.
-            }
-            // D) Diğerleri (Standart Sabitler)
-            else {
-                if(p.izinGunleri) p.izinGunleri.forEach(gi => tempProg[p.ad][gi] = "İZİNLİ");
-                if (state.haftaIciSabitler[p.ad]) {
-                    const sabitSaat = state.haftaIciSabitler[p.ad];
-                    for(let i=0; i<5; i++) tempProg[p.ad][i] = sabitSaat;
-                    tempProg[p.ad][5] = "İZİNLİ"; tempProg[p.ad][6] = "İZİNLİ";
-                }
-            }
         });
 
-        // --- KAPASİTE KONTROLLÜ ATAMA FONKSİYONU ---
-        // Bu fonksiyon, deseni uygulamadan önce kapasitenin dolu olup olmadığını kontrol eder.
-        const safeAssign = (p, day, shift) => {
-             // İZİN için kapasite kontrolü yapmaya gerek yok (veya veritabanında izin limiti yoksa)
-            if (shift === "İZİNLİ") { 
-                tempProg[p.ad][day] = shift; 
-                return; 
-            }
-
-            // O gün ve o saat için admin panelindeki kapasite limitini al
-            const cap = (state.kapasite[`${p.birim}_${shift}`] || [0,0,0,0,0,0,0])[day];
-            
-            // Şu ana kadar o birimde, o güne ve o saate kaç kişi atanmış sayalım
-            let current = 0;
-            state.personeller.filter(x => x.birim === p.birim).forEach(x => {
-                if(tempProg[x.ad][day] === shift) current++;
-            });
-            
-            // Eğer limit dolmamışsa ata, dolmuşsa BOŞ bırak (Sonraki aşamada doldurulacak)
-            if (current < cap) {
-                tempProg[p.ad][day] = shift;
-            } else {
-                console.log(`Kapasite Dolu: ${p.ad} -> ${GUNLER[day]} ${shift} atanamadı.`);
-            }
-        };
-
-        // --- 2. AŞAMA: PLAYOUT / SES / KJ İÇİN ÖZEL 3 GRUPLU DÖNGÜ ---
+        // --- ADIM 2: PLAYOUT / SES / KJ (ÖZEL 3 GRUPLU DESEN - KAPASİTE KORUMALI) ---
         ["PLAYOUT OPERATÖRÜ", "SES OPERATÖRÜ", "KJ OPERATÖRÜ"].forEach(ozelBirim => {
             let personelListesi = state.personeller.filter(p => p.birim === ozelBirim);
             if (personelListesi.length === 0) return;
@@ -677,22 +694,18 @@ function talepIslem(id, tip) {
             let grupC = []; // Hedef: Bu Hafta İZİN Başlayacaklar  (Eski Akşamcılar)
 
             personelListesi.forEach((p, index) => {
-                // Geçen hafta Pazartesi (0. gün) ne yaptı?
                 let gecenPzt = state.manuelAtamalar[`${prevHKey}_${p.ad}_0`];
 
                 if (gecenPzt === "İZİNLİ" || gecenPzt === "BOŞ" || !gecenPzt) {
-                    // Geçen hafta Pzt izinliymiş -> Bu hafta Grup A (Sabahçı)
-                    grupA.push(p);
+                    grupA.push(p); // Geçen hafta Pzt İzin -> Şimdi Grup A (Sabahçı)
                 } else if (gecenPzt === "06:30–16:00" || gecenPzt === "09:00–18:00") {
-                    // Geçen hafta Pzt sabahçıymış -> Bu hafta Grup B (Akşamcı)
-                    grupB.push(p);
+                    grupB.push(p); // Geçen hafta Pzt Sabah -> Şimdi Grup B (Akşamcı)
                 } else {
-                    // Geçen hafta Pzt akşamcıymış -> Bu hafta Grup C (İzinli)
-                    grupC.push(p);
+                    grupC.push(p); // Geçen hafta Pzt Akşam -> Şimdi Grup C (İzinli)
                 }
             });
 
-            // Eğer veri yoksa (İlk Kurulum), rastgele 3'e böl
+            // İlk Kurulum (Veri yoksa rastgele böl)
             if (grupA.length === 0 && grupB.length === 0 && grupC.length === 0) {
                 personelListesi.forEach((p, i) => {
                     if (i % 3 === 0) grupA.push(p);
@@ -701,68 +714,63 @@ function talepIslem(id, tip) {
                 });
             }
 
-            // --- DESENLERİ UYGULA (KAPASİTE KONTROLLÜ) ---
+            // --- DESENLERİ UYGULA (SafeAssign ile Kapasite Kontrollü) ---
 
-            // GRUP A (Pazartesi Sabahçı Olanlar)
-            // Kural: Pzt Sabah -> Salı/Çarş Akşam -> Per/Cum İzin -> Cmt/Paz Sabah
+            // GRUP A (Pzt Sabahçı) -> Pzt 06:30, Sal-Çar 16:00, Per-Cum İzin, Cmt-Paz 06:30
             grupA.forEach(p => {
-                safeAssign(p, 0, "06:30–16:00"); // Pzt
-                safeAssign(p, 1, "16:00–00:00"); // Sal
-                safeAssign(p, 2, "16:00–00:00"); // Çar
-                safeAssign(p, 3, "İZİNLİ");      // Per
-                safeAssign(p, 4, "İZİNLİ");      // Cum
-                safeAssign(p, 5, "06:30–16:00"); // Cmt
-                safeAssign(p, 6, "06:30–16:00"); // Paz
+                safeAssign(p, 0, "06:30–16:00"); 
+                safeAssign(p, 1, "16:00–00:00"); 
+                safeAssign(p, 2, "16:00–00:00"); 
+                safeAssign(p, 3, "İZİNLİ");      
+                safeAssign(p, 4, "İZİNLİ");      
+                safeAssign(p, 5, "06:30–16:00"); 
+                safeAssign(p, 6, "06:30–16:00"); 
             });
 
-            // GRUP B (Pazartesi Akşamcı Olanlar)
-            // Kural: Pzt Akşam -> Salı/Çarş İzin -> Per/Cum Sabah -> Cmt/Paz Akşam
+            // GRUP B (Pzt Akşamcı) -> Pzt 16:00, Sal-Çar İzin, Per-Cum 06:30, Cmt-Paz 16:00
             grupB.forEach(p => {
-                safeAssign(p, 0, "16:00–00:00"); // Pzt
-                safeAssign(p, 1, "İZİNLİ");      // Sal
-                safeAssign(p, 2, "İZİNLİ");      // Çar
-                safeAssign(p, 3, "06:30–16:00"); // Per
-                safeAssign(p, 4, "06:30–16:00"); // Cum
-                safeAssign(p, 5, "16:00–00:00"); // Cmt
-                safeAssign(p, 6, "16:00–00:00"); // Paz
+                safeAssign(p, 0, "16:00–00:00"); 
+                safeAssign(p, 1, "İZİNLİ");      
+                safeAssign(p, 2, "İZİNLİ");      
+                safeAssign(p, 3, "06:30–16:00"); 
+                safeAssign(p, 4, "06:30–16:00"); 
+                safeAssign(p, 5, "16:00–00:00"); 
+                safeAssign(p, 6, "16:00–00:00"); 
             });
 
-            // GRUP C (Pazartesi İzinli Olanlar)
-            // Kural: Pzt İzin -> Salı/Çarş Sabah -> Per/Cum Akşam -> Cmt (1 İzin/1 Akşam) -> Paz (1 İzin/1 Sabah)
-            // Not: Haftasonu kırılması için bu grubu "SeedShuffle" ile karıştırıyoruz.
+            // GRUP C (Pzt İzinli) -> Pzt İzin, Sal-Çar 06:30, Per-Cum 16:00, Cmt(Karışık), Paz(Karışık)
             seededShuffle(grupC, hKey); 
 
             grupC.forEach((p, index) => {
-                safeAssign(p, 0, "İZİNLİ");      // Pzt
-                safeAssign(p, 1, "06:30–16:00"); // Sal
-                safeAssign(p, 2, "06:30–16:00"); // Çar
-                safeAssign(p, 3, "16:00–00:00"); // Per
-                safeAssign(p, 4, "16:00–00:00"); // Cum
+                safeAssign(p, 0, "İZİNLİ");      
+                safeAssign(p, 1, "06:30–16:00"); 
+                safeAssign(p, 2, "06:30–16:00"); 
+                safeAssign(p, 3, "16:00–00:00"); 
+                safeAssign(p, 4, "16:00–00:00"); 
                 
-                // Haftasonu Kırılması
-                if (index % 2 === 0) {
-                    safeAssign(p, 5, "İZİNLİ");      // Cmt
-                    safeAssign(p, 6, "06:30–16:00"); // Paz
-                } else {
-                    safeAssign(p, 5, "16:00–00:00"); // Cmt
-                    safeAssign(p, 6, "İZİNLİ");      // Paz
-                }
+                // Cmt: 1 İzin / Diğeri Akşam
+                if (index % 2 === 0) safeAssign(p, 5, "İZİNLİ");
+                else safeAssign(p, 5, "16:00–00:00");
+
+                // Paz: 1 İzin / Diğeri Sabah
+                if (index % 2 === 0) safeAssign(p, 6, "06:30–16:00");
+                else safeAssign(p, 6, "İZİNLİ");
             });
         });
 
-        // --- 3. AŞAMA: MANUEL ATAMALARI OKU VE SAYAÇLARI GÜNCELLE ---
+        // --- ADIM 3: ÇALIŞMA GÜNÜ HESAPLA (Kapasiteden dolayı boş kalanlar dahil) ---
         state.personeller.forEach(p => {
             calis[p.ad] = 0; 
             for(let g=0; g<7; g++) {
-                let mKey = `${hKey}_${p.ad}_${g}`;
-                if(state.manuelAtamalar[mKey]) tempProg[p.ad][g] = state.manuelAtamalar[mKey];
+                // Manuel atamalar zaten tempProg'da, ekstra kontrole gerek yok ama garanti olsun
                 if(tempProg[p.ad][g] && !["İZİNLİ","BOŞ",null].includes(tempProg[p.ad][g])) calis[p.ad]++;
             }
         });
 
-        // --- 4. AŞAMA: STANDART DAĞITIM (Kalan Boşluklar / Diğer Birimler İçin) ---
+        // --- ADIM 4: STANDART DAĞITIM (Boşluk Doldurma) ---
+        // Kapasite yüzünden desene giremeyenler veya diğer birimler burada işlenir.
         for (let gun = 0; gun < 7; gun++) {
-            // GECE VARDİYASI (00:00-07:00)
+            // GECE VARDİYASI
             state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
                 const geceSaati = "00:00–07:00";
                 const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
@@ -770,10 +778,7 @@ function talepIslem(id, tip) {
                 
                 if (atanan < hedef) {
                     let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null);
-                    
-                    seededShuffle(adaylar, hKey); // Adalet için karıştır
-
-                    // İş yüküne göre sırala
+                    seededShuffle(adaylar, hKey);
                     adaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
                     
                     for (let p of adaylar) { 
@@ -787,18 +792,14 @@ function talepIslem(id, tip) {
             // DİĞER SAATLER
             state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
                 state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
-                    // Eğer Playout/Ses/KJ ise ve zaten atanmışsa burayı atla (ama manuel silindiyse doldur)
-                    
                     const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
                     let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
                     
                     if (mevcut < hedef) {
                         let adaylar = state.personeller.filter(p => {
                             let basic = p.birim === birim && tempProg[p.ad][gun] === null;
-                            // Playout için özel koruma: Eğer desene göre izinliyse, burası onu zorla doldurmasın
-                            // Sadece "null" ise doldursun.
-                            
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
+                            
                             // Pazartesi Koruması
                             let pazarGecesiSorunu = false;
                             if (gun === 0 && (saat === "06:30–16:00" || saat === "09:00–18:00")) {
@@ -822,10 +823,10 @@ function talepIslem(id, tip) {
             });
         }
 
-        // --- 5. AŞAMA: EKSİK GÜNLERİ TAMAMLAMA VE KAPANIŞ ---
+        // --- ADIM 5: EKSİK GÜN TAMAMLAMA ---
         state.personeller.forEach(p => {
-            // Playout/Ses/KJ zaten desenle doldu. Diğerleri için:
-            if(!p.birim.includes("MCR") && !p.birim.includes("INGEST") && !state.haftaIciSabitler[p.ad] && !["PLAYOUT OPERATÖRÜ", "SES OPERATÖRÜ", "KJ OPERATÖRÜ"].includes(p.birim)) {
+            // Desenden artan veya diğer birimler
+            if(!p.birim.includes("MCR") && !p.birim.includes("INGEST") && !state.haftaIciSabitler[p.ad]) {
                 if (calis[p.ad] < 5) {
                     let g = 5; // Cumartesi
                     if (tempProg[p.ad][g] === null) {
@@ -843,16 +844,16 @@ function talepIslem(id, tip) {
             }
         });
 
-        // SON OLARAK BOŞ KALANLARA İZİN YAZ
+        // SON: BOŞ KALANLARA İZİN YAZ
         state.personeller.forEach(p => {
             for(let g=0; g<7; g++) {
                 if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = "İZİNLİ";
             }
         });
 
-        // VERİTABANINA KAYDET
+        // KAYDET
         state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (Özel 3'lü Grup Deseni + Kapasite Kontrolü Dahil).");
+        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (Manuel > Kapasite > Desen Kuralına Göre).");
     }
 
     function excelIndir() {
