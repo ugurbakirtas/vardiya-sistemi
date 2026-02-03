@@ -825,32 +825,40 @@ function talepIslem(id, tip) {
                 let atanan = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === geceSaati).length;
                 
                 if (atanan < hedef) {
-                    let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null);
+                    // HAVUZ 1: Boşta olanlar
+                    let adaylar1 = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null);
+                    // HAVUZ 2: Sistem tarafından İZİNLİ olanlar (Yedek Kuvvet)
+                    let adaylar2 = state.personeller.filter(p => {
+                        let isSameUnit = p.birim === birim;
+                        let isSystemIzin = tempProg[p.ad][gun] === "İZİNLİ"; 
+                        let isManual = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`] !== undefined;
+                        let isFixedOff = p.izinGunleri && p.izinGunleri.includes(gun);
+                        return isSameUnit && isSystemIzin && !isManual && !isFixedOff;
+                    });
                     
-                    // --- YEDEK KUVVET: EĞER BOŞ ADAY YOKSA, SİSTEM İZİNLİLERİNİ ÇAĞIR ---
-                    if (adaylar.length === 0) {
-                        adaylar = state.personeller.filter(p => {
-                            let isSameUnit = p.birim === birim;
-                            let isSystemIzin = tempProg[p.ad][gun] === "İZİNLİ"; // Sadece sistemin verdiği izin
-                            let isManual = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`] !== undefined; // Manuel izinliye dokunma
-                            let isFixedOff = p.izinGunleri && p.izinGunleri.includes(gun); // Sabit izinliye dokunma
-                            return isSameUnit && isSystemIzin && !isManual && !isFixedOff;
-                        });
-                    }
+                    let tumAdaylar = [...adaylar1, ...adaylar2];
 
-                    // --- TEKNİK YÖNETMEN ÖZEL SIRALAMA ---
-                    if (birim === "TEKNİK YÖNETMEN") {
-                        adaylar.sort((a, b) => {
-                             let puanFarki = (b.yuzde || 0) - (a.yuzde || 0);
-                             if (puanFarki !== 0) return puanFarki;
+                    if (birim === "TEKNİK YÖNETMEN") { 
+                        tumAdaylar.sort((a, b) => {
+                             let aStatus = tempProg[a.ad][gun] === null ? 0 : 1; 
+                             let bStatus = tempProg[b.ad][gun] === null ? 0 : 1;
+                             if(aStatus !== bStatus) return aStatus - bStatus; // Önce boşta olanlar
+                             let puanFarki = (b.yuzde || 0) - (a.yuzde || 0); 
+                             if (puanFarki !== 0) return puanFarki; 
+                             return calis[a.ad] - calis[b.ad]; 
+                        }); 
+                    } else { 
+                        // Diğerleri için basit Shuffle + Çalışma Günü sıralaması
+                        // Ama önce Null olanları başa alalım
+                        tumAdaylar.sort((a, b) => {
+                             let aStatus = tempProg[a.ad][gun] === null ? 0 : 1;
+                             let bStatus = tempProg[b.ad][gun] === null ? 0 : 1;
+                             if (aStatus !== bStatus) return aStatus - bStatus;
                              return calis[a.ad] - calis[b.ad];
                         });
-                    } else {
-                        seededShuffle(adaylar, hKey);
-                        adaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
                     }
                     
-                    for (let p of adaylar) { 
+                    for (let p of tumAdaylar) { 
                         if (atanan < hedef && calis[p.ad] < 6) { 
                             tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++; 
                         } 
@@ -865,7 +873,7 @@ function talepIslem(id, tip) {
                     let mevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === saat).length;
                     
                     if (mevcut < hedef) {
-                        let adaylar = state.personeller.filter(p => {
+                        let adaylar1 = state.personeller.filter(p => {
                             let basic = p.birim === birim && tempProg[p.ad][gun] === null;
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
                             let pazarGecesiSorunu = false;
@@ -876,24 +884,26 @@ function talepIslem(id, tip) {
                             return basic && !(dunGece && saat === "06:30–16:00") && !pazarGecesiSorunu;
                         });
 
-                        // --- YEDEK KUVVET (GÜNDÜZ İÇİN) ---
-                        if (adaylar.length === 0) {
-                            adaylar = state.personeller.filter(p => {
-                                let isSameUnit = p.birim === birim;
-                                let isSystemIzin = tempProg[p.ad][gun] === "İZİNLİ";
-                                let isManual = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`] !== undefined;
-                                let isFixedOff = p.izinGunleri && p.izinGunleri.includes(gun);
-                                // Dinlenme kontrolü: Dün gececiyse bugün gündüze çağırma
-                                let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
-                                return isSameUnit && isSystemIzin && !isManual && !isFixedOff && !(dunGece && saat === "06:30–16:00");
-                            });
-                        }
+                        let adaylar2 = state.personeller.filter(p => {
+                            let isSameUnit = p.birim === birim;
+                            let isSystemIzin = tempProg[p.ad][gun] === "İZİNLİ";
+                            let isManual = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`] !== undefined;
+                            let isFixedOff = p.izinGunleri && p.izinGunleri.includes(gun);
+                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
+                            return isSameUnit && isSystemIzin && !isManual && !isFixedOff && !(dunGece && saat === "06:30–16:00");
+                        });
                         
-                        seededShuffle(adaylar, hKey);
-                        adaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
+                        let tumAdaylar = [...adaylar1, ...adaylar2];
+                        
+                        tumAdaylar.sort((a, b) => {
+                             let aStatus = tempProg[a.ad][gun] === null ? 0 : 1;
+                             let bStatus = tempProg[b.ad][gun] === null ? 0 : 1;
+                             if (aStatus !== bStatus) return aStatus - bStatus;
+                             return calis[a.ad] - calis[b.ad];
+                        });
 
                         let limit = (gun >= 5) ? 6 : 5;
-                        for (let p of adaylar) {
+                        for (let p of tumAdaylar) {
                             if (mevcut < hedef && calis[p.ad] < limit) { 
                                 tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; 
                             }
