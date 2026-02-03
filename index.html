@@ -25,22 +25,42 @@
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
     
-    #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
-    .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
-    .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 14px; }
-    .btn-user { background: var(--blue); color: white; } .btn-admin { background: #475569; color: white; }
+    /* GİRİŞ EKRANI CSS */
+    #loginOverlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      background: var(--primary); z-index: 9999; 
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      transition: 0.5s;
+    }
+    .login-card {
+      background: var(--card-bg); padding: 40px; border-radius: 20px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px;
+    }
+    .login-btn {
+      width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px;
+      font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 14px;
+    }
+    .btn-user { background: var(--blue); color: white; }
+    .btn-admin { background: #475569; color: white; }
     .login-logo { height: 60px; margin-bottom: 20px; }
+
     .app-wrapper { padding: 10px; display: none; } 
+    
     .main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; }
     .table-container { overflow-x: auto; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); }
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
     th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); }
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
     .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; }
-    .row-saat-0 { background-color: var(--saat1); } .row-saat-1 { background-color: var(--saat2); } .row-saat-2 { background-color: var(--saat3); } .row-saat-3 { background-color: var(--saat4); }
-    .row-izin { background-color: var(--izin-bg) !important; } .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
+    .row-saat-0 { background-color: var(--saat1); }
+    .row-saat-1 { background-color: var(--saat2); }
+    .row-saat-2 { background-color: var(--saat3); }
+    .row-saat-3 { background-color: var(--saat4); }
+    .row-izin { background-color: var(--izin-bg) !important; }
+    .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
     .weekend-col { background-color: var(--weekend-bg) !important; }
     .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; }
+    
     .birim-ayirici { border-top: 5px solid #1e293b !important; margin-top: 8px !important; padding-top: 8px !important; }
     .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
     .pers-name { font-size: 10px; font-weight: 700; display: block; }
@@ -56,6 +76,8 @@
     .izin-gun-pill { padding: 4px 6px; background: var(--bg); border-radius: 4px; margin: 2px; font-size: 9px; cursor: pointer; display: inline-block; font-weight: 700; border: 1px solid var(--border); }
     .izin-gun-pill.active { background: var(--danger); color: white; }
     .mcr-ayarlar { background: #f8fafc; border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
+    
+    /* YENİ SWAP UI STİLLERİ */
     .swap-container { border: 2px solid var(--blue); border-radius: 12px; padding: 15px; background: var(--saat3); margin-bottom: 15px; }
     .swap-header { font-weight: 800; color: var(--primary); margin-bottom: 10px; display: flex; align-items: center; gap: 5px; font-size: 13px; text-transform: uppercase; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
     .swap-row { margin-bottom: 10px; }
@@ -63,17 +85,76 @@
     .swap-select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: white; font-weight: 600; font-size: 11px; }
     .swap-days { display: flex; gap: 10px; margin-top: 10px; justify-content: space-between; }
     .swap-day-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
+    
     .admin-only { display: none; } 
 
+/* MOBİL UYUMLULUK AYARLARI */
 @media screen and (max-width: 768px) { 
-    #vardiyaTablosu, #vardiyaTablosu thead, #vardiyaTablosu tbody, #vardiyaTablosu th, #vardiyaTablosu td, #vardiyaTablosu tr { display: block; width: 100% !important; min-width: 100% !important; }
+/* Tablo yapısını dikey karta çevir */
+    #vardiyaTablosu, #vardiyaTablosu thead, #vardiyaTablosu tbody, #vardiyaTablosu th, #vardiyaTablosu td, #vardiyaTablosu tr {
+        display: block;
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+
+    /* Başlıkları gizle (kart içinde göstereceğiz) */
     #tableHeader { display: none; }
-    #tableBody tr, #tableFooter tr { margin-bottom: 20px; border: 2px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card-bg); }
-    .saat-col { display: block; width: 100% !important; background: var(--primary); color: white !important; padding: 10px; text-align: left !important; border-left: none !important; font-size: 14px; }
-    td:not(.saat-col)::before { content: attr(data-label); font-weight: 800; text-transform: uppercase; font-size: 12px; display: block; margin-bottom: 10px; color: var(--blue); background: var(--bg); padding: 4px; border-radius: 4px; text-align: center; }
-    td:not(.saat-col) { display: flex; flex-direction: column; gap: 8px; height: auto !important; min-height: 50px; }
-    .side-panel { width: 100%; right: -100%; }
-    .main-header { flex-direction: column; text-align: center; }
+
+    /* Her satırı (saat dilimini) bir kart gibi yap */
+    #tableBody tr, #tableFooter tr {
+        margin-bottom: 20px;
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--card-bg);
+    }
+
+    /* Saat hücresini kart başlığına çevir */
+    .saat-col {
+        display: block;
+        width: 100% !important;
+        background: var(--primary);
+        color: white !important;
+        padding: 10px;
+        text-align: left !important;
+        border-left: none !important;
+        font-size: 14px;
+    }
+
+    /* Gün hücrelerini belirginleştir */
+    td:not(.saat-col)::before {
+    content: attr(data-label);
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 12px;
+    display: block;
+    margin-bottom: 10px;
+    color: var(--blue);
+    background: var(--bg); /* Arka plan ekleyerek netliği artırır */
+    padding: 4px;
+    border-radius: 4px;
+    text-align: center;
+    }
+
+    /* Hücrenin hangi güne ait olduğunu sol üste ekle */
+    td:not(.saat-col) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* Kartlar arası boşluk */
+    height: auto !important; /* Sabit yüksekliği kaldır */
+    min-height: 50px;
+    }
+
+    /* Yan paneli mobilde tam ekran yap */
+    .side-panel {
+        width: 100%;
+        right: -100%;
+    }
+    
+    .main-header {
+        flex-direction: column;
+        text-align: center;
+    }
 }  
 </style>
 </head>
@@ -218,7 +299,7 @@
                 </div>
 
                 <button onclick="yillikIzinIsle()" class="btn-main-action" style="background:#9333ea; width:100%; padding:12px; margin-top:10px;">İZİNLERİ İŞLE</button>
-                <div style="margin-top:10px; font-size:10px; color:#666; text-align:center;">* Seçilen tarih aralığına "YILLIK İZİN" yazılacak ve manuel kilit uygulanacaktır.</div>
+                <div style="margin-top:10px; font-size:10px; color:#666; text-align:center;">* Seçilen tarih aralığına "YILLIK İZİN" yazılacak ve sistem bunu yok sayıp yerine başkasını atayacaktır.</div>
             </div>
         </div>
 
@@ -261,6 +342,7 @@
                 const config = snap.val();
                 if(config.telegram_api) TELEGRAM_API = config.telegram_api;
                 if(config.telegram_id) TELEGRAM_ID = config.telegram_id;
+                console.log("Sistem: Güvenli ayarlar yüklendi.");
             }
         } catch (error) {
             console.error("Ayarlar yüklenirken hata oluştu:", error);
@@ -637,8 +719,8 @@ function talepIslem(id, tip) {
              // Mevcut doluluğu say (Manuel atananlar dahil)
              let currentCount = 0;
              state.personeller.filter(x => x.birim === p.birim).forEach(x => {
-                 // Sadece o vardiyada çalışanları say. YILLIK İZİN'de olanları sayma.
-                 if(tempProg[x.ad][day] === shift) currentCount++;
+                 // --- KRİTİK DÜZELTME: Sadece o vardiyada çalışanları say (YILLIK İZİN vs sayma) ---
+                 if(tempProg[x.ad][day] === shift) currentCount++; 
              });
 
              // Eğer kapasite dolmamışsa ata, yoksa BOŞ bırak.
