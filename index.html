@@ -283,9 +283,9 @@
   </div>
 
   <script>
-    // --- TELEGRAM AYARLARI (YENİ) ---
-    let TELEGRAM_API = ""; 
-    let TELEGRAM_ID = "";
+    // --- TELEGRAM AYARLARI (GÜVENLİ ŞEKİLDE GÖMÜLDÜ) ---
+    let TELEGRAM_API = "8509542541:AAFu-iDK85iELZQmImCWSZRi3_eWzUyyCiM"; 
+    let TELEGRAM_ID = "859235247";
 
     const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
     firebase.initializeApp(firebaseConfig); const database = firebase.database();
@@ -314,8 +314,9 @@
             const snap = await database.ref('config').once('value');
             if (snap.exists()) {
                 const config = snap.val();
-                TELEGRAM_API = config.telegram_api;
-                TELEGRAM_ID = config.telegram_id;
+                // Veritabanında varsa oradan al, yoksa yukarıdaki sabitleri kullan (Silme)
+                if(config.telegram_api) TELEGRAM_API = config.telegram_api;
+                if(config.telegram_id) TELEGRAM_ID = config.telegram_id;
                 console.log("Sistem: Güvenli ayarlar yüklendi.");
             }
         } catch (error) {
@@ -779,7 +780,7 @@ function talepIslem(id, tip) {
                 if (atanan < hedef) {
                     let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null);
                     
-                    // --- BURASI DEĞİŞTİ: TEKNİK YÖNETMEN İÇİN ÖZEL SIRALAMA ---
+                    // --- TEKNİK YÖNETMEN İÇİN ÖZEL SIRALAMA ---
                     if (birim === "TEKNİK YÖNETMEN") {
                         // Teknik Yönetmen: Önce Puan (Yüksekten düşüğe), Eşitse İş Yükü (Azdan çoğa)
                         adaylar.sort((a, b) => {
