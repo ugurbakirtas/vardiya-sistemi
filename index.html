@@ -770,7 +770,7 @@ function talepIslem(id, tip) {
         // --- ADIM 4: STANDART DAĞITIM (Boşluk Doldurma) ---
         // Kapasite yüzünden desene giremeyenler veya diğer birimler burada işlenir.
         for (let gun = 0; gun < 7; gun++) {
-            // GECE VARDİYASI
+            // GECE VARDİYASI (00:00-07:00)
             state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
                 const geceSaati = "00:00–07:00";
                 const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
@@ -778,8 +778,20 @@ function talepIslem(id, tip) {
                 
                 if (atanan < hedef) {
                     let adaylar = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][gun] === null);
-                    seededShuffle(adaylar, hKey);
-                    adaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
+                    
+                    // --- BURASI DEĞİŞTİ: TEKNİK YÖNETMEN İÇİN ÖZEL SIRALAMA ---
+                    if (birim === "TEKNİK YÖNETMEN") {
+                        // Teknik Yönetmen: Önce Puan (Yüksekten düşüğe), Eşitse İş Yükü (Azdan çoğa)
+                        adaylar.sort((a, b) => {
+                             let puanFarki = (b.yuzde || 0) - (a.yuzde || 0);
+                             if (puanFarki !== 0) return puanFarki;
+                             return calis[a.ad] - calis[b.ad];
+                        });
+                    } else {
+                        // Diğerleri: Standart Kura
+                        seededShuffle(adaylar, hKey);
+                        adaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
+                    }
                     
                     for (let p of adaylar) { 
                         if (atanan < hedef && calis[p.ad] < 6) { 
@@ -853,7 +865,7 @@ function talepIslem(id, tip) {
 
         // KAYDET
         state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
-        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (Manuel > Kapasite > Desen Kuralına Göre).");
+        save(); tabloyuOlustur(); alert("Vardiya oluşturuldu (Manuel > Kapasite > Desen > Puan Önceliği).");
     }
 
     function excelIndir() {
