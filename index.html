@@ -95,7 +95,9 @@
   <div class="app-wrapper" id="appMain">
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;"><img src="logo.png" alt="Logo" style="height: 35px;"><div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V61</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div></div>
-      <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;"><button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button><button onclick="buluttanYukle()" class="btn-main-action admin-only" style="background:#4285f4">🔄 BULUTTAN YÜKLE</button><button onclick="toggleTheme()" class="btn-main-action" style="background:#64748b" id="themeBtn">🌙</button><button onclick="excelIndir()" class="btn-main-action admin-only" style="background:#16a34a">EXCEL</button><button onclick="window.print()" class="btn-main-action" style="background:var(--blue)">PDF / YAZDIR</button><button onclick="haftaDegistir(7)" class="btn-main-action" style="background:#475569">İleri »</button><button onclick="toggleAdminPanel()" class="btn-main-action admin-only" style="background:var(--primary); border: 1px solid #475569;" id="adminSettingsBtn">⚙ AYARLAR</button></div>
+      <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;"><button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button><button onclick="buluttanYukle()" class="btn-main-action admin-only" style="background:#4285f4">🔄 BULUTTAN YÜKLE</button><button onclick="toggleTheme()" class="btn-main-action" style="background:#64748b" id="themeBtn">🌙</button><button onclick="excelIndir()" class="btn-main-action admin-only" style="background:#16a34a">EXCEL</button>
+      <button onclick="ulastirmaExcelIndir()" class="btn-main-action admin-only" style="background:#881337; border:1px solid #fff;">🚌 ULAŞTIRMA LİSTESİ</button>
+      <button onclick="window.print()" class="btn-main-action" style="background:var(--blue)">PDF / YAZDIR</button><button onclick="haftaDegistir(7)" class="btn-main-action" style="background:#475569">İleri »</button><button onclick="toggleAdminPanel()" class="btn-main-action admin-only" style="background:var(--primary); border: 1px solid #475569;" id="adminSettingsBtn">⚙ AYARLAR</button></div>
     </header>
     <div id="persTalepArea" style="text-align:center; display:none;" class="no-print"><button onclick="talepModalAc()" class="btn-main-action" style="background:var(--warning); margin: 0 auto 15px auto; width: 250px; color: #1e293b; font-weight: 800; border: 2px solid #1e293b;">📝 VARDİYA / İZİN TALEBİ OLUŞTUR</button></div>
     <main class="table-container"><table id="vardiyaTablosu"><thead id="tableHeader"></thead><tbody id="tableBody"></tbody><tfoot id="tableFooter"></tfoot></table></main>
@@ -421,6 +423,131 @@
         html += `</table></body></html>`;
         const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
         const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Vardiya_${hKey}.xls`; a.click();
+    }
+
+    // --- YENİ: GÖRSELDEKİ TARZDA ULAŞTIRMA LİSTESİ ÇIKTISI ---
+    function ulastirmaExcelIndir() {
+        const hKey = currentMonday.toISOString().split('T')[0];
+        
+        // Görseldeki renk paletine uygun CSS
+        let html = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: 'Calibri', sans-serif; font-size: 11pt; }
+                table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+                td, th { border: 1px solid #ffffff; text-align: center; vertical-align: top; padding: 5px; }
+                
+                /* GÖRSELDEKİ BORDO BAŞLIK TARZI */
+                .header-main { background-color: #881337; color: #ffffff; font-weight: bold; font-size: 14pt; height: 40px; vertical-align: middle; border: 1px solid #000; }
+                .header-day { background-color: #881337; color: #ffffff; font-weight: bold; font-size: 11pt; height: 30px; vertical-align: middle; border-right: 1px solid #ffffff; }
+                
+                /* SOLDAKİ SAAT SÜTUNU (Görseldeki gibi dikey/koyu) */
+                .time-col { 
+                    background-color: #881337; 
+                    color: #ffffff; 
+                    font-weight: bold; 
+                    width: 80px; 
+                    vertical-align: middle; 
+                    font-size: 12pt;
+                    border-bottom: 2px solid #fff;
+                }
+
+                /* VARDİYA RENKLERİ (Görseldeki Mavi Tonlamaları) */
+                /* 06:30 - Açık Mavi */
+                .shift-06 { background-color: #dbeafe; color: #1e3a8a; font-weight: bold; }
+                /* 09:00 - Orta Mavi */
+                .shift-09 { background-color: #93c5fd; color: #172554; font-weight: bold; }
+                /* 16:00 - Koyu Mavi */
+                .shift-16 { background-color: #3b82f6; color: #ffffff; font-weight: bold; }
+                /* 00:00 - Gece Mavisi */
+                .shift-00 { background-color: #1e3a8a; color: #ffffff; font-weight: bold; }
+                /* İzin - Kırmızı/Gri */
+                .shift-off { background-color: #fca5a5; color: #7f1d1d; }
+
+                .name-box { margin-bottom: 2px; font-size: 10pt; display: block; }
+                .unit-label { font-size: 7pt; opacity: 0.8; display: block; margin-bottom: 2px; }
+            </style>
+        </head>
+        <body>
+            <table>
+                <tr>
+                    <th class="header-main">SAAT</th>
+                    ${GUNLER.map((g, i) => {
+                        let d = new Date(currentMonday);
+                        d.setDate(d.getDate() + i);
+                        let dateStr = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                        return `<th class="header-day">${dateStr}<br>${g.toUpperCase()}</th>`;
+                    }).join('')}
+                </tr>`;
+
+        // --- SAATLERE GÖRE SATIRLAR ---
+        state.saatler.forEach(s => {
+            // Görseldeki gibi her saatin rengini belirle
+            let bgClass = "shift-06"; // Varsayılan
+            if(s.includes("09:00")) bgClass = "shift-09";
+            if(s.includes("16:00")) bgClass = "shift-16";
+            if(s.includes("00:00")) bgClass = "shift-00";
+
+            html += `<tr>`;
+            // Sol Saat Sütunu
+            html += `<td class="time-col">${s.split('–')[0]}<br><span style="font-size:8pt;">${s.split('–')[1]}</span></td>`;
+
+            // Günleri Dön
+            for(let i=0; i<7; i++) {
+                // O gün ve o saatte çalışanları bul
+                // (GetGecerliBirim fonksiyonunu kullanarak SWAP durumunu da dikkate alıyoruz)
+                let calisanlar = state.personeller.filter(p => {
+                    let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
+                    // Yıllık izinli veya manuel izinliyse atla
+                    if (v === "İZİNLİ" || v === "BOŞ" || v === "YILLIK İZİN" || !v) return false;
+                    return v === s;
+                });
+
+                // Birimlerine göre sırala (Önce Yönetmen, Sonra Ses vs.)
+                calisanlar.sort((a, b) => {
+                    let birimA = getGecerliBirim(a, i);
+                    let birimB = getGecerliBirim(b, i);
+                    return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB);
+                });
+
+                let cellContent = calisanlar.map(p => {
+                    let birim = getGecerliBirim(p, i);
+                    // Görseldeki gibi sadece İSİM yazalım, birim çok küçük parantez içinde olsun
+                    return `<span class="name-box">${p.ad} <span class="unit-label">(${birim})</span></span>`;
+                }).join('<br>');
+
+                html += `<td class="${bgClass}">${cellContent}</td>`;
+            }
+            html += `</tr>`;
+        });
+
+        // --- İZİNLİLER SATIRI (En Alt) ---
+        html += `<tr><td class="time-col" style="background-color:#991b1b;">İZİN</td>`;
+        for(let i=0; i<7; i++) {
+            let izinliler = state.personeller.filter(p => {
+                let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
+                return (v === "İZİNLİ" || v === "BOŞ" || !v || v === "YILLIK İZİN");
+            });
+            
+            let cellContent = izinliler.map(p => {
+                let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
+                let ek = v === "YILLIK İZİN" ? " (YILLIK)" : "";
+                return `<span class="name-box">${p.ad}${ek}</span>`;
+            }).join('<br>');
+            
+            html += `<td class="shift-off">${cellContent}</td>`;
+        }
+        html += `</tr>`;
+
+        html += `</table></body></html>`;
+        
+        const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `Ulastirma_Listesi_${hKey}.xls`;
+        a.click();
     }
 
     function toggleAdminPanel() { 
