@@ -123,7 +123,7 @@
     let TELEGRAM_ID = "859235247";
     const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
     firebase.initializeApp(firebaseConfig); const database = firebase.database();
-    const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = ""; 
+    const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = ""; const PANEL_SIFRE = "6161"; 
     const BIRIM_RENKLERI = { "TEKNİK YÖNETMEN": "#2563eb", "SES OPERATÖRÜ": "#7c3aed", "KJ OPERATÖRÜ": "#db2777", "PLAYOUT OPERATÖRÜ": "#059669", "REJİ": "#d97706", "24TV MCR OPERATÖRÜ": "#9333ea","360TV MCR OPERATÖRÜ": "#9333ea", "INGEST OPERATÖRÜ": "#06b6d4" };
     let isAdmin = false;
     let state = { birimler: JSON.parse(localStorage.getItem(PREFIX + "birimler")) || ["TEKNİK YÖNETMEN", "SES OPERATÖRÜ", "KJ OPERATÖRÜ", "PLAYOUT OPERATÖRÜ", "24TV MCR OPERATÖRÜ","360TV MCR OPERATÖRÜ", "INGEST OPERATÖRÜ"], saatler: JSON.parse(localStorage.getItem(PREFIX + "saatler")) || ["06:30–16:00", "09:00–18:00", "16:00–00:00", "00:00–07:00"], personeller: JSON.parse(localStorage.getItem(PREFIX + "personeller")) || [], kapasite: JSON.parse(localStorage.getItem(PREFIX + "kapasite")) || {}, manuelAtamalar: JSON.parse(localStorage.getItem(PREFIX + "manuelAtamalar")) || {}, haftaIciSabitler: JSON.parse(localStorage.getItem(PREFIX + "haftaIciSabitler")) || {}, mcrAyarlari: JSON.parse(localStorage.getItem(PREFIX + "mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }, geciciGorevler: JSON.parse(localStorage.getItem(PREFIX + "geciciGorevler")) || {} };
@@ -260,14 +260,21 @@
                 const geceSaati = "00:00–07:00"; const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
                 let atanan = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === geceSaati).length;
                 if (atanan < hedef) {
+                    // HAVUZ 1: Boşta olanlar
                     let adaylar1 = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null);
+                    // HAVUZ 2: Sistem tarafından İZİNLİ olanlar (Yedek Kuvvet)
                     let adaylar2 = state.personeller.filter(p => {
                         let isSameUnit = getGecerliBirim(p, gun) === birim;
                         let isSystemIzin = tempProg[p.ad][gun] === "İZİNLİ"; 
                         let isManual = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`] !== undefined;
                         let isYillik = tempProg[p.ad][gun] === "YILLIK İZİN";
+                        
+                        // Sabitler Dahil Olabilir Dedin: Sabit izinliler de "İZİNLİ" olarak görünür.
+                        // Sadece Manuel Kilitli olanları ve Yıllık İzinlileri koruyoruz.
+                        // 1 Gün Kuralı: Haftada 6 günü geçmeyecekse çağırabiliriz.
                         return isSameUnit && isSystemIzin && !isManual && !isYillik && (calis[p.ad] < 6);
                     });
+                    
                     let tumAdaylar = [...adaylar1, ...adaylar2];
 
                     if (birim === "TEKNİK YÖNETMEN") { 
@@ -282,8 +289,13 @@
                     } else { 
                         let bosOlanlar = adaylar1;
                         let izinliOlanlar = adaylar2;
-                        seededShuffle(bosOlanlar, hKey); bosOlanlar.sort((a, b) => calis[a.ad] - calis[b.ad]);
-                        seededShuffle(izinliOlanlar, hKey); izinliOlanlar.sort((a, b) => calis[a.ad] - calis[b.ad]);
+                        
+                        seededShuffle(bosOlanlar, hKey);
+                        bosOlanlar.sort((a, b) => calis[a.ad] - calis[b.ad]);
+                        
+                        seededShuffle(izinliOlanlar, hKey);
+                        izinliOlanlar.sort((a, b) => calis[a.ad] - calis[b.ad]);
+                        
                         tumAdaylar = [...bosOlanlar, ...izinliOlanlar];
                     }
                     
@@ -314,11 +326,15 @@
                             let isSystemIzin = tempProg[p.ad][gun] === "İZİNLİ";
                             let isManual = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`] !== undefined;
                             let isYillik = tempProg[p.ad][gun] === "YILLIK İZİN";
+                            let isFixedOff = p.izinGunleri && p.izinGunleri.includes(gun);
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
+                            
+                            // Sabitler Dahil, Yıllık Hariç, Manuel Hariç, Max 6 Gün Kuralı
                             return isSameUnit && isSystemIzin && !isManual && !isYillik && (calis[p.ad] < 6) && !(dunGece && saat === "06:30–16:00");
                         });
                         
                         let tumAdaylar = [...adaylar1, ...adaylar2];
+                        
                         tumAdaylar.sort((a, b) => {
                              let aStatus = tempProg[a.ad][gun] === null ? 0 : 1;
                              let bStatus = tempProg[b.ad][gun] === null ? 0 : 1;
@@ -327,8 +343,9 @@
                         });
 
                         let limit = (gun >= 5) ? 6 : 5;
+                        // Agresif doldurmada limit 6'ya kadar zorlanabilir
                         for (let p of tumAdaylar) {
-                            if (mevcut < hedef && calis[p.ad] < 6) { // Burayı 6 yaptık
+                            if (mevcut < hedef && calis[p.ad] < 6) { // Burayı 6 yaptık ki eksik kalmasın
                                 tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; 
                             }
                         }
