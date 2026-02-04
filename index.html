@@ -9,9 +9,22 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <style>
-    :root { --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff; --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --weekend-bg: #fff1f2; --table-head: #f8fafc; --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed; --izin-bg: #fef2f2; --yillik-izin: #9333ea; }
-    [data-theme="dark"] { --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9; --border: #334155; --weekend-bg: #2d1a1a; --table-head: #0f172a; --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12; --izin-bg: #450a0a; }
+    :root {
+      --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
+      --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
+      --warning: #f59e0b; --weekend-bg: #fff1f2; --table-head: #f8fafc;
+      --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed;
+      --izin-bg: #fef2f2;
+      --yillik-izin: #9333ea; /* YENİ: Yıllık İzin Rengi */
+    }
+    [data-theme="dark"] {
+      --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9;
+      --border: #334155; --weekend-bg: #2d1a1a; --table-head: #0f172a;
+      --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12;
+      --izin-bg: #450a0a;
+    }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
+    
     #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
     .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
     .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 14px; }
@@ -175,7 +188,8 @@
                     const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
                     tempProg[p.ad][g] = mcrDongu[((diffDays + persOfset) % 8 + 8) % 8];
                 }
-            } else if(p.birim.includes("INGEST")) {
+            } 
+            else if(p.birim.includes("INGEST")) {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
                 for(let g=0; g<7; g++) {
                     if(tempProg[p.ad][g]) continue;
@@ -189,18 +203,52 @@
         ["PLAYOUT OPERATÖRÜ", "SES OPERATÖRÜ", "KJ OPERATÖRÜ"].forEach(ozelBirim => {
             let personelListesi = state.personeller.filter(p => p.birim === ozelBirim);
             if (personelListesi.length === 0) return;
-            let grupA = []; let grupB = []; let grupC = []; 
+
+            let grupA = []; // Hedef: Bu Hafta SABAH 
+            let grupB = []; // Hedef: Bu Hafta AKŞAM 
+            let grupC = []; // Hedef: Bu Hafta İZİN 
+
             personelListesi.forEach((p, index) => {
                 let gecenPzt = state.manuelAtamalar[`${prevHKey}_${p.ad}_0`];
-                if (gecenPzt === "İZİNLİ" || gecenPzt === "BOŞ" || !gecenPzt || gecenPzt === "YILLIK İZİN") grupA.push(p); 
-                else if (gecenPzt === "06:30–16:00" || gecenPzt === "09:00–18:00") grupB.push(p); 
-                else grupC.push(p); 
+
+                // YILLIK İZİN durumunu da İZİN grubu gibi değerlendir ki döngü bozulmasın
+                if (gecenPzt === "İZİNLİ" || gecenPzt === "BOŞ" || !gecenPzt || gecenPzt === "YILLIK İZİN") {
+                    grupA.push(p); 
+                } else if (gecenPzt === "06:30–16:00" || gecenPzt === "09:00–18:00") {
+                    grupB.push(p); 
+                } else {
+                    grupC.push(p); 
+                }
             });
-            if (grupA.length === 0 && grupB.length === 0 && grupC.length === 0) { personelListesi.forEach((p, i) => { if (i % 3 === 0) grupA.push(p); else if (i % 3 === 1) grupB.push(p); else grupC.push(p); }); }
-            grupA.forEach(p => { safeAssign(p, 0, "06:30–16:00"); safeAssign(p, 1, "16:00–00:00"); safeAssign(p, 2, "16:00–00:00"); safeAssign(p, 3, "İZİNLİ"); safeAssign(p, 4, "İZİNLİ"); safeAssign(p, 5, "06:30–16:00"); safeAssign(p, 6, "06:30–16:00"); });
-            grupB.forEach(p => { safeAssign(p, 0, "16:00–00:00"); safeAssign(p, 1, "İZİNLİ"); safeAssign(p, 2, "İZİNLİ"); safeAssign(p, 3, "06:30–16:00"); safeAssign(p, 4, "06:30–16:00"); safeAssign(p, 5, "16:00–00:00"); safeAssign(p, 6, "16:00–00:00"); });
+
+            if (grupA.length === 0 && grupB.length === 0 && grupC.length === 0) {
+                personelListesi.forEach((p, i) => {
+                    if (i % 3 === 0) grupA.push(p);
+                    else if (i % 3 === 1) grupB.push(p);
+                    else grupC.push(p);
+                });
+            }
+
+            // GRUP A (Pzt Sabahçı) 
+            grupA.forEach(p => {
+                safeAssign(p, 0, "06:30–16:00"); safeAssign(p, 1, "16:00–00:00"); safeAssign(p, 2, "16:00–00:00"); 
+                safeAssign(p, 3, "İZİNLİ"); safeAssign(p, 4, "İZİNLİ"); safeAssign(p, 5, "06:30–16:00"); safeAssign(p, 6, "06:30–16:00"); 
+            });
+
+            // GRUP B (Pzt Akşamcı)
+            grupB.forEach(p => {
+                safeAssign(p, 0, "16:00–00:00"); safeAssign(p, 1, "İZİNLİ"); safeAssign(p, 2, "İZİNLİ"); 
+                safeAssign(p, 3, "06:30–16:00"); safeAssign(p, 4, "06:30–16:00"); safeAssign(p, 5, "16:00–00:00"); safeAssign(p, 6, "16:00–00:00"); 
+            });
+
+            // GRUP C (Pzt İzinli) 
             seededShuffle(grupC, hKey); 
-            grupC.forEach((p, index) => { safeAssign(p, 0, "İZİNLİ"); safeAssign(p, 1, "06:30–16:00"); safeAssign(p, 2, "06:30–16:00"); safeAssign(p, 3, "16:00–00:00"); safeAssign(p, 4, "16:00–00:00"); if (index % 2 === 0) safeAssign(p, 5, "İZİNLİ"); else safeAssign(p, 5, "16:00–00:00"); if (index % 2 === 0) safeAssign(p, 6, "06:30–16:00"); else safeAssign(p, 6, "İZİNLİ"); });
+            grupC.forEach((p, index) => {
+                safeAssign(p, 0, "İZİNLİ"); safeAssign(p, 1, "06:30–16:00"); safeAssign(p, 2, "06:30–16:00"); 
+                safeAssign(p, 3, "16:00–00:00"); safeAssign(p, 4, "16:00–00:00"); 
+                if (index % 2 === 0) safeAssign(p, 5, "İZİNLİ"); else safeAssign(p, 5, "16:00–00:00");
+                if (index % 2 === 0) safeAssign(p, 6, "06:30–16:00"); else safeAssign(p, 6, "İZİNLİ");
+            });
         });
 
         state.personeller.forEach(p => { calis[p.ad] = 0; for(let g=0; g<7; g++) { if(tempProg[p.ad][g] && !["İZİNLİ","BOŞ",null,"YILLIK İZİN"].includes(tempProg[p.ad][g])) calis[p.ad]++; } });
