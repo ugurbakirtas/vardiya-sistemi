@@ -22,7 +22,7 @@
       --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12;
       --izin-bg: #450a0a;
     }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; padding-bottom: 60px; /* Mobilde alt bar için boşluk */ }
     
     #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
     .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
@@ -64,11 +64,20 @@
     .swap-day-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
     .admin-only { display: none; } 
     
-    /* İstatistik Tablosu Stilleri */
     .stat-table { width: 100%; border-collapse: collapse; font-size: 11px; }
     .stat-table th, .stat-table td { border: 1px solid var(--border); padding: 8px; text-align: center; }
     .stat-table th { background: var(--table-head); color: var(--primary); }
     .stat-row:nth-child(even) { background: #f8fafc; }
+
+    /* --- YENİ EKLENEN MOBİL ÖZEL STİLLER --- */
+    #mobilePersonalView { display: none; margin-bottom: 20px; background: var(--card-bg); border-radius: 12px; border: 2px solid var(--blue); padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    #mobileUserSelectContainer { display: none; background: var(--primary); padding: 10px; border-radius: 0 0 12px 12px; margin-bottom: 15px; color: white; text-align: center; }
+    .mobile-shift-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; align-items: center; }
+    .mobile-shift-row:last-child { border-bottom: none; }
+    .mobile-day { font-weight: 800; color: var(--primary); font-size: 14px; width: 50px; }
+    .mobile-date { font-size: 10px; color: #94a3b8; display: block; }
+    .mobile-val { font-weight: 700; font-size: 14px; text-align: right; flex: 1; }
+    .shift-pill { padding: 6px 12px; border-radius: 20px; color: white; font-size: 12px; display: inline-block; }
 
     @media screen and (max-width: 768px) { 
         #vardiyaTablosu, #vardiyaTablosu tbody, #vardiyaTablosu tr, #vardiyaTablosu td { display: block; width: 100% !important; }
@@ -84,6 +93,9 @@
         .main-header { flex-direction: column; text-align: center; gap: 10px;}
         .main-header div { width: 100%; justify-content: center; }
         .btn-main-action { width: 100%; padding: 12px; margin-bottom: 5px;}
+        
+        /* MOBİLDE GÖSTERİLECEK ELEMANLAR */
+        #mobileUserSelectContainer { display: block; }
     }  
   </style>
 </head>
@@ -104,6 +116,23 @@
   </div>
   <div id="panelOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; display:none;" onclick="toggleAdminPanel()"></div>
   <div class="app-wrapper" id="appMain">
+    
+    <div id="mobileUserSelectContainer" class="no-print">
+        <label style="display:block; font-size:10px; margin-bottom:5px; opacity:0.8;">HIZLI ERİŞİM (SADECE SENİN LİSTEN)</label>
+        <select id="mobilePersonelSelect" style="width:100%; padding:10px; border-radius:8px; border:none; color:black; font-weight:bold;" onchange="mobilGorunumGuncelle(this.value)">
+            <option value="">👤 İSMİNİ SEÇ...</option>
+        </select>
+        <div id="welcomeMsg" style="margin-top:5px; font-size:12px; font-weight:bold; display:none;"></div>
+    </div>
+
+    <div id="mobilePersonalView" class="no-print">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:10px;">
+            <h3 style="margin:0; color:var(--primary);" id="mobCardName">İsim Soyisim</h3>
+            <button onclick="mobilGorunumKapat()" style="background:none; border:none; color:var(--danger); font-size:12px; cursor:pointer;">KAPAT</button>
+        </div>
+        <div id="mobCardContent"></div>
+    </div>
+
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;"><img src="logo.png" alt="Logo" style="height: 35px;"><div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V61</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div></div>
       <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;"><button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button><button onclick="buluttanYukle()" class="btn-main-action admin-only" style="background:#4285f4">🔄 BULUTTAN YÜKLE</button><button onclick="toggleTheme()" class="btn-main-action" style="background:#64748b" id="themeBtn">🌙</button><button onclick="excelIndir()" class="btn-main-action admin-only" style="background:#16a34a">EXCEL</button>
@@ -619,7 +648,6 @@
         document.getElementById('tab-' + t).classList.remove('hidden'); 
         document.getElementById('btn-tab-' + t).classList.add('active'); 
         
-        // Eğer istatistik sekmesi açıldıysa, hesaplamayı başlat
         if(t === 'istatistik') istatistikHesapla();
         else refreshUI(); 
     }
@@ -657,6 +685,94 @@
         }); 
     }
     
+    // --- YENİ EKLENEN MOBİL GÖRÜNÜM FONKSİYONLARI ---
+    
+    function mobilGorunumGuncelle(selectedName) {
+        if(!selectedName) {
+            document.getElementById('mobilePersonalView').style.display = 'none';
+            document.getElementById('welcomeMsg').style.display = 'none';
+            return;
+        }
+
+        // Seçimi Hafızaya Al
+        localStorage.setItem(PREFIX + "lastUser", selectedName);
+
+        const hKey = currentMonday.toISOString().split('T')[0];
+        document.getElementById('mobCardName').innerText = selectedName;
+        let html = "";
+        
+        GUNLER.forEach((g, i) => {
+            let mKey = `${hKey}_${selectedName}_${i}`;
+            let vardiya = state.manuelAtamalar[mKey];
+            
+            // Eğer vardiya henüz oluşmamışsa, hesapla (MCR/Ingest vs. için)
+            if(!vardiya) vardiya = vardiyaBul(selectedName, i) || "BELİRSİZ";
+            if(vardiya === "BELİRSİZ") vardiya = SHIFTS.IZIN; // Varsayılan
+
+            let dateObj = new Date(currentMonday);
+            dateObj.setDate(dateObj.getDate() + i);
+            let dateStr = dateObj.toLocaleDateString('tr-TR', {day:'numeric', month:'short'});
+
+            let color = "#64748b";
+            if(vardiya.includes("06:30")) color = "#2563eb";
+            if(vardiya.includes("09:00")) color = "#0ea5e9";
+            if(vardiya.includes("16:00")) color = "#7c3aed";
+            if(vardiya.includes("00:00")) color = "#ea580c";
+            if(vardiya === SHIFTS.IZIN || vardiya === SHIFTS.BOS) color = "#ef4444";
+            if(vardiya === SHIFTS.YILLIK) color = "#9333ea";
+
+            html += `
+            <div class="mobile-shift-row">
+                <div>
+                    <span class="mobile-day">${g}</span>
+                    <span class="mobile-date">${dateStr}</span>
+                </div>
+                <div class="mobile-val">
+                    <span class="shift-pill" style="background:${color}">${vardiya}</span>
+                </div>
+            </div>`;
+        });
+
+        document.getElementById('mobCardContent').innerHTML = html;
+        document.getElementById('mobilePersonalView').style.display = 'block';
+        
+        // Hoşgeldin mesajı
+        const msgDiv = document.getElementById('welcomeMsg');
+        msgDiv.innerText = `👋 Hoş geldin, ${selectedName}`;
+        msgDiv.style.display = 'block';
+    }
+
+    function mobilGorunumKapat() {
+        document.getElementById('mobilePersonalView').style.display = 'none';
+        document.getElementById('mobilePersonelSelect').value = "";
+        document.getElementById('welcomeMsg').style.display = 'none';
+        localStorage.removeItem(PREFIX + "lastUser");
+    }
+
+    // Bu fonksiyonu tabloyuOlustur içine ekleyerek her güncellemede listeyi yenileyeceğiz
+    function mobilListeyiDoldur() {
+        const sel = document.getElementById('mobilePersonelSelect');
+        if(!sel) return;
+        
+        // Mevcut seçimi koru
+        const currentVal = sel.value;
+        
+        let optHtml = `<option value="">👤 İSMİNİ SEÇ...</option>`;
+        state.personeller.sort((a,b) => a.ad.localeCompare(b.ad)).forEach(p => {
+            optHtml += `<option value="${p.ad}">${p.ad}</option>`;
+        });
+        sel.innerHTML = optHtml;
+
+        // Hafızadan geri yükle
+        const lastUser = localStorage.getItem(PREFIX + "lastUser");
+        if(lastUser) {
+            sel.value = lastUser;
+            mobilGorunumGuncelle(lastUser);
+        } else if (currentVal) {
+            sel.value = currentVal;
+        }
+    }
+
     function refreshUI() {
         document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
         document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => {
@@ -741,7 +857,6 @@
             `).join('')}`;
     }
     
-    // YENİ EKLENEN İSTATİSTİK FONKSİYONU
     function istatistikHesapla() {
         const hKey = currentMonday.toISOString().split('T')[0];
         let html = `<table class="stat-table"><thead><tr><th>Personel</th><th>Toplam Gün</th><th>Gece</th><th>Hafta Sonu</th></tr></thead><tbody>`;
@@ -758,7 +873,7 @@
                 if(v && v !== SHIFTS.IZIN && v !== SHIFTS.BOS && v !== SHIFTS.YILLIK) {
                     toplam++;
                     if(v === SHIFTS.GECE) gece++;
-                    if(i >= 5) haftaSonu++; // Cumartesi(5) ve Pazar(6)
+                    if(i >= 5) haftaSonu++; 
                 }
             }
             
@@ -774,7 +889,6 @@
         document.getElementById('istatistikTablosu').innerHTML = html;
     }
 
-    // YENİ EKLENEN TELEGRAM FONKSİYONU
     function telegramRaporuGonder() {
         if(!TELEGRAM_API || !TELEGRAM_ID) {
             alert("Telegram API ayarları yapılandırılmamış!");
@@ -1020,6 +1134,7 @@ function anlikSenkronizasyonBaslat() {
             save();
             tabloyuOlustur();
             if(isAdmin) refreshUI();
+            mobilListeyiDoldur(); // Veriler güncellenince mobil listeyi de güncelle
             console.log("Sistem: Vardiya verisi güncellendi.");
         }
     });
