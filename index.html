@@ -2,14 +2,12 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TURKMEDYA TEKNiK VARDiYA LiSTESi | Pro_Ugr</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>TURKMEDYA TEKNiK VARDiYA LiSTESi | Pro_Ugr</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <style>
-    /* ... (CSS AYNI KALDI, SADECE OKUNABİLİRLİK İÇİN YORUM EKLENDİ) ... */
     :root {
       --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
       --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
@@ -65,15 +63,96 @@
     .swap-days { display: flex; gap: 10px; margin-top: 10px; justify-content: space-between; }
     .swap-day-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
     .admin-only { display: none; } 
+    
+    /* --- MOBİL DEVRİMİ BAŞLIYOR (768px altı için özel tasarım) --- */
     @media screen and (max-width: 768px) { 
-        #vardiyaTablosu, #vardiyaTablosu thead, #vardiyaTablosu tbody, #vardiyaTablosu th, #vardiyaTablosu td, #vardiyaTablosu tr { display: block; width: 100% !important; min-width: 100% !important; }
+        /* Tablo yapısını blok yapıya çevir */
+        #vardiyaTablosu, #vardiyaTablosu tbody, #vardiyaTablosu tr, #vardiyaTablosu td { 
+            display: block; 
+            width: 100% !important; 
+        }
+        
+        /* Tablo başlığını gizle (Mobilde anlamsız) */
         #tableHeader { display: none; }
-        #tableBody tr, #tableFooter tr { margin-bottom: 20px; border: 2px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card-bg); }
-        .saat-col { display: block; width: 100% !important; background: var(--primary); color: white !important; padding: 10px; text-align: left !important; border-left: none !important; font-size: 14px; }
-        td:not(.saat-col)::before { content: attr(data-label); font-weight: 800; text-transform: uppercase; font-size: 12px; display: block; margin-bottom: 10px; color: var(--blue); background: var(--bg); padding: 4px; border-radius: 4px; text-align: center; }
-        td:not(.saat-col) { display: flex; flex-direction: column; gap: 8px; height: auto !important; min-height: 50px; }
+        
+        /* Her satırı (Vardiya Saatini) bir KART'a dönüştür */
+        #tableBody tr, #tableFooter tr { 
+            margin-bottom: 25px; 
+            border: 1px solid var(--border); 
+            border-radius: 16px; 
+            overflow: hidden; 
+            background: var(--card-bg); 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Saat başlığını kartın en tepesine renkli bir etiket olarak koy */
+        .saat-col { 
+            display: block; 
+            width: 100% !important; 
+            background: var(--primary); 
+            color: white !important; 
+            padding: 15px; 
+            text-align: center !important; 
+            border-left: none !important; 
+            font-size: 16px; 
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+        
+        /* İzin satırının başlığını kırmızı yap */
+        .row-izin .saat-col {
+            background: var(--danger) !important;
+        }
+
+        /* Gün hücrelerini (td) düzenle */
+        td:not(.saat-col) { 
+            display: flex; 
+            justify-content: space-between; /* Gün adı solda, isimler sağda */
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            min-height: 60px;
+        }
+        
+        /* Son hücrenin alt çizgisini kaldır */
+        td:not(.saat-col):last-child {
+            border-bottom: none;
+        }
+
+        /* Gün adını (Pzt, Sal...) "data-label" özelliğinden çekip göster */
+        td:not(.saat-col):::before { 
+            content: attr(data-label); 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            font-size: 13px; 
+            color: var(--primary); 
+            background: var(--bg); 
+            padding: 6px 10px; 
+            border-radius: 6px; 
+            min-width: 40px;
+            text-align: center;
+            margin-right: 15px;
+        }
+        
+        /* İsimlerin listelendiği alanı düzenle */
+        .birim-card {
+            margin-bottom: 4px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            /* Mobilde kartları sağa yasla */
+            text-align: right; 
+            border-left: 4px solid var(--blue);
+            background: #f8fafc;
+        }
+        
+        /* Yönetim paneli mobilde tam ekran olsun */
         .side-panel { width: 100%; right: -100%; }
-        .main-header { flex-direction: column; text-align: center; }
+        
+        /* Header butonlarını alt alta diz */
+        .main-header { flex-direction: column; text-align: center; gap: 10px;}
+        .main-header div { width: 100%; justify-content: center; }
+        .btn-main-action { width: 100%; padding: 12px; margin-bottom: 5px;}
     }  
   </style>
 </head>
@@ -123,8 +202,6 @@
         <div id="tab-talepler" class="tab-content hidden"><div id="gelenTaleplerListesi" style="max-height: 400px; overflow-y: auto;"></div></div>
   </div>
   <script>
-    // --- YENİLİK 1: SABİTLER (CONSTANTS) ---
-    // Artık vardiya saatlerini veya birim isimlerini buradan tek seferde değiştirebilirsin.
     const SHIFTS = {
         SABAH: "06:30–16:00",
         GUNDUZ: "09:00–18:00",
