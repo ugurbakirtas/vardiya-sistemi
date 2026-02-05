@@ -602,7 +602,42 @@
         if(!isAdmin) { alert("Yetkisiz işlem!"); return; }
         database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); 
     }
-    function buluttanYukle() { database.ref('vardiya_data').once('value').then(snap => { if(snap.exists()){ state = snap.val(); save(); location.reload(); } }); }
+    
+    // --- GÜNCELLENMİŞ BULUTTAN YÜKLEME (Sayfa yenilemeden) ---
+    function buluttanYukle() { 
+        // Admin kontrolü
+        if(!isAdmin) { alert("Yetkisiz işlem!"); return; }
+
+        database.ref('vardiya_data').once('value').then(snap => { 
+            if(snap.exists()){ 
+                // Gelen veri eksikse bile (sadece personel vs.) mevcut yapıyı bozmadan birleştir
+                const cloudData = snap.val();
+                
+                // Güvenli Birleştirme: Varsayılan değerlerin üzerine buluttakileri yaz
+                state = {
+                    birimler: cloudData.birimler || Object.values(UNITS),
+                    saatler: cloudData.saatler || Object.values(SHIFTS).filter(s => s.includes(":")),
+                    personeller: cloudData.personeller || [],
+                    kapasite: cloudData.kapasite || {},
+                    manuelAtamalar: cloudData.manuelAtamalar || {},
+                    haftaIciSabitler: cloudData.haftaIciSabitler || {},
+                    mcrAyarlari: cloudData.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} },
+                    geciciGorevler: cloudData.geciciGorevler || {}
+                };
+
+                save(); // LocalStorage'a da yaz
+                
+                // SAYFAYI YENİLEMEK YERİNE ARAYÜZÜ GÜNCELLE
+                tabloyuOlustur();
+                refreshUI();
+                alert("Buluttan başarıyla yüklendi!");
+            } else {
+                alert("Bulutta kayıtlı veri bulunamadı.");
+            }
+        }).catch(e => {
+            alert("Hata oluştu: " + e.message + "\n(Yetkiniz olmayabilir veya internet bağlantısı yok)");
+        }); 
+    }
     
     function refreshUI() {
         document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
@@ -861,12 +896,8 @@
     // --- KRİTİK DÜZELTME: Firebase Auth anahtarını silmeyen, güvenli temizlik ---
     function tamSifirla() { 
         if(confirm("Tüm yerel veriler silinecek (Bulut verisi kalır). Devam?")) { 
-            // localStorage.clear(); // ESKİ HATALI KOD
-            
-            // Sadece bu uygulamaya ait anahtarları sil, oturum anahtarını koru.
             const silinecekler = ["birimler", "saatler", "personeller", "kapasite", "manuelAtamalar", "haftaIciSabitler", "mcrAyarlari", "geciciGorevler", "theme"];
             silinecekler.forEach(key => localStorage.removeItem(PREFIX + key));
-            
             location.reload(); 
         } 
     }
