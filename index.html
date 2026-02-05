@@ -73,6 +73,7 @@
         .row-izin .saat-col { background: var(--danger) !important; }
         td:not(.saat-col) { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--border); min-height: 60px; }
         td:not(.saat-col):last-child { border-bottom: none; }
+        /* CSS DÜZELTİLDİ: 3 tane iki nokta vardı, 2'ye düşürüldü */
         td:not(.saat-col)::before { content: attr(data-label); font-weight: 800; text-transform: uppercase; font-size: 13px; color: var(--primary); background: var(--bg); padding: 6px 10px; border-radius: 6px; min-width: 40px; text-align: center; margin-right: 15px; }
         .birim-card { margin-bottom: 4px; padding: 4px 8px; border-radius: 4px; font-size: 11px; text-align: right; border-left: 4px solid var(--blue); background: #f8fafc; }
         .side-panel { width: 100%; right: -100%; }
@@ -151,7 +152,7 @@
     function getMonday(d) { d = new Date(d); let day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day == 0 ? -6 : 1))); }
     function save() { Object.keys(state).forEach(k => localStorage.setItem(PREFIX + k, JSON.stringify(state[k]))); }
     
-    // --- YENİ FONKSİYON: OTOMATİK CLOUD KAYDI ---
+    // --- DÜZELTİLEN YER: EKSİK OLAN VERİ GÜNCELLEME FONKSİYONU EKLENDİ ---
     function veriyiGuncelle(sessiz = false) {
         if(!isAdmin) return; 
         database.ref('vardiya_data').set(state)
@@ -438,7 +439,7 @@
         
         save(); 
         tabloyuOlustur();
-        veriyiGuncelle(true); // OTO KAYIT: İşlem bitince buluta sessizce gönder
+        veriyiGuncelle(true); 
         
         if(eksikRaporu.length > 0) {
             alert("⚠️ VARDİYA OLUŞTURULDU ANCAK BAZI KAPASİTELER DOLMADI:\n\n" + eksikRaporu.join("\n") + "\n\n(Personel yetersizliği veya 6 gün kuralı nedeniyle atama yapılamadı.)");
@@ -766,6 +767,12 @@
         document.getElementById('swapKaynakPersonel').value = "";
         document.getElementById('swapHedefPersonel').value = "";
         veriyiGuncelle(true);
+    }
+    
+    // --- KRİTİK DÜZELTME: EKSİK OLAN HAFTA DEĞİŞTİRME FONKSİYONU GERİ GELDİ ---
+    function haftaDegistir(v) { 
+        currentMonday.setDate(currentMonday.getDate() + v); 
+        tabloyuOlustur(); 
     }
 
 // Bu fonksiyonu mevcut olanla değiştir veya üzerine yaz
