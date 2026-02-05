@@ -22,7 +22,7 @@
       --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12;
       --izin-bg: #450a0a;
     }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; padding-bottom: 60px; /* Mobilde alt bar için boşluk */ }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; padding-bottom: 60px; }
     
     #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
     .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
@@ -69,7 +69,7 @@
     .stat-table th { background: var(--table-head); color: var(--primary); }
     .stat-row:nth-child(even) { background: #f8fafc; }
 
-    /* --- YENİ EKLENEN MOBİL ÖZEL STİLLER --- */
+    /* MOBİL GÖRÜNÜM STİLLERİ */
     #mobilePersonalView { display: none; margin-bottom: 20px; background: var(--card-bg); border-radius: 12px; border: 2px solid var(--blue); padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
     #mobileUserSelectContainer { display: none; background: var(--primary); padding: 10px; border-radius: 0 0 12px 12px; margin-bottom: 15px; color: white; text-align: center; }
     .mobile-shift-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; align-items: center; }
@@ -93,8 +93,6 @@
         .main-header { flex-direction: column; text-align: center; gap: 10px;}
         .main-header div { width: 100%; justify-content: center; }
         .btn-main-action { width: 100%; padding: 12px; margin-bottom: 5px;}
-        
-        /* MOBİLDE GÖSTERİLECEK ELEMANLAR */
         #mobileUserSelectContainer { display: block; }
     }  
   </style>
@@ -676,6 +674,7 @@
                 save(); 
                 tabloyuOlustur();
                 refreshUI();
+                mobilListeyiDoldur(); // <-- DÜZELTME: Veri yüklenince listeyi doldur
                 alert("Buluttan başarıyla yüklendi!");
             } else {
                 alert("Bulutta kayıtlı veri bulunamadı.");
@@ -685,8 +684,6 @@
         }); 
     }
     
-    // --- YENİ EKLENEN MOBİL GÖRÜNÜM FONKSİYONLARI ---
-    
     function mobilGorunumGuncelle(selectedName) {
         if(!selectedName) {
             document.getElementById('mobilePersonalView').style.display = 'none';
@@ -694,7 +691,6 @@
             return;
         }
 
-        // Seçimi Hafızaya Al
         localStorage.setItem(PREFIX + "lastUser", selectedName);
 
         const hKey = currentMonday.toISOString().split('T')[0];
@@ -705,9 +701,8 @@
             let mKey = `${hKey}_${selectedName}_${i}`;
             let vardiya = state.manuelAtamalar[mKey];
             
-            // Eğer vardiya henüz oluşmamışsa, hesapla (MCR/Ingest vs. için)
             if(!vardiya) vardiya = vardiyaBul(selectedName, i) || "BELİRSİZ";
-            if(vardiya === "BELİRSİZ") vardiya = SHIFTS.IZIN; // Varsayılan
+            if(vardiya === "BELİRSİZ") vardiya = SHIFTS.IZIN; 
 
             let dateObj = new Date(currentMonday);
             dateObj.setDate(dateObj.getDate() + i);
@@ -736,7 +731,6 @@
         document.getElementById('mobCardContent').innerHTML = html;
         document.getElementById('mobilePersonalView').style.display = 'block';
         
-        // Hoşgeldin mesajı
         const msgDiv = document.getElementById('welcomeMsg');
         msgDiv.innerText = `👋 Hoş geldin, ${selectedName}`;
         msgDiv.style.display = 'block';
@@ -749,12 +743,13 @@
         localStorage.removeItem(PREFIX + "lastUser");
     }
 
-    // Bu fonksiyonu tabloyuOlustur içine ekleyerek her güncellemede listeyi yenileyeceğiz
     function mobilListeyiDoldur() {
         const sel = document.getElementById('mobilePersonelSelect');
         if(!sel) return;
         
-        // Mevcut seçimi koru
+        // Eğer personel verisi henüz yüklenmediyse işlemi durdur
+        if (!state.personeller || state.personeller.length === 0) return;
+
         const currentVal = sel.value;
         
         let optHtml = `<option value="">👤 İSMİNİ SEÇ...</option>`;
@@ -763,11 +758,14 @@
         });
         sel.innerHTML = optHtml;
 
-        // Hafızadan geri yükle
         const lastUser = localStorage.getItem(PREFIX + "lastUser");
         if(lastUser) {
-            sel.value = lastUser;
-            mobilGorunumGuncelle(lastUser);
+            // Eğer kayıtlı kullanıcı listede varsa onu seç
+            const exists = state.personeller.some(p => p.ad === lastUser);
+            if(exists) {
+                sel.value = lastUser;
+                mobilGorunumGuncelle(lastUser);
+            }
         } else if (currentVal) {
             sel.value = currentVal;
         }
@@ -855,6 +853,9 @@
                     <button onclick="saatSil(${i})" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:10px;">Sil</button>
                 </div>
             `).join('')}`;
+        
+        // ADMIN TARAFINDA GÜNCELLEME OLUNCA MOBİL LİSTEYİ DE TETİKLE
+        mobilListeyiDoldur(); 
     }
     
     function istatistikHesapla() {
@@ -1134,7 +1135,7 @@ function anlikSenkronizasyonBaslat() {
             save();
             tabloyuOlustur();
             if(isAdmin) refreshUI();
-            mobilListeyiDoldur(); // Veriler güncellenince mobil listeyi de güncelle
+            mobilListeyiDoldur(); // <-- DÜZELTME: Veri geldiğinde listeyi doldur
             console.log("Sistem: Vardiya verisi güncellendi.");
         }
     });
@@ -1144,6 +1145,11 @@ window.onload = async () => {
     if(localStorage.getItem(PREFIX + "theme") === "dark") {
         document.documentElement.setAttribute("data-theme", "dark");
     }
+    
+    // <-- DÜZELTME: Sayfa açılır açılmaz eldeki verilerle doldur
+    tabloyuOlustur();
+    mobilListeyiDoldur(); 
+
     await hassasAyarlariYukle(); 
     anlikSenkronizasyonBaslat();
     talepleriYukle(); 
