@@ -223,8 +223,10 @@
         INGEST: "INGEST OPERATÖRÜ"
     };
 
-    let TELEGRAM_API = "8509542541:AAFu-iDK85iELZQmImCWSZRi3_eWzUyyCiM"; 
-    let TELEGRAM_ID = "859235247";
+    // --- GÜVENLİK GÜNCELLEMESİ: Token'lar koddan kaldırıldı, DB'den çekilecek ---
+    let TELEGRAM_API = ""; 
+    let TELEGRAM_ID = "";
+    
     const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
     firebase.initializeApp(firebaseConfig); const database = firebase.database();
     const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = ""; const PANEL_SIFRE = "6161"; 
@@ -981,32 +983,23 @@
 }
     function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); }
     function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
-// Bu fonksiyonu mevcut olanla değiştir veya üzerine yaz
+
+// --- GÜNCELLENMİŞ OPTİMİZE FONKSİYON ---
 function anlikSenkronizasyonBaslat() {
-    // Sadece 'vardiya_data' değil, tüm veritabanını dinleyerek 
-    // hem vardiya değişimlerini hem de yeni gelen talepleri anında yakalarız.
-    database.ref().on('value', (snap) => {
+    // Sadece 'vardiya_data' düğümünü dinliyoruz. Tüm veritabanını DEĞİL.
+    // Bu sayede eski loglar veya gereksiz veriler tarayıcıyı yormayacak.
+    database.ref('vardiya_data').on('value', (snap) => {
         if (snap.exists()) {
-            const data = snap.val();
-            
-            // 1. Vardiya Verilerini Güncelle
-            if(data.vardiya_data) {
-                state = data.vardiya_data;
-                save();
-                tabloyuOlustur();
-                if(isAdmin) refreshUI();
-            }
-            
-            // 2. Bekleyen Talepleri Güncelle (Yönetici Paneli İçin)
-            if(isAdmin) {
-                talepleriYukle(); 
-            }
-            
-            console.log("Sistem: Tüm veriler (vardiya ve talepler) güncellendi.");
+            state = snap.val();
+            save();
+            tabloyuOlustur();
+            if(isAdmin) refreshUI();
+            console.log("Sistem: Vardiya verisi güncellendi.");
         }
     });
 }
-       window.onload = async () => { 
+
+window.onload = async () => { 
     // Tema ayarını uygula
     if(localStorage.getItem(PREFIX + "theme") === "dark") {
         document.documentElement.setAttribute("data-theme", "dark");
