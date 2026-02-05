@@ -15,7 +15,7 @@
       --warning: #f59e0b; --weekend-bg: #fff1f2; --table-head: #f8fafc;
       --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed;
       --izin-bg: #fef2f2;
-      --yillik-izin: #9333ea; /* YENİ: Yıllık İzin Rengi */
+      --yillik-izin: #9333ea;
     }
     [data-theme="dark"] {
       --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9;
@@ -425,49 +425,46 @@
         const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Vardiya_${hKey}.xls`; a.click();
     }
 
-    // --- YENİ: GÖRSELDEKİ TARZDA ULAŞTIRMA LİSTESİ ÇIKTISI ---
+    // --- YENİ: GÖRSELDEKİ TARZDA ULAŞTIRMA LİSTESİ ÇIKTISI (DÜZELTİLDİ: Çizgiler ve Hizalama) ---
     function ulastirmaExcelIndir() {
         const hKey = currentMonday.toISOString().split('T')[0];
         
-        // Görseldeki renk paletine uygun CSS
         let html = `
         <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
         <head>
             <meta charset="UTF-8">
             <style>
-                body { font-family: 'Calibri', sans-serif; font-size: 11pt; }
-                table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-                td, th { border: 1px solid #ffffff; text-align: center; vertical-align: top; padding: 5px; }
+                /* Genel Zemin Açık Mavi */
+                body { font-family: 'Calibri', sans-serif; font-size: 11pt; background-color: #eff6ff; }
+                table { border-collapse: collapse; width: 100%; table-layout: fixed; background-color: #eff6ff; }
                 
-                /* GÖRSELDEKİ BORDO BAŞLIK TARZI */
-                .header-main { background-color: #881337; color: #ffffff; font-weight: bold; font-size: 14pt; height: 40px; vertical-align: middle; border: 1px solid #000; }
-                .header-day { background-color: #881337; color: #ffffff; font-weight: bold; font-size: 11pt; height: 30px; vertical-align: middle; border-right: 1px solid #ffffff; }
+                /* ÇİZGİLER: Siyah ve belirgin yapıldı */
+                td, th { border: 1px solid #000000; text-align: center; vertical-align: middle; padding: 5px; }
                 
-                /* SOLDAKİ SAAT SÜTUNU (Görseldeki gibi dikey/koyu) */
+                /* BAŞLIKLAR */
+                .header-main { background-color: #881337; color: #ffffff; font-weight: bold; font-size: 14pt; height: 40px; }
+                .header-day { background-color: #881337; color: #ffffff; font-weight: bold; font-size: 11pt; height: 30px; }
+                
+                /* SAAT SÜTUNU: Tam ortalı */
                 .time-col { 
                     background-color: #881337; 
                     color: #ffffff; 
                     font-weight: bold; 
                     width: 80px; 
-                    vertical-align: middle; 
+                    text-align: center;      /* Yatay ortalama */
+                    vertical-align: middle;  /* Dikey ortalama */
                     font-size: 12pt;
-                    border-bottom: 2px solid #fff;
                 }
 
-                /* VARDİYA RENKLERİ (Görseldeki Mavi Tonlamaları) */
-                /* 06:30 - Açık Mavi */
-                .shift-06 { background-color: #dbeafe; color: #1e3a8a; font-weight: bold; }
-                /* 09:00 - Orta Mavi */
-                .shift-09 { background-color: #93c5fd; color: #172554; font-weight: bold; }
-                /* 16:00 - Koyu Mavi */
-                .shift-16 { background-color: #3b82f6; color: #ffffff; font-weight: bold; }
-                /* 00:00 - Gece Mavisi */
-                .shift-00 { background-color: #1e3a8a; color: #ffffff; font-weight: bold; }
-                /* İzin - Kırmızı/Gri */
-                .shift-off { background-color: #fca5a5; color: #7f1d1d; }
+                /* VARDİYA RENKLERİ (Mavi Tonları) */
+                .shift-06 { background-color: #dbeafe; color: #000000; font-weight: bold; } /* Açık Mavi */
+                .shift-09 { background-color: #93c5fd; color: #000000; font-weight: bold; } /* Orta Mavi */
+                .shift-16 { background-color: #3b82f6; color: #ffffff; font-weight: bold; } /* Koyu Mavi */
+                .shift-00 { background-color: #1e3a8a; color: #ffffff; font-weight: bold; } /* Gece Mavisi */
+                .shift-off { background-color: #fca5a5; color: #000000; } /* İzin */
 
                 .name-box { margin-bottom: 2px; font-size: 10pt; display: block; }
-                .unit-label { font-size: 7pt; opacity: 0.8; display: block; margin-bottom: 2px; }
+                .unit-label { font-size: 7pt; opacity: 0.8; display: block; margin-bottom: 2px; font-style: italic; }
             </style>
         </head>
         <body>
@@ -484,28 +481,21 @@
 
         // --- SAATLERE GÖRE SATIRLAR ---
         state.saatler.forEach(s => {
-            // Görseldeki gibi her saatin rengini belirle
-            let bgClass = "shift-06"; // Varsayılan
+            let bgClass = "shift-06"; 
             if(s.includes("09:00")) bgClass = "shift-09";
             if(s.includes("16:00")) bgClass = "shift-16";
             if(s.includes("00:00")) bgClass = "shift-00";
 
             html += `<tr>`;
-            // Sol Saat Sütunu
             html += `<td class="time-col">${s.split('–')[0]}<br><span style="font-size:8pt;">${s.split('–')[1]}</span></td>`;
 
-            // Günleri Dön
             for(let i=0; i<7; i++) {
-                // O gün ve o saatte çalışanları bul
-                // (GetGecerliBirim fonksiyonunu kullanarak SWAP durumunu da dikkate alıyoruz)
                 let calisanlar = state.personeller.filter(p => {
                     let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
-                    // Yıllık izinli veya manuel izinliyse atla
                     if (v === "İZİNLİ" || v === "BOŞ" || v === "YILLIK İZİN" || !v) return false;
                     return v === s;
                 });
 
-                // Birimlerine göre sırala (Önce Yönetmen, Sonra Ses vs.)
                 calisanlar.sort((a, b) => {
                     let birimA = getGecerliBirim(a, i);
                     let birimB = getGecerliBirim(b, i);
@@ -514,7 +504,6 @@
 
                 let cellContent = calisanlar.map(p => {
                     let birim = getGecerliBirim(p, i);
-                    // Görseldeki gibi sadece İSİM yazalım, birim çok küçük parantez içinde olsun
                     return `<span class="name-box">${p.ad} <span class="unit-label">(${birim})</span></span>`;
                 }).join('<br>');
 
