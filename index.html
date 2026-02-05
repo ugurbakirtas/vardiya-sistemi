@@ -71,7 +71,7 @@
 
     /* MOBİL GÖRÜNÜM STİLLERİ */
     #mobilePersonalView { display: none; margin-bottom: 20px; background: var(--card-bg); border-radius: 12px; border: 2px solid var(--blue); padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    #mobileUserSelectContainer { display: none; background: var(--primary); padding: 10px; border-radius: 0 0 12px 12px; margin-bottom: 15px; color: white; text-align: center; }
+    #mobileUserSelectContainer { display: none; background: var(--primary); padding: 15px; border-radius: 0 0 12px 12px; margin-bottom: 15px; color: white; text-align: center; }
     .mobile-shift-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; align-items: center; }
     .mobile-shift-row:last-child { border-bottom: none; }
     .mobile-day { font-weight: 800; color: var(--primary); font-size: 14px; width: 50px; }
@@ -79,21 +79,38 @@
     .mobile-val { font-weight: 700; font-size: 14px; text-align: right; flex: 1; }
     .shift-pill { padding: 6px 12px; border-radius: 20px; color: white; font-size: 12px; display: inline-block; }
 
+    /* --- MOBİL DEVRİMİ 2.0 --- */
     @media screen and (max-width: 768px) { 
-        #vardiyaTablosu, #vardiyaTablosu tbody, #vardiyaTablosu tr, #vardiyaTablosu td { display: block; width: 100% !important; }
-        #tableHeader { display: none; }
-        #tableBody tr, #tableFooter tr { margin-bottom: 25px; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--card-bg); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .saat-col { display: block; width: 100% !important; background: var(--primary); color: white !important; padding: 15px; text-align: center !important; border-left: none !important; font-size: 16px; font-weight: 900; letter-spacing: 1px; }
-        .row-izin .saat-col { background: var(--danger) !important; }
-        td:not(.saat-col) { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--border); min-height: 60px; }
-        td:not(.saat-col):last-child { border-bottom: none; }
-        td:not(.saat-col):::before { content: attr(data-label); font-weight: 800; text-transform: uppercase; font-size: 13px; color: var(--primary); background: var(--bg); padding: 6px 10px; border-radius: 6px; min-width: 40px; text-align: center; margin-right: 15px; }
-        .birim-card { margin-bottom: 4px; padding: 4px 8px; border-radius: 4px; font-size: 11px; text-align: right; border-left: 4px solid var(--blue); background: #f8fafc; }
+        /* 1. ANA TABLOYU TAMAMEN GİZLE */
+        .table-container { display: none !important; }
+        
+        /* 2. MOBİL SEÇİCİYİ GÖSTER */
+        #mobileUserSelectContainer { display: block; }
+        
+        /* 3. BAŞLIK BUTONLARINI SADELEŞTİR */
+        /* Sadece İleri, Geri, PDF ve Yönetici butonları kalsın. Gerisini gizle */
+        .main-header .btn-main-action:not(.nav-btn):not(.pdf-btn):not(#adminSettingsBtn) { display: none; }
+        
+        /* 4. TALEP BUTONUNU DEV YAP */
+        #persTalepArea button {
+            width: 100% !important;
+            padding: 15px !important;
+            font-size: 14px !important;
+            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.4);
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90% !important;
+            z-index: 990;
+        }
+        
         .side-panel { width: 100%; right: -100%; }
         .main-header { flex-direction: column; text-align: center; gap: 10px;}
         .main-header div { width: 100%; justify-content: center; }
-        .btn-main-action { width: 100%; padding: 12px; margin-bottom: 5px;}
-        #mobileUserSelectContainer { display: block; }
+        
+        /* Header başlığını biraz küçült */
+        .main-header h1 { font-size: 14px !important; }
     }  
   </style>
 </head>
@@ -116,11 +133,11 @@
   <div class="app-wrapper" id="appMain">
     
     <div id="mobileUserSelectContainer" class="no-print">
-        <label style="display:block; font-size:10px; margin-bottom:5px; opacity:0.8;">HIZLI ERİŞİM (SADECE SENİN LİSTEN)</label>
-        <select id="mobilePersonelSelect" style="width:100%; padding:10px; border-radius:8px; border:none; color:black; font-weight:bold;" onchange="mobilGorunumGuncelle(this.value)">
+        <label style="display:block; font-size:11px; margin-bottom:8px; opacity:0.9; font-weight:bold;">📋 LİSTENİ GÖRMEK İÇİN İSMİNİ SEÇ</label>
+        <select id="mobilePersonelSelect" style="width:100%; padding:12px; border-radius:8px; border:none; color:var(--primary); font-weight:bold; font-size:14px;" onchange="mobilGorunumGuncelle(this.value)">
             <option value="">👤 İSMİNİ SEÇ...</option>
         </select>
-        <div id="welcomeMsg" style="margin-top:5px; font-size:12px; font-weight:bold; display:none;"></div>
+        <div id="welcomeMsg" style="margin-top:8px; font-size:13px; font-weight:bold; display:none;"></div>
     </div>
 
     <div id="mobilePersonalView" class="no-print">
@@ -133,11 +150,20 @@
 
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;"><img src="logo.png" alt="Logo" style="height: 35px;"><div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V61</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div></div>
-      <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;"><button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button><button onclick="buluttanYukle()" class="btn-main-action admin-only" style="background:#4285f4">🔄 BULUTTAN YÜKLE</button><button onclick="toggleTheme()" class="btn-main-action" style="background:#64748b" id="themeBtn">🌙</button><button onclick="excelIndir()" class="btn-main-action admin-only" style="background:#16a34a">EXCEL</button>
-      <button onclick="ulastirmaExcelIndir()" class="btn-main-action admin-only" style="background:#881337; border:1px solid #fff;">🚌 ULAŞTIRMA LİSTESİ</button>
-      <button onclick="window.print()" class="btn-main-action" style="background:var(--blue)">PDF / YAZDIR</button><button onclick="haftaDegistir(7)" class="btn-main-action" style="background:#475569">İleri »</button><button onclick="toggleAdminPanel()" class="btn-main-action admin-only" style="background:var(--primary); border: 1px solid #475569;" id="adminSettingsBtn">⚙ AYARLAR</button></div>
+      <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;">
+          <button onclick="haftaDegistir(-7)" class="btn-main-action nav-btn" style="background:#475569">« Geri</button>
+          <button onclick="buluttanYukle()" class="btn-main-action admin-only" style="background:#4285f4">🔄 BULUTTAN YÜKLE</button>
+          <button onclick="toggleTheme()" class="btn-main-action" style="background:#64748b" id="themeBtn">🌙</button>
+          <button onclick="excelIndir()" class="btn-main-action admin-only" style="background:#16a34a">EXCEL</button>
+          <button onclick="ulastirmaExcelIndir()" class="btn-main-action admin-only" style="background:#881337; border:1px solid #fff;">🚌 ULAŞTIRMA LİSTESİ</button>
+          <button onclick="window.print()" class="btn-main-action pdf-btn" style="background:var(--blue)">PDF / YAZDIR</button>
+          <button onclick="haftaDegistir(7)" class="btn-main-action nav-btn" style="background:#475569">İleri »</button>
+          <button onclick="toggleAdminPanel()" class="btn-main-action admin-only" style="background:var(--primary); border: 1px solid #475569;" id="adminSettingsBtn">⚙ AYARLAR</button>
+      </div>
     </header>
+    
     <div id="persTalepArea" style="text-align:center; display:none;" class="no-print"><button onclick="talepModalAc()" class="btn-main-action" style="background:var(--warning); margin: 0 auto 15px auto; width: 250px; color: #1e293b; font-weight: 800; border: 2px solid #1e293b;">📝 VARDİYA / İZİN TALEBİ OLUŞTUR</button></div>
+    
     <main class="table-container"><table id="vardiyaTablosu"><thead id="tableHeader"></thead><tbody id="tableBody"></tbody><tfoot id="tableFooter"></tfoot></table></main>
   </div>
   <div id="sidePanel" class="side-panel no-print">
@@ -674,7 +700,7 @@
                 save(); 
                 tabloyuOlustur();
                 refreshUI();
-                mobilListeyiDoldur(); // <-- DÜZELTME: Veri yüklenince listeyi doldur
+                mobilListeyiDoldur(); // <-- DÜZELTME: Veri geldiğinde listeyi doldur
                 alert("Buluttan başarıyla yüklendi!");
             } else {
                 alert("Bulutta kayıtlı veri bulunamadı.");
@@ -683,6 +709,8 @@
             alert("Hata oluştu: " + e.message + "\n(Yetkiniz olmayabilir veya internet bağlantısı yok)");
         }); 
     }
+    
+    // --- MOBİL GÖRÜNÜM FONKSİYONLARI ---
     
     function mobilGorunumGuncelle(selectedName) {
         if(!selectedName) {
@@ -747,7 +775,6 @@
         const sel = document.getElementById('mobilePersonelSelect');
         if(!sel) return;
         
-        // Eğer personel verisi henüz yüklenmediyse işlemi durdur
         if (!state.personeller || state.personeller.length === 0) return;
 
         const currentVal = sel.value;
@@ -760,7 +787,6 @@
 
         const lastUser = localStorage.getItem(PREFIX + "lastUser");
         if(lastUser) {
-            // Eğer kayıtlı kullanıcı listede varsa onu seç
             const exists = state.personeller.some(p => p.ad === lastUser);
             if(exists) {
                 sel.value = lastUser;
@@ -854,7 +880,6 @@
                 </div>
             `).join('')}`;
         
-        // ADMIN TARAFINDA GÜNCELLEME OLUNCA MOBİL LİSTEYİ DE TETİKLE
         mobilListeyiDoldur(); 
     }
     
