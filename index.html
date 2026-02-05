@@ -377,6 +377,71 @@
             }
         });
 
+        // --- ADIM 6: KAPASİTE ZABITASI (SÜPÜRÜCÜ - EKSİK TAMAMLAMA) ---
+        // Dağıtım bitti ama hala eksik varsa, "İZİNLİ" olanları (kurallara uyarak) çağır.
+        for (let gun = 0; gun < 7; gun++) {
+            // Önce Gece
+            state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
+                const geceSaati = "00:00–07:00"; 
+                const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
+                let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === geceSaati).length;
+                
+                if (mevcut < hedef) {
+                    // Sadece İZİNLİ olanları al (Sabit, Desen fark etmez)
+                    let zorunluAdaylar = state.personeller.filter(p => {
+                        let isSameUnit = getGecerliBirim(p, gun) === birim;
+                        let isIzinli = tempProg[p.ad][gun] === "İZİNLİ"; // Zaten izinli yazılmış olanlar
+                        let isYillik = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`] === "YILLIK İZİN";
+                        let isManual = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`] !== undefined; 
+                        
+                        // Yıllık izin ve Manuel kilitliler HARİÇ, haftada 6 günü geçmeyecek herkesi al
+                        return isSameUnit && isIzinli && !isYillik && !isManual && (calis[p.ad] < 6);
+                    });
+
+                    // En az çalışanı önce çağır
+                    zorunluAdaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
+
+                    for (let p of zorunluAdaylar) {
+                        if (mevcut < hedef) {
+                            tempProg[p.ad][gun] = geceSaati; 
+                            calis[p.ad]++; 
+                            mevcut++;
+                        }
+                    }
+                }
+            });
+
+            // Sonra Diğer Saatler
+            state.saatler.filter(s => s !== "00:00–07:00").forEach(saat => {
+                state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
+                    const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
+                    let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length;
+                    
+                    if (mevcut < hedef) {
+                        let zorunluAdaylar = state.personeller.filter(p => {
+                            let isSameUnit = getGecerliBirim(p, gun) === birim;
+                            let isIzinli = tempProg[p.ad][gun] === "İZİNLİ";
+                            let isYillik = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`] === "YILLIK İZİN";
+                            let isManual = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`] !== undefined;
+                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === "00:00–07:00");
+                            
+                            return isSameUnit && isIzinli && !isYillik && !isManual && (calis[p.ad] < 6) && !(dunGece && saat === "06:30–16:00");
+                        });
+
+                        zorunluAdaylar.sort((a, b) => calis[a.ad] - calis[b.ad]);
+
+                        for (let p of zorunluAdaylar) {
+                            if (mevcut < hedef) {
+                                tempProg[p.ad][gun] = saat;
+                                calis[p.ad]++;
+                                mevcut++;
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
         // SON: BOŞ KALANLARA İZİN YAZ
         state.personeller.forEach(p => {
             for(let g=0; g<7; g++) {
