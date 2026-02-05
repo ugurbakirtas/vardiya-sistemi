@@ -64,10 +64,24 @@
     .swap-day-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
     .admin-only { display: none; } 
     
-    .stat-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    .stat-table th, .stat-table td { border: 1px solid var(--border); padding: 8px; text-align: center; }
-    .stat-table th { background: var(--table-head); color: var(--primary); }
+    /* --- İSTATİSTİK TABLOSU DÜZENLEMESİ (COMPACT) --- */
+    .stat-table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        font-size: 10px; 
+        table-layout: fixed; /* ÖNEMLİ: Tabloyu kapsayıcıya sığdırır */
+    }
+    .stat-table th, .stat-table td { 
+        border: 1px solid var(--border); 
+        padding: 6px 2px; /* Boşlukları daralttık */
+        text-align: center; 
+        vertical-align: middle;
+        word-wrap: break-word; /* Uzun kelimeleri alt satıra at */
+    }
+    .stat-table th { background: var(--table-head); color: var(--primary); font-size: 9px; }
     .stat-row:nth-child(even) { background: #f8fafc; }
+    /* İlk sütuna (İsim) biraz daha yer verelim */
+    .stat-table th:first-child { width: 40%; }
 
     /* MOBİL GÖRÜNÜM STİLLERİ */
     #mobilePersonalView { display: none; margin-bottom: 20px; background: var(--card-bg); border-radius: 12px; border: 2px solid var(--blue); padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
@@ -79,37 +93,17 @@
     .mobile-val { font-weight: 700; font-size: 14px; text-align: right; flex: 1; }
     .shift-pill { padding: 6px 12px; border-radius: 20px; color: white; font-size: 12px; display: inline-block; }
 
-    /* --- MOBİL DEVRİMİ 2.0 --- */
     @media screen and (max-width: 768px) { 
-        /* 1. ANA TABLOYU TAMAMEN GİZLE */
         .table-container { display: none !important; }
-        
-        /* 2. MOBİL SEÇİCİYİ GÖSTER */
         #mobileUserSelectContainer { display: block; }
-        
-        /* 3. BAŞLIK BUTONLARINI SADELEŞTİR */
-        /* Sadece İleri, Geri, PDF ve Yönetici butonları kalsın. Gerisini gizle */
         .main-header .btn-main-action:not(.nav-btn):not(.pdf-btn):not(#adminSettingsBtn) { display: none; }
-        
-        /* 4. TALEP BUTONUNU DEV YAP */
         #persTalepArea button {
-            width: 100% !important;
-            padding: 15px !important;
-            font-size: 14px !important;
-            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.4);
-            position: fixed;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90% !important;
-            z-index: 990;
+            width: 100% !important; padding: 15px !important; font-size: 14px !important;
+            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.4); position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); width: 90% !important; z-index: 990;
         }
-        
         .side-panel { width: 100%; right: -100%; }
         .main-header { flex-direction: column; text-align: center; gap: 10px;}
         .main-header div { width: 100%; justify-content: center; }
-        
-        /* Header başlığını biraz küçült */
         .main-header h1 { font-size: 14px !important; }
     }  
   </style>
@@ -700,7 +694,7 @@
                 save(); 
                 tabloyuOlustur();
                 refreshUI();
-                mobilListeyiDoldur(); // <-- DÜZELTME: Veri geldiğinde listeyi doldur
+                mobilListeyiDoldur(); 
                 alert("Buluttan başarıyla yüklendi!");
             } else {
                 alert("Bulutta kayıtlı veri bulunamadı.");
@@ -709,8 +703,6 @@
             alert("Hata oluştu: " + e.message + "\n(Yetkiniz olmayabilir veya internet bağlantısı yok)");
         }); 
     }
-    
-    // --- MOBİL GÖRÜNÜM FONKSİYONLARI ---
     
     function mobilGorunumGuncelle(selectedName) {
         if(!selectedName) {
@@ -883,9 +875,11 @@
         mobilListeyiDoldur(); 
     }
     
+    // --- GÜNCELLENMİŞ OPTİMİZE İSTATİSTİK FONKSİYONU ---
     function istatistikHesapla() {
         const hKey = currentMonday.toISOString().split('T')[0];
-        let html = `<table class="stat-table"><thead><tr><th>Personel</th><th>Toplam Gün</th><th>Gece</th><th>Hafta Sonu</th></tr></thead><tbody>`;
+        // Başlıkları kısaltılmış tablo (P., Top., H.S.)
+        let html = `<table class="stat-table"><thead><tr><th>P. (Personel)</th><th>Top.</th><th>Gece</th><th>H.S.</th></tr></thead><tbody>`;
         
         state.personeller.sort((a,b) => a.ad.localeCompare(b.ad)).forEach(p => {
             let toplam = 0;
@@ -903,9 +897,10 @@
                 }
             }
             
+            // Birim adını alt satıra alarak yerden tasarruf ediyoruz
             html += `<tr class="stat-row">
-                <td style="text-align:left; font-weight:bold;">${p.ad} <span style="font-size:9px; color:#666">(${p.birim})</span></td>
-                <td><span style="background:${toplam > 5 ? 'red' : '#e2e8f0'}; color:${toplam > 5 ? 'white' : 'black'}; padding:2px 6px; border-radius:4px;">${toplam}</span></td>
+                <td style="text-align:left; font-weight:bold;">${p.ad}<br><span style="font-size:8px; color:#666; font-weight:normal;">${p.birim}</span></td>
+                <td><span style="background:${toplam > 5 ? 'red' : '#e2e8f0'}; color:${toplam > 5 ? 'white' : 'black'}; padding:2px 4px; border-radius:4px; font-weight:bold;">${toplam}</span></td>
                 <td>${gece > 0 ? `🌙 ${gece}` : '-'}</td>
                 <td>${haftaSonu > 0 ? `🗓️ ${haftaSonu}` : '-'}</td>
             </tr>`;
@@ -1160,7 +1155,7 @@ function anlikSenkronizasyonBaslat() {
             save();
             tabloyuOlustur();
             if(isAdmin) refreshUI();
-            mobilListeyiDoldur(); // <-- DÜZELTME: Veri geldiğinde listeyi doldur
+            mobilListeyiDoldur(); 
             console.log("Sistem: Vardiya verisi güncellendi.");
         }
     });
@@ -1171,7 +1166,6 @@ window.onload = async () => {
         document.documentElement.setAttribute("data-theme", "dark");
     }
     
-    // <-- DÜZELTME: Sayfa açılır açılmaz eldeki verilerle doldur
     tabloyuOlustur();
     mobilListeyiDoldur(); 
 
