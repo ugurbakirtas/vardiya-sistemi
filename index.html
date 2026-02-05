@@ -64,6 +64,12 @@
     .swap-day-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
     .admin-only { display: none; } 
     
+    /* İstatistik Tablosu Stilleri */
+    .stat-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .stat-table th, .stat-table td { border: 1px solid var(--border); padding: 8px; text-align: center; }
+    .stat-table th { background: var(--table-head); color: var(--primary); }
+    .stat-row:nth-child(even) { background: #f8fafc; }
+
     @media screen and (max-width: 768px) { 
         #vardiyaTablosu, #vardiyaTablosu tbody, #vardiyaTablosu tr, #vardiyaTablosu td { display: block; width: 100% !important; }
         #tableHeader { display: none; }
@@ -110,8 +116,13 @@
   <div id="sidePanel" class="side-panel no-print">
     <div class="panel-header"><h2 style="margin:0; font-size:16px;">Yönetim Paneli</h2><button onclick="toggleAdminPanel()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button></div>
     <div class="panel-content">
-        <div class="panel-action-group"><button onclick="vardiyaUretVeKaydet()" class="btn-main-action" style="background:var(--success); grid-column: span 2; padding: 15px; font-size: 13px;">✨ VARDİYA OLUŞTUR</button><button onclick="bulutaKaydet()" class="btn-main-action" style="background:#ea4335">☁️ BULUTA KAYDET</button><button onclick="whatsappGonder()" class="btn-main-action" style="background:#25D366">🟢 WHATSAPP</button></div>
-        <div class="admin-tabs" style="display:flex; gap:2px; margin-bottom:15px; flex-wrap:wrap;"><button id="btn-tab-personel" class="tab-btn active" onclick="tabDegistir('personel')">Personel</button><button id="btn-tab-birimler" class="tab-btn" onclick="tabDegistir('birimler')">Birimler</button><button id="btn-tab-saatler" class="tab-btn" onclick="tabDegistir('saatler')">Saatler</button><button id="btn-tab-sabitle" class="tab-btn" onclick="tabDegistir('sabitle')">Sabitler</button><button id="btn-tab-kapasite" class="tab-btn" onclick="tabDegistir('kapasite')">Kapasite</button><button id="btn-tab-degisim" class="tab-btn" onclick="tabDegistir('degisim')" style="background: #2563eb; color: white;">Değişim</button><button id="btn-tab-yillik" class="tab-btn" onclick="tabDegistir('yillik')" style="background: #9333ea; color: white;">🏖️ YILLIK İZİN</button><button id="btn-tab-sistem" class="tab-btn" onclick="tabDegistir('sistem')">Sistem</button><button id="btn-tab-talepler" class="tab-btn" onclick="tabDegistir('talepler')" style="background: var(--warning); color: black;">Talepler</button></div>
+        <div class="panel-action-group"><button onclick="vardiyaUretVeKaydet()" class="btn-main-action" style="background:var(--success); grid-column: span 2; padding: 15px; font-size: 13px;">✨ VARDİYA OLUŞTUR</button><button onclick="bulutaKaydet()" class="btn-main-action" style="background:#ea4335">☁️ BULUTA KAYDET</button>
+        <button onclick="whatsappGonder()" class="btn-main-action" style="background:#25D366">🟢 WHATSAPP</button>
+        <button onclick="telegramRaporuGonder()" class="btn-main-action" style="background:#0088cc">🔵 TELEGRAM</button>
+        </div>
+        
+        <div class="admin-tabs" style="display:flex; gap:2px; margin-bottom:15px; flex-wrap:wrap;"><button id="btn-tab-personel" class="tab-btn active" onclick="tabDegistir('personel')">Personel</button><button id="btn-tab-birimler" class="tab-btn" onclick="tabDegistir('birimler')">Birimler</button><button id="btn-tab-saatler" class="tab-btn" onclick="tabDegistir('saatler')">Saatler</button><button id="btn-tab-sabitle" class="tab-btn" onclick="tabDegistir('sabitle')">Sabitler</button><button id="btn-tab-kapasite" class="tab-btn" onclick="tabDegistir('kapasite')">Kapasite</button><button id="btn-tab-degisim" class="tab-btn" onclick="tabDegistir('degisim')" style="background: #2563eb; color: white;">Değişim</button><button id="btn-tab-yillik" class="tab-btn" onclick="tabDegistir('yillik')" style="background: #9333ea; color: white;">🏖️ YILLIK İZİN</button><button id="btn-tab-sistem" class="tab-btn" onclick="tabDegistir('sistem')">Sistem</button><button id="btn-tab-istatistik" class="tab-btn" onclick="tabDegistir('istatistik')" style="background: #0f172a; color: white;">📊 İSTATİSTİK</button><button id="btn-tab-talepler" class="tab-btn" onclick="tabDegistir('talepler')" style="background: var(--warning); color: black;">Talepler</button></div>
+        
         <div id="tab-personel" class="tab-content"><div style="background:var(--bg); padding:10px; border-radius:10px; margin-bottom:15px;"><input type="text" id="yeniPersInp" placeholder="Ad Soyad" style="width:95%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"><select id="yeniPersBirimSec" style="width:100%; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid var(--border);"></select><button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success)">PERSONEL EKLE</button></div><div id="persListesiAdmin"></div></div>
         <div id="tab-birimler" class="tab-content hidden"><div id="birimListesiAdmin"></div></div>
         <div id="tab-saatler" class="tab-content hidden"><div id="saatListesiAdmin"></div></div>
@@ -125,6 +136,12 @@
         <div id="tab-sistem" class="tab-content hidden"><button onclick="jsonYedekAl()" class="btn-main-action" style="width:100%; background:var(--blue); margin-bottom:10px;">💾 JSON İNDİR</button>
         <input type="file" id="jsonInput" style="display:none" onchange="handleFileSelect(this)"><button onclick="githubdanYedekYukle()" class="btn-main-action" style="width:100%; background:#000; color:#fff; margin-bottom:10px;">📂 GITHUB'DAN YÜKLE</button><button onclick="vardiyaSifirla()" class="btn-main-action" style="width:100%; background:var(--warning); margin-bottom:10px;">Bu Haftayı Temizle</button><button onclick="tamSifirla()" class="btn-main-action" style="width:100%; background:var(--danger)">Tüm Hafızayı Sil (Güvenli)</button></div>
         <div id="tab-talepler" class="tab-content hidden"><div id="gelenTaleplerListesi" style="max-height: 400px; overflow-y: auto;"></div></div>
+        
+        <div id="tab-istatistik" class="tab-content hidden">
+            <h3 style="margin-top:0; color:var(--primary);">📊 Haftalık Çalışma Raporu</h3>
+            <p style="font-size:10px; color:#666;">Bu hafta için personelin çalışma yoğunluğu:</p>
+            <div id="istatistikTablosu"></div>
+        </div>
   </div>
   <script>
     const SHIFTS = {
@@ -596,24 +613,28 @@
         if(p.classList.contains("open")) tabDegistir('personel'); 
     }
     
-    function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); refreshUI(); }
+    function tabDegistir(t) { 
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); 
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); 
+        document.getElementById('tab-' + t).classList.remove('hidden'); 
+        document.getElementById('btn-tab-' + t).classList.add('active'); 
+        
+        // Eğer istatistik sekmesi açıldıysa, hesaplamayı başlat
+        if(t === 'istatistik') istatistikHesapla();
+        else refreshUI(); 
+    }
+    
     function bulutaKaydet() { 
-        // Admin kontrolü ekledik
         if(!isAdmin) { alert("Yetkisiz işlem!"); return; }
         database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); 
     }
     
-    // --- GÜNCELLENMİŞ BULUTTAN YÜKLEME (Sayfa yenilemeden) ---
     function buluttanYukle() { 
-        // Admin kontrolü
         if(!isAdmin) { alert("Yetkisiz işlem!"); return; }
 
         database.ref('vardiya_data').once('value').then(snap => { 
             if(snap.exists()){ 
-                // Gelen veri eksikse bile (sadece personel vs.) mevcut yapıyı bozmadan birleştir
                 const cloudData = snap.val();
-                
-                // Güvenli Birleştirme: Varsayılan değerlerin üzerine buluttakileri yaz
                 state = {
                     birimler: cloudData.birimler || Object.values(UNITS),
                     saatler: cloudData.saatler || Object.values(SHIFTS).filter(s => s.includes(":")),
@@ -624,10 +645,7 @@
                     mcrAyarlari: cloudData.mcrAyarlari || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} },
                     geciciGorevler: cloudData.geciciGorevler || {}
                 };
-
-                save(); // LocalStorage'a da yaz
-                
-                // SAYFAYI YENİLEMEK YERİNE ARAYÜZÜ GÜNCELLE
+                save(); 
                 tabloyuOlustur();
                 refreshUI();
                 alert("Buluttan başarıyla yüklendi!");
@@ -723,6 +741,79 @@
             `).join('')}`;
     }
     
+    // YENİ EKLENEN İSTATİSTİK FONKSİYONU
+    function istatistikHesapla() {
+        const hKey = currentMonday.toISOString().split('T')[0];
+        let html = `<table class="stat-table"><thead><tr><th>Personel</th><th>Toplam Gün</th><th>Gece</th><th>Hafta Sonu</th></tr></thead><tbody>`;
+        
+        state.personeller.sort((a,b) => a.ad.localeCompare(b.ad)).forEach(p => {
+            let toplam = 0;
+            let gece = 0;
+            let haftaSonu = 0;
+            
+            for(let i=0; i<7; i++) {
+                let mKey = `${hKey}_${p.ad}_${i}`;
+                let v = state.manuelAtamalar[mKey];
+                
+                if(v && v !== SHIFTS.IZIN && v !== SHIFTS.BOS && v !== SHIFTS.YILLIK) {
+                    toplam++;
+                    if(v === SHIFTS.GECE) gece++;
+                    if(i >= 5) haftaSonu++; // Cumartesi(5) ve Pazar(6)
+                }
+            }
+            
+            html += `<tr class="stat-row">
+                <td style="text-align:left; font-weight:bold;">${p.ad} <span style="font-size:9px; color:#666">(${p.birim})</span></td>
+                <td><span style="background:${toplam > 5 ? 'red' : '#e2e8f0'}; color:${toplam > 5 ? 'white' : 'black'}; padding:2px 6px; border-radius:4px;">${toplam}</span></td>
+                <td>${gece > 0 ? `🌙 ${gece}` : '-'}</td>
+                <td>${haftaSonu > 0 ? `🗓️ ${haftaSonu}` : '-'}</td>
+            </tr>`;
+        });
+        
+        html += `</tbody></table>`;
+        document.getElementById('istatistikTablosu').innerHTML = html;
+    }
+
+    // YENİ EKLENEN TELEGRAM FONKSİYONU
+    function telegramRaporuGonder() {
+        if(!TELEGRAM_API || !TELEGRAM_ID) {
+            alert("Telegram API ayarları yapılandırılmamış!");
+            return;
+        }
+
+        const hKey = currentMonday.toISOString().split('T')[0];
+        let msg = `📅 *${currentMonday.toLocaleDateString('tr-TR')} HAFTASI VARDİYA LİSTESİ*\n\n`;
+        
+        GUNLER.forEach((g, i) => {
+            msg += `🔹 *${g.toUpperCase()}*\n`;
+            state.saatler.forEach(s => {
+                let pList = state.personeller.filter(p => state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] === s).map(p => p.ad).join(", ");
+                if (pList) msg += `   • ${s}: ${pList}\n`;
+            });
+            msg += `\n`;
+        });
+        
+        msg += `ℹ️ _Otomatik oluşturulmuş listedir._`;
+
+        fetch(`https://api.telegram.org/bot${TELEGRAM_API}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: TELEGRAM_ID,
+                text: msg,
+                parse_mode: 'Markdown'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.ok) alert("✅ Liste Telegram grubuna gönderildi!");
+            else alert("❌ Hata: " + data.description);
+        })
+        .catch(error => {
+            alert("Bağlantı hatası: " + error);
+        });
+    }
+
     function vardiyaBul(pAd, gIdx) {
         const hKey = currentMonday.toISOString().split('T')[0];
         const mKey = `${hKey}_${pAd}_${gIdx}`;
@@ -893,7 +984,6 @@
     function toggleTheme() { const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"; document.documentElement.setAttribute("data-theme", t); localStorage.setItem(PREFIX + "theme", t); }
     function vardiyaSifirla() { if(confirm("Haftayı temizle?")) { const hKey = currentMonday.toISOString().split('T')[0]; Object.keys(state.manuelAtamalar).forEach(k => { if(k.startsWith(hKey)) delete state.manuelAtamalar[k]; }); save(); tabloyuOlustur(); } }
     
-    // --- KRİTİK DÜZELTME: Firebase Auth anahtarını silmeyen, güvenli temizlik ---
     function tamSifirla() { 
         if(confirm("Tüm yerel veriler silinecek (Bulut verisi kalır). Devam?")) { 
             const silinecekler = ["birimler", "saatler", "personeller", "kapasite", "manuelAtamalar", "haftaIciSabitler", "mcrAyarlari", "geciciGorevler", "theme"];
