@@ -24,7 +24,7 @@
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; padding-bottom: 60px; }
     
-    /* YÜKLEME EKRANI - DONMAYI ENGELLEMEK İÇİN GÜNCELLENDİ */
+    /* GÜNCELLENMİŞ YÜKLEME EKRANI */
     #dbLoader { position:fixed; top:0; left:0; width:100%; height:100%; background:var(--card-bg); z-index:20000; display:flex; flex-direction:column; align-items:center; justify-content:center; transition: opacity 0.5s; }
     .loader-spin { border: 5px solid #f3f3f3; border-top: 5px solid var(--blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -275,7 +275,7 @@
     function seededShuffle(array, seed) { let hash = 0; for (let i = 0; i < seed.length; i++) hash = Math.imul(31, hash) + seed.charCodeAt(i) | 0; let rng = mulberry32(hash); let m = array.length, t, i; while (m) { i = Math.floor(rng() * m--); t = array[m]; array[m] = array[i]; array[i] = t; } return array; }
     function yillikIzinIsle() { const pAd = document.getElementById('yillikIzinPersonel').value; const basTarih = document.getElementById('yillikBaslangic').value; const bitTarih = document.getElementById('yillikBitis').value; if(!pAd || !basTarih || !bitTarih) { alert("Lütfen tüm alanları doldurun."); return; } let current = new Date(basTarih); let end = new Date(bitTarih); while(current <= end) { const hKey = getMonday(current).toISOString().split('T')[0]; let jsDay = current.getDay(); let gunIdx = (jsDay + 6) % 7; const mKey = `${hKey}_${pAd}_${gunIdx}`; state.manuelAtamalar[mKey] = SHIFTS.YILLIK; current.setDate(current.getDate() + 1); } save(); tabloyuOlustur(); alert(`${pAd} için yıllık izin işlendi.`); document.getElementById('yillikBaslangic').value = ""; document.getElementById('yillikBitis').value = ""; }
     
-    // --- VARDİYA OLUŞTURMA FONKSİYONU (KESİN ÇÖZÜM: TÜM ADIMLAR KORUNDU) ---
+    // --- VARDİYA OLUŞTURMA FONKSİYONU (KESİN ÇÖZÜM: TÜM ADIMLAR KORUNDU VE KAPSAM HATASI DÜZELTİLDİ) ---
     function vardiyaUretVeKaydet() {
         if(!isAdmin) {
             alert("⛔ HATA: Yönetici yetkisi bulunamadı!\nLütfen sayfayı yenileyip tekrar 'YÖNETİCİ GİRİŞİ' yapınız.");
