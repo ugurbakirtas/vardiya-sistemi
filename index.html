@@ -1070,7 +1070,11 @@ function anlikSenkronizasyonBaslat() {
                 // Admin arayüzünü aç
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
                 document.getElementById('persTalepArea').style.display = 'none';
-                document.getElementById('loginOverlay').style.display = 'none'; // Giriş ekranını gizle
+                
+                // EKRANI GÖRÜNÜR YAP (DÜZELTİLEN KISIM)
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('appMain').style.display = 'block'; 
+                tabloyuOlustur(); // Verileri ekrana bas
                 
                 checkUrlActions();
                 
