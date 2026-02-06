@@ -270,7 +270,7 @@
     function seededShuffle(array, seed) { let hash = 0; for (let i = 0; i < seed.length; i++) hash = Math.imul(31, hash) + seed.charCodeAt(i) | 0; let rng = mulberry32(hash); let m = array.length, t, i; while (m) { i = Math.floor(rng() * m--); t = array[m]; array[m] = array[i]; array[i] = t; } return array; }
     function yillikIzinIsle() { const pAd = document.getElementById('yillikIzinPersonel').value; const basTarih = document.getElementById('yillikBaslangic').value; const bitTarih = document.getElementById('yillikBitis').value; if(!pAd || !basTarih || !bitTarih) { alert("Lütfen tüm alanları doldurun."); return; } let current = new Date(basTarih); let end = new Date(bitTarih); while(current <= end) { const hKey = getMonday(current).toISOString().split('T')[0]; let jsDay = current.getDay(); let gunIdx = (jsDay + 6) % 7; const mKey = `${hKey}_${pAd}_${gunIdx}`; state.manuelAtamalar[mKey] = SHIFTS.YILLIK; current.setDate(current.getDate() + 1); } save(); tabloyuOlustur(); alert(`${pAd} için yıllık izin işlendi.`); document.getElementById('yillikBaslangic').value = ""; document.getElementById('yillikBitis').value = ""; }
     
-    // --- VARDİYA OLUŞTURMA FONKSİYONU (DÜZELTİLDİ: SESSİZ ÖLÜM ENGELLENDİ VE KAPSAM HATASI GİDERİLDİ) ---
+    // --- VARDİYA OLUŞTURMA FONKSİYONU (YENİ KURAL EKLENDİ) ---
     function vardiyaUretVeKaydet() {
         if(!isAdmin) {
             alert("⛔ HATA: Yönetici yetkisi bulunamadı!\nLütfen sayfayı yenileyip tekrar 'YÖNETİCİ GİRİŞİ' yapınız.");
@@ -293,31 +293,36 @@
 
             // Yardımcı Fonksiyon: Scope dışına alındı (Doğru yer)
             const kuralKontrol = (p, hedefSaat, gun) => {
-                // KURAL 1: SWAP DÖNÜŞÜ (BİRİM DEĞİŞİKLİĞİ) KONTROLÜ
+                
+                let dunkuVardiya = null;
+                let dunkuBirim = null;
+                let bugunkuBirim = getGecerliBirim(p, gun);
+
+                // Veri çekme (Dün veya Geçen Hafta)
                 if (gun > 0) {
-                    let dunkuBirim = getGecerliBirim(p, gun - 1);
-                    let bugunkuBirim = getGecerliBirim(p, gun);
-                    
-                    if (dunkuBirim !== bugunkuBirim) {
-                        let dunkuVardiya = tempProg[p.ad][gun - 1];
-                        if (dunkuVardiya && dunkuVardiya !== SHIFTS.IZIN && dunkuVardiya !== SHIFTS.BOS && dunkuVardiya !== SHIFTS.YILLIK) {
-                            return false; 
-                        }
+                    dunkuVardiya = tempProg[p.ad][gun - 1];
+                    dunkuBirim = getGecerliBirim(p, gun - 1);
+                } else {
+                    // Pazartesi ise, GEÇEN HAFTANIN PAZAR gününe bak
+                    dunkuVardiya = state.manuelAtamalar[`${prevHKey}_${p.ad}_6`];
+                    dunkuBirim = getGecerliBirim(p, -1); // -1 = Önceki Pazar
+                }
+
+                // KURAL 1: SWAP DÖNÜŞÜ (BİRİM DEĞİŞİKLİĞİ) KONTROLÜ
+                if (dunkuBirim !== bugunkuBirim) {
+                    // Birim değişmiş. Dün çalıştı mı?
+                    if (dunkuVardiya && dunkuVardiya !== SHIFTS.IZIN && dunkuVardiya !== SHIFTS.BOS && dunkuVardiya !== SHIFTS.YILLIK) {
+                        return false; // Dün çalışan, bugün birim değiştirince YAZILAMAZ. (İzin yapmalı)
                     }
                 }
 
-                // KURAL 2: YORGUNLUK / SAAT KONTROLÜ
-                let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
-                let dunAksam = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.AKSAM);
+                // KURAL 2: SIKI SAAT KONTROLÜ (Yeni İstek)
+                // Kural: Dün 16:00 veya 00:00 -> Bugün 06:30 veya 09:00 YASAK
+                if (dunkuVardiya) {
+                    const isPrevLate = (dunkuVardiya === SHIFTS.AKSAM || dunkuVardiya === SHIFTS.GECE);
+                    const isNextEarly = (hedefSaat === SHIFTS.SABAH || hedefSaat === SHIFTS.GUNDUZ);
 
-                if (dunGece && hedefSaat === SHIFTS.SABAH) return false;
-                if (dunAksam && (hedefSaat === SHIFTS.SABAH || hedefSaat === SHIFTS.GUNDUZ)) return false;
-
-                // KURAL 3: PAZAR GECESİ SARKMASI
-                if (gun === 0) {
-                    let prevShift = state.manuelAtamalar[`${prevHKey}_${p.ad}_6`]; 
-                    if (prevShift === SHIFTS.GECE && hedefSaat === SHIFTS.SABAH) return false;
-                    if (prevShift === SHIFTS.AKSAM && (hedefSaat === SHIFTS.SABAH || hedefSaat === SHIFTS.GUNDUZ)) return false;
+                    if (isPrevLate && isNextEarly) return false;
                 }
 
                 return true;
