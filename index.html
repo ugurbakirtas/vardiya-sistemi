@@ -270,7 +270,7 @@
     function seededShuffle(array, seed) { let hash = 0; for (let i = 0; i < seed.length; i++) hash = Math.imul(31, hash) + seed.charCodeAt(i) | 0; let rng = mulberry32(hash); let m = array.length, t, i; while (m) { i = Math.floor(rng() * m--); t = array[m]; array[m] = array[i]; array[i] = t; } return array; }
     function yillikIzinIsle() { const pAd = document.getElementById('yillikIzinPersonel').value; const basTarih = document.getElementById('yillikBaslangic').value; const bitTarih = document.getElementById('yillikBitis').value; if(!pAd || !basTarih || !bitTarih) { alert("Lütfen tüm alanları doldurun."); return; } let current = new Date(basTarih); let end = new Date(bitTarih); while(current <= end) { const hKey = getMonday(current).toISOString().split('T')[0]; let jsDay = current.getDay(); let gunIdx = (jsDay + 6) % 7; const mKey = `${hKey}_${pAd}_${gunIdx}`; state.manuelAtamalar[mKey] = SHIFTS.YILLIK; current.setDate(current.getDate() + 1); } save(); tabloyuOlustur(); alert(`${pAd} için yıllık izin işlendi.`); document.getElementById('yillikBaslangic').value = ""; document.getElementById('yillikBitis').value = ""; }
     
-    // --- VARDİYA OLUŞTURMA FONKSİYONU (YENİ KURAL EKLENDİ) ---
+    // --- VARDİYA OLUŞTURMA FONKSİYONU (KESİN ÇÖZÜM: TÜM ADIMLAR KORUNDU) ---
     function vardiyaUretVeKaydet() {
         if(!isAdmin) {
             alert("⛔ HATA: Yönetici yetkisi bulunamadı!\nLütfen sayfayı yenileyip tekrar 'YÖNETİCİ GİRİŞİ' yapınız.");
@@ -291,14 +291,13 @@
                  if(p.izinGunleri) { p.izinGunleri.forEach(gi => { if(!tempProg[p.ad][gi]) tempProg[p.ad][gi] = SHIFTS.IZIN; }); }
             });
 
-            // Yardımcı Fonksiyon: Scope dışına alındı (Doğru yer)
+            // Yardımcı Fonksiyon: Scope dışına alındı ve geliştirildi
             const kuralKontrol = (p, hedefSaat, gun) => {
                 
                 let dunkuVardiya = null;
                 let dunkuBirim = null;
                 let bugunkuBirim = getGecerliBirim(p, gun);
 
-                // Veri çekme (Dün veya Geçen Hafta)
                 if (gun > 0) {
                     dunkuVardiya = tempProg[p.ad][gun - 1];
                     dunkuBirim = getGecerliBirim(p, gun - 1);
@@ -316,8 +315,7 @@
                     }
                 }
 
-                // KURAL 2: SIKI SAAT KONTROLÜ (Yeni İstek)
-                // Kural: Dün 16:00 veya 00:00 -> Bugün 06:30 veya 09:00 YASAK
+                // KURAL 2: SIKI SAAT KONTROLÜ
                 if (dunkuVardiya) {
                     const isPrevLate = (dunkuVardiya === SHIFTS.AKSAM || dunkuVardiya === SHIFTS.GECE);
                     const isNextEarly = (hedefSaat === SHIFTS.SABAH || hedefSaat === SHIFTS.GUNDUZ);
@@ -330,6 +328,9 @@
 
             const safeAssign = (p, day, shift) => {
                  if (tempProg[p.ad][day] !== null) return;
+                 // DÜZELTME: kuralKontrol A/B/C grupları için de burada devreye giriyor.
+                 if (!kuralKontrol(p, shift, day)) return; 
+
                  if (shift === SHIFTS.IZIN) { tempProg[p.ad][day] = shift; return; }
                  const cap = (state.kapasite[`${p.birim}_${shift}`] || [0,0,0,0,0,0,0])[day];
                  let currentCount = 0;
@@ -351,7 +352,12 @@
                         if(tempProg[p.ad][g]) continue; 
                         let d = new Date(currentMonday); d.setDate(d.getDate() + g);
                         const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                        tempProg[p.ad][g] = mcrDongu[((diffDays + persOfset) % 8 + 8) % 8];
+                        const hedefVardiya = mcrDongu[((diffDays + persOfset) % 8 + 8) % 8];
+                        
+                        // DÜZELTME: MCR bile olsa kuralKontrol'den geçmek zorunda
+                        if(kuralKontrol(p, hedefVardiya, g)) {
+                             tempProg[p.ad][g] = hedefVardiya;
+                        }
                     }
                 } 
                 else if(p.birim.includes("INGEST")) {
@@ -360,12 +366,17 @@
                         if(tempProg[p.ad][g]) continue;
                         let d = new Date(currentMonday); d.setDate(d.getDate() + g);
                         const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                        tempProg[p.ad][g] = ingestDongu[((diffDays + persOfset) % 6 + 6) % 6];
+                        const hedefVardiya = ingestDongu[((diffDays + persOfset) % 6 + 6) % 6];
+                        
+                        // DÜZELTME: Ingest bile olsa kuralKontrol'den geçmek zorunda
+                        if(kuralKontrol(p, hedefVardiya, g)) {
+                             tempProg[p.ad][g] = hedefVardiya;
+                        }
                     }
                 }
             });
 
-            // 3. ADIM: A/B/C Grupları
+            // 3. ADIM: A/B/C Grupları (Artık kuralKontrol safeAssign içinde çalışıyor)
             [UNITS.PLAYOUT, UNITS.SES, UNITS.KJ].forEach(ozelBirim => {
                 let personelListesi = state.personeller.filter(p => p.birim === ozelBirim);
                 if (personelListesi.length === 0) return;
