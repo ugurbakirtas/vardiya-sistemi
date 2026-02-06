@@ -64,26 +64,12 @@
     .swap-day-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
     .admin-only { display: none; } 
     
-    /* --- İSTATİSTİK TABLOSU DÜZENLEMESİ (COMPACT) --- */
-    .stat-table { 
-        width: 100%; 
-        border-collapse: collapse; 
-        font-size: 10px; 
-        table-layout: fixed; /* ÖNEMLİ: Tabloyu kapsayıcıya sığdırır */
-    }
-    .stat-table th, .stat-table td { 
-        border: 1px solid var(--border); 
-        padding: 6px 2px; /* Boşlukları daralttık */
-        text-align: center; 
-        vertical-align: middle;
-        word-wrap: break-word; /* Uzun kelimeleri alt satıra at */
-    }
+    .stat-table { width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed; }
+    .stat-table th, .stat-table td { border: 1px solid var(--border); padding: 6px 2px; text-align: center; vertical-align: middle; word-wrap: break-word; }
     .stat-table th { background: var(--table-head); color: var(--primary); font-size: 9px; }
     .stat-row:nth-child(even) { background: #f8fafc; }
-    /* İlk sütuna (İsim) biraz daha yer verelim */
     .stat-table th:first-child { width: 40%; }
 
-    /* MOBİL GÖRÜNÜM STİLLERİ */
     #mobilePersonalView { display: none; margin-bottom: 20px; background: var(--card-bg); border-radius: 12px; border: 2px solid var(--blue); padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
     #mobileUserSelectContainer { display: none; background: var(--primary); padding: 15px; border-radius: 0 0 12px 12px; margin-bottom: 15px; color: white; text-align: center; }
     .mobile-shift-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; align-items: center; }
@@ -212,6 +198,7 @@
         INGEST: "INGEST OPERATÖRÜ"
     };
 
+    // --- GÜVENLİK DÜZELTMESİ: Şifreler koddan silindi, Firebase'den çekilecek ---
     let TELEGRAM_API = ""; 
     let TELEGRAM_ID = "";
     
@@ -223,7 +210,21 @@
     let state = { birimler: JSON.parse(localStorage.getItem(PREFIX + "birimler")) || Object.values(UNITS), saatler: JSON.parse(localStorage.getItem(PREFIX + "saatler")) || Object.values(SHIFTS).filter(s => s.includes(":")), personeller: JSON.parse(localStorage.getItem(PREFIX + "personeller")) || [], kapasite: JSON.parse(localStorage.getItem(PREFIX + "kapasite")) || {}, manuelAtamalar: JSON.parse(localStorage.getItem(PREFIX + "manuelAtamalar")) || {}, haftaIciSabitler: JSON.parse(localStorage.getItem(PREFIX + "haftaIciSabitler")) || {}, mcrAyarlari: JSON.parse(localStorage.getItem(PREFIX + "mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }, geciciGorevler: JSON.parse(localStorage.getItem(PREFIX + "geciciGorevler")) || {} };
     let currentMonday = getMonday(new Date());
 
-    async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); if(config.telegram_api) TELEGRAM_API = config.telegram_api; if(config.telegram_id) TELEGRAM_ID = config.telegram_id; } } catch (error) { console.error(error); } }
+    // --- BU FONKSİYON EKRAN GÖRÜNTÜSÜNDEKİ config ADRESİNDEN ŞİFRELERİ ÇEKECEK ---
+    async function hassasAyarlariYukle() { 
+        try { 
+            const snap = await database.ref('config').once('value'); 
+            if (snap.exists()) { 
+                const config = snap.val(); 
+                if(config.telegram_api) TELEGRAM_API = config.telegram_api; 
+                if(config.telegram_id) TELEGRAM_ID = config.telegram_id; 
+                console.log("Telegram ayarları buluttan yüklendi.");
+            } 
+        } catch (error) { 
+            console.error("Ayar yükleme hatası:", error); 
+        } 
+    }
+
     async function enterSystem(role) { if (role === 'admin') { const email = prompt("Yönetici E-posta:"); const password = prompt("Yönetici Şifresi:"); if (!email || !password) return; try { await firebase.auth().signInWithEmailAndPassword(email, password); isAdmin = true; await hassasAyarlariYukle(); document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); document.getElementById('persTalepArea').style.display = 'none'; checkUrlActions(); alert("Yönetici girişi başarılı!"); } catch (error) { alert("Hatalı giriş: " + error.message); return; } } else { isAdmin = false; document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); document.getElementById('persTalepArea').style.display = 'block'; } document.getElementById('loginOverlay').style.opacity = '0'; setTimeout(() => { document.getElementById('loginOverlay').style.display = 'none'; document.getElementById('appMain').style.display = 'block'; tabloyuOlustur(); }, 500); }
     function checkUrlActions() { const urlParams = new URLSearchParams(window.location.search); const action = urlParams.get('action'); const talepId = urlParams.get('id'); if((action === 'onay' || action === 'red') && talepId) { talepIslem(talepId, action); window.history.replaceState({}, document.title, window.location.pathname); } }
     function talepModalAc() { const sel = document.getElementById('talepPersonel'); sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); document.getElementById('talepModal').style.display = 'flex'; }
@@ -408,7 +409,7 @@
                         
                         let tumAdaylar = [...adaylar1, ...adaylar2];
                         tumAdaylar.sort((a, b) => {
-                             let aStatus = tempProg[a.ad][gun] === null ? 0 : 1;
+                             let aStatus = tempProg[a.ad][gun] === null ? 0 : 1; 
                              let bStatus = tempProg[b.ad][gun] === null ? 0 : 1;
                              if (aStatus !== bStatus) return aStatus - bStatus;
                              return calis[a.ad] - calis[b.ad];
@@ -875,10 +876,9 @@
         mobilListeyiDoldur(); 
     }
     
-    // --- GÜNCELLENMİŞ OPTİMİZE İSTATİSTİK FONKSİYONU ---
+    // --- OPTİMİZE İSTATİSTİK FONKSİYONU ---
     function istatistikHesapla() {
         const hKey = currentMonday.toISOString().split('T')[0];
-        // Başlıkları kısaltılmış tablo (P., Top., H.S.)
         let html = `<table class="stat-table"><thead><tr><th>P. (Personel)</th><th>Top.</th><th>Gece</th><th>H.S.</th></tr></thead><tbody>`;
         
         state.personeller.sort((a,b) => a.ad.localeCompare(b.ad)).forEach(p => {
@@ -897,7 +897,6 @@
                 }
             }
             
-            // Birim adını alt satıra alarak yerden tasarruf ediyoruz
             html += `<tr class="stat-row">
                 <td style="text-align:left; font-weight:bold;">${p.ad}<br><span style="font-size:8px; color:#666; font-weight:normal;">${p.birim}</span></td>
                 <td><span style="background:${toplam > 5 ? 'red' : '#e2e8f0'}; color:${toplam > 5 ? 'white' : 'black'}; padding:2px 4px; border-radius:4px; font-weight:bold;">${toplam}</span></td>
