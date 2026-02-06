@@ -24,7 +24,7 @@
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; padding-bottom: 60px; }
     
-    /* YÜKLEME EKRANI */
+    /* GÜVENLİ YÜKLEME EKRANI */
     #dbLoader { position:fixed; top:0; left:0; width:100%; height:100%; background:var(--card-bg); z-index:20000; display:none; flex-direction:column; align-items:center; justify-content:center; transition: opacity 0.5s; }
     .loader-spin { border: 5px solid #f3f3f3; border-top: 5px solid var(--blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -129,6 +129,7 @@
 </head>
 <body>
   <div id="dbLoader"><div class="loader-spin"></div><div style="font-weight:bold; color:var(--text)">Bulut Verisi Yükleniyor...</div><div style="font-size:10px; margin-top:5px; opacity:0.7;">Lütfen bekleyiniz</div></div>
+  
   <div id="loginOverlay"><div class="login-card"><img src="logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'"><h2 style="margin:0 0 20px 0; color:var(--primary)">Sistem Girişi</h2><button onclick="enterSystem('personel')" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button><button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button><p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V61</p></div></div>
   <div id="talepModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10001; display:none; align-items:center; justify-content:center;">
     <div class="login-card" style="width: 320px; border: 2px solid var(--blue);">
@@ -210,6 +211,7 @@
         </div>
   </div>
   <script>
+    // --- GÜVENLİK VE HATA YAKALAMA (EN BAŞA) ---
     window.onerror = function(message, source, lineno, colno, error) {
         document.getElementById('dbLoader').style.display = 'none';
         console.error("KRİTİK HATA:", message, "Satır:", lineno);
