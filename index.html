@@ -823,7 +823,7 @@
         return null;
     }
 
-    // --- SWAP İŞLEM FONKSİYONU (TAM OTOMATİK VERSİYON) ---
+    // --- SWAP İŞLEM FONKSİYONU (TAM OTOMATİK VERSİYON - GÜNCELLENDİ) ---
     function degisimiUygula() {
         const pKaynakAd = document.getElementById('swapKaynakPersonel').value; // Ayrılan (Örn: MCR Op)
         const pHedefAd = document.getElementById('swapHedefPersonel').value;   // Yerine geçen (Reliever)
@@ -834,41 +834,78 @@
         const checkboxes = document.querySelectorAll('.swap-day-cb:checked');
         if(checkboxes.length === 0) { alert("Lütfen en az bir gün seçiniz."); return; }
 
-        const pKaynak = state.personeller.find(p => p.ad === pKaynakAd);
-        const hedefBirim = pKaynak.birim; 
+        // Seçilen günleri sayısal listeye çevir ve sırala
+        const selectedDays = Array.from(checkboxes).map(cb => parseInt(cb.value)).sort((a,b) => a-b);
         const hKey = currentMonday.toISOString().split('T')[0];
 
-        checkboxes.forEach(cb => {
-            const gunIdx = parseInt(cb.value);
-            
-            // 1. Gecici Birim (Renk/Grup) Ayarı
-            let d = new Date(currentMonday);
-            d.setDate(d.getDate() + gunIdx);
-            const dateKey = d.toISOString().split('T')[0];
-            const gKey = `${dateKey}_${pHedefAd}`; 
-            
-            if(!state.geciciGorevler) state.geciciGorevler = {};
-            state.geciciGorevler[gKey] = hedefBirim;
+        // 1. ADIM: DİNLENME SÜRESİ KONTROLÜ (Simülasyon)
+        for (let gunIdx of selectedDays) {
+            // Hedef personelin gireceği vardiyayı bul (Kaynağın vardiyası)
+            let hedefVardiya = vardiyaBul(pKaynakAd, gunIdx);
 
-            // 2. Vardiya Transferi (TAM OTOMATİK HESAPLAMA)
-            const kLeaving = `${hKey}_${pKaynakAd}_${gunIdx}`;
-            const kEntering = `${hKey}_${pHedefAd}_${gunIdx}`;
+            if (hedefVardiya && [SHIFTS.SABAH, SHIFTS.GUNDUZ].includes(hedefVardiya)) {
+                // Hedef personelin BİR ÖNCEKİ günkü durumunu kontrol et
+                let prevDate = new Date(currentMonday);
+                prevDate.setDate(prevDate.getDate() + gunIdx - 1); // Dün
+                let prevHKey = getMonday(prevDate).toISOString().split('T')[0]; // Dünün haftası
+                let prevDayIdx = (prevDate.getDay() + 6) % 7; // Dünün indeksi
 
-            // vardiyaBul fonksiyonu manual yoksa MCR/Ingest hesabını yapar!
-            let shift = vardiyaBul(pKaynakAd, gunIdx);
+                // Manuel atamalardan dünü kontrol et (Genelde en kesin veridir)
+                let prevKey = `${prevHKey}_${pHedefAd}_${prevDayIdx}`;
+                let prevVardiya = state.manuelAtamalar[prevKey];
 
-            if (shift && shift !== SHIFTS.IZIN && shift !== SHIFTS.BOS) {
+                if (!prevVardiya && gunIdx > 0) {
+                     // Aynı hafta içindeyse basit kontrol
+                     let mKey = `${hKey}_${pHedefAd}_${gunIdx-1}`;
+                     prevVardiya = state.manuelAtamalar[mKey];
+                }
+
+                if (prevVardiya && [SHIFTS.AKSAM, SHIFTS.GECE].includes(prevVardiya)) {
+                     alert(`⚠️ DİNLENME KURALI İHLALİ!\n\n${pHedefAd} personeli bir önceki gün (${prevVardiya}) çalışıyor.\nErtesi gün ${hedefVardiya} vardiyasına yazılamaz.\n\nİşlem iptal edildi.`);
+                     return; // İşlemi durdur
+                }
+            }
+        }
+
+        // 2. ADIM: DEĞİŞİMİ UYGULA
+        selectedDays.forEach(gunIdx => {
+             const pKaynak = state.personeller.find(p => p.ad === pKaynakAd);
+             const hedefBirim = pKaynak.birim;
+
+             // Geçici Birim Ataması
+             let d = new Date(currentMonday); d.setDate(d.getDate() + gunIdx);
+             const dateKey = d.toISOString().split('T')[0];
+             const gKey = `${dateKey}_${pHedefAd}`;
+             if(!state.geciciGorevler) state.geciciGorevler = {};
+             state.geciciGorevler[gKey] = hedefBirim;
+
+             // Vardiya Transferi
+             const kLeaving = `${hKey}_${pKaynakAd}_${gunIdx}`;
+             const kEntering = `${hKey}_${pHedefAd}_${gunIdx}`;
+             let shift = vardiyaBul(pKaynakAd, gunIdx);
+
+             if (shift && shift !== SHIFTS.IZIN && shift !== SHIFTS.BOS) {
                  state.manuelAtamalar[kEntering] = shift;
-            } 
-            
-            state.manuelAtamalar[kLeaving] = SHIFTS.IZIN;
+             }
+             state.manuelAtamalar[kLeaving] = SHIFTS.IZIN;
         });
 
+        // 3. ADIM: DÖNÜŞ GÜNÜNÜ "İZİN" OLARAK AYARLA
+        const lastDayIdx = selectedDays[selectedDays.length - 1];
+        let returnDate = new Date(currentMonday);
+        returnDate.setDate(returnDate.getDate() + lastDayIdx + 1); // Son günün ertesi
+        
+        const rHKey = getMonday(returnDate).toISOString().split('T')[0];
+        const rDayIdx = (returnDate.getDay() + 6) % 7;
+        const returnKey = `${rHKey}_${pHedefAd}_${rDayIdx}`;
+        
+        state.manuelAtamalar[returnKey] = SHIFTS.IZIN;
+
         save();
-        alert("Tam Otomatik Değişim uygulandı. MCR/Ingest vardiyası hesaplanıp aktarıldı.");
+        alert(`✅ Değişim başarıyla uygulandı.\n\nPersonelin dönüş günü (${returnDate.toLocaleDateString('tr-TR')}) otomatik olarak İZİNLİ ayarlandı.`);
         refreshUI();
         tabloyuOlustur();
-        
+
         document.querySelectorAll('.swap-day-cb').forEach(cb => cb.checked = false);
         document.getElementById('swapKaynakPersonel').value = "";
         document.getElementById('swapHedefPersonel').value = "";
