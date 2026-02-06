@@ -24,6 +24,11 @@
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; padding-bottom: 60px; }
     
+    /* YENİ EKLENEN YÜKLEME EKRANI CSS */
+    #dbLoader { position:fixed; top:0; left:0; width:100%; height:100%; background:var(--card-bg); z-index:20000; display:flex; flex-direction:column; align-items:center; justify-content:center; transition: opacity 0.5s; }
+    .loader-spin { border: 5px solid #f3f3f3; border-top: 5px solid var(--blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
     #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
     .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
     .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 14px; }
@@ -124,6 +129,7 @@
   </style>
 </head>
 <body>
+  <div id="dbLoader"><div class="loader-spin"></div><div style="font-weight:bold; color:var(--text)">Bulut Verisi Yükleniyor...</div><div style="font-size:10px; margin-top:5px; opacity:0.7;">Lütfen bekleyiniz</div></div>
   <div id="loginOverlay"><div class="login-card"><img src="logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'"><h2 style="margin:0 0 20px 0; color:var(--primary)">Sistem Girişi</h2><button onclick="enterSystem('personel')" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button><button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button><p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V61</p></div></div>
   <div id="talepModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10001; display:none; align-items:center; justify-content:center;">
     <div class="login-card" style="width: 320px; border: 2px solid var(--blue);">
@@ -1146,16 +1152,44 @@
     function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); }
     function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
 
+// YENİ SENKRONİZASYON MANTIĞI: Loading Ekranı ile Veri Çakışmasını Önle
 function anlikSenkronizasyonBaslat() {
+    // 1. Ekranı Kilitle (Yükleniyor...)
+    document.getElementById('dbLoader').style.display = 'flex';
+
+    // 2. Timeout Kur (İnternet Yoksa Fallback)
+    const fallbackTimer = setTimeout(() => {
+        console.warn("Firebase yanıt vermedi, yerel veriye dönülüyor.");
+        document.getElementById('dbLoader').style.opacity = '0';
+        setTimeout(() => document.getElementById('dbLoader').style.display = 'none', 500);
+        alert("⚠️ İNTERNET BAĞLANTISI ZAYIF:\n\nSistem en son kaydedilen yerel verilerle açıldı.\n(Yaptığınız değişiklikler senkronize olana kadar diğerlerinde görünmeyebilir.)");
+    }, 7000); // 7 Saniye bekle
+
+    // 3. Veriyi Dinlemeye Başla
     database.ref('vardiya_data').on('value', (snap) => {
+        clearTimeout(fallbackTimer); // Veri geldiyse zamanlayıcıyı iptal et
+        
         if (snap.exists()) {
             state = snap.val();
-            save();
+            save(); // LocalStorage'ı da güncelle
+            
             tabloyuOlustur();
             if(isAdmin) refreshUI();
             mobilListeyiDoldur(); 
             console.log("Sistem: Vardiya verisi güncellendi.");
         }
+        
+        // 4. Veri Geldi, Kilidi Kaldır
+        const loader = document.getElementById('dbLoader');
+        if(loader) {
+            loader.style.opacity = '0';
+            setTimeout(() => loader.style.display = 'none', 500);
+        }
+    }, (error) => {
+        console.error("Firebase Hatası:", error);
+        clearTimeout(fallbackTimer);
+        document.getElementById('dbLoader').style.display = 'none';
+        alert("Veritabanı bağlantı hatası!");
     });
 }
 
@@ -1164,11 +1198,12 @@ window.onload = async () => {
         document.documentElement.setAttribute("data-theme", "dark");
     }
     
+    // İlk açılışta tabloyu boş render et (loader var zaten)
     tabloyuOlustur();
     mobilListeyiDoldur(); 
 
     await hassasAyarlariYukle(); 
-    anlikSenkronizasyonBaslat();
+    anlikSenkronizasyonBaslat(); // Artık bu fonksiyon ekranı yönetecek
     talepleriYukle(); 
 };
   </script>
