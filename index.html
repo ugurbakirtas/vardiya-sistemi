@@ -374,7 +374,7 @@
     function seededShuffle(array, seed) { let hash = 0; for (let i = 0; i < seed.length; i++) hash = Math.imul(31, hash) + seed.charCodeAt(i) | 0; let rng = mulberry32(hash); let m = array.length, t, i; while (m) { i = Math.floor(rng() * m--); t = array[m]; array[m] = array[i]; array[i] = t; } return array; }
     function yillikIzinIsle() { const pAd = document.getElementById('yillikIzinPersonel').value; const basTarih = document.getElementById('yillikBaslangic').value; const bitTarih = document.getElementById('yillikBitis').value; if(!pAd || !basTarih || !bitTarih) { alert("Lütfen tüm alanları doldurun."); return; } let current = new Date(basTarih); let end = new Date(bitTarih); while(current <= end) { const hKey = getMonday(current).toISOString().split('T')[0]; let jsDay = current.getDay(); let gunIdx = (jsDay + 6) % 7; const mKey = `${hKey}_${pAd}_${gunIdx}`; state.manuelAtamalar[mKey] = SHIFTS.YILLIK; current.setDate(current.getDate() + 1); } save(); tabloyuOlustur(); alert(`${pAd} için yıllık izin işlendi.`); document.getElementById('yillikBaslangic').value = ""; document.getElementById('yillikBitis').value = ""; }
     
-    // --- GÜNCELLENMİŞ VARDİYA OLUŞTURMA FONKSİYONU ---
+    // --- VARDİYA OLUŞTURMA FONKSİYONU (FABRİKA AYARLARI + GÜVENLİK) ---
     function vardiyaUretVeKaydet() {
         if(!isAdmin) {
             alert("⛔ HATA: Yönetici yetkisi bulunamadı!");
@@ -488,12 +488,13 @@
             // 4. ADIM: ANA DÖNGÜ (Doldurma)
             let eksikRaporu = [];
             for (let gun = 0; gun < 7; gun++) {
-                // GECE
+                // GECE (Önceki sistemdeki gibi öncelik gecede)
                 state.birimler.filter(b => !b.includes("MCR") && !b.includes("INGEST")).forEach(birim => {
                     const geceSaati = SHIFTS.GECE; const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
                     let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === geceSaati).length;
+                    
                     let denemeSayisi = 0;
-                    while (mevcut < hedef && denemeSayisi < 200) { // Deneme sayısı artırıldı
+                    while (mevcut < hedef && denemeSayisi < 100) { // Deneme sayısı eski haline (100) döndü
                         denemeSayisi++;
                         let zorunluAdaylar = state.personeller.filter(p => {
                             let isSameUnit = getGecerliBirim(p, gun) === birim;
@@ -514,7 +515,7 @@
                         const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
                         let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length;
                         let denemeSayisi = 0;
-                        while (mevcut < hedef && denemeSayisi < 200) {
+                        while (mevcut < hedef && denemeSayisi < 100) {
                             denemeSayisi++;
                             let zorunluAdaylar = state.personeller.filter(p => {
                                 let isSameUnit = getGecerliBirim(p, gun) === birim;
@@ -532,28 +533,23 @@
                 });
             }
 
-            // --- İYİLEŞTİRİLMİŞ 5 GÜN KURALI ---
-            // Artık sadece hafta sonuna değil, tüm haftaya bakıp boş günleri doldurur.
+            // 5 GÜN KURALI (TAMİR EDİLDİ: Sadece kurallara uyuyorsa yazar)
             state.personeller.forEach(p => {
                 if(!p.birim.includes("MCR") && !p.birim.includes("INGEST") && !state.haftaIciSabitler[p.ad]) {
-                    // Eğer 5 günden az çalışıyorsa
                     if (calis[p.ad] < 5) {
-                        for(let g=0; g<7; g++) { // Tüm haftayı tara (0:Pzt - 6:Paz)
-                            if (calis[p.ad] >= 5) break; // 5 güne ulaştıysa dur
-                            
-                            // Eğer o gün boşsa
-                            if (tempProg[p.ad][g] === null || tempProg[p.ad][g] === SHIFTS.IZIN) {
-                                // Oraya uygun bir vardiya bulmaya çalış
-                                for(let s of state.saatler) {
-                                    // Gece olmasın (genelde ekstra mesai gece yazılmaz), kurallara uysun
-                                    if(s !== SHIFTS.GECE && kuralKontrol(p, s, g)) {
-                                        tempProg[p.ad][g] = s;
-                                        calis[p.ad]++;
-                                        break; // O günü doldurduk, sonraki güne geç
-                                    }
-                                }
+                        // Hafta içinden (0-4) boşluk bulmaya çalış ama ZORLAMA
+                        for(let g=0; g<5; g++) {
+                            if(calis[p.ad] >= 5) break;
+                            if(tempProg[p.ad][g] === null && kuralKontrol(p, SHIFTS.GUNDUZ, g)) { // Sadece kurala uyarsa
+                                tempProg[p.ad][g] = SHIFTS.GUNDUZ; calis[p.ad]++;
                             }
                         }
+                    }
+                    if (calis[p.ad] < 5) { 
+                        let g = 5; if (tempProg[p.ad][g] === null && kuralKontrol(p, SHIFTS.GUNDUZ, g)) { tempProg[p.ad][g] = SHIFTS.GUNDUZ; calis[p.ad]++; } 
+                    }
+                    if (calis[p.ad] < 5) { 
+                        let g = 6; if (tempProg[p.ad][g] === null && kuralKontrol(p, SHIFTS.GUNDUZ, g)) { tempProg[p.ad][g] = SHIFTS.GUNDUZ; calis[p.ad]++; } 
                     }
                 }
             });
@@ -564,7 +560,7 @@
             
             save(); 
             tabloyuOlustur(); 
-            if(eksikRaporu.length > 0) { alert("⚠️ BAZI KAPASİTELER DOLMADI:\n(Personel yetersizliği veya dinlenme kuralları nedeniyle)\n\n" + eksikRaporu.join("\n")); } 
+            if(eksikRaporu.length > 0) { alert("⚠️ BAZI KAPASİTELER DOLMADI:\n\n" + eksikRaporu.join("\n")); } 
             else { alert("✅ Vardiya başarıyla oluşturuldu."); }
         
         } catch(error) {
@@ -633,7 +629,7 @@
     }
 
     function toggleAdminPanel() { if(!isAdmin) return; const p = document.getElementById("sidePanel"); const o = document.getElementById("panelOverlay"); p.classList.toggle("open"); o.style.display = p.classList.contains("open") ? "block" : "none"; if(p.classList.contains("open")) tabDegistir('personel'); }
-    function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-querySelectorAll').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); if(t === 'istatistik') istatistikHesapla(); else refreshUI(); }
+    function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); if(t === 'istatistik') istatistikHesapla(); else refreshUI(); }
     
     function bulutaKaydet() { 
         if(!isAdmin) { alert("Yetkisiz işlem!"); return; }
