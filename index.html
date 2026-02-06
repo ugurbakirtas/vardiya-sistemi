@@ -845,19 +845,19 @@
 
             if (hedefVardiya && [SHIFTS.SABAH, SHIFTS.GUNDUZ].includes(hedefVardiya)) {
                 // Hedef personelin BİR ÖNCEKİ günkü durumunu kontrol et
-                let prevDate = new Date(currentMonday);
-                prevDate.setDate(prevDate.getDate() + gunIdx - 1); // Dün
-                let prevHKey = getMonday(prevDate).toISOString().split('T')[0]; // Dünün haftası
-                let prevDayIdx = (prevDate.getDay() + 6) % 7; // Dünün indeksi
+                let prevVardiya = null;
 
-                // Manuel atamalardan dünü kontrol et (Genelde en kesin veridir)
-                let prevKey = `${prevHKey}_${pHedefAd}_${prevDayIdx}`;
-                let prevVardiya = state.manuelAtamalar[prevKey];
-
-                if (!prevVardiya && gunIdx > 0) {
-                     // Aynı hafta içindeyse basit kontrol
-                     let mKey = `${hKey}_${pHedefAd}_${gunIdx-1}`;
-                     prevVardiya = state.manuelAtamalar[mKey];
+                if (gunIdx > 0) {
+                     // Aynı hafta içindeyse: vardiyaBul fonksiyonunu kullanarak "DÜN" ne yaptığını bul (Otomatik/Manuel dahil)
+                     // vardiyaBul global currentMonday kullandığı için gunIdx - 1 ile dünü hesaplar.
+                     prevVardiya = vardiyaBul(pHedefAd, gunIdx - 1);
+                } else {
+                     // Pazartesi ise: Geçen hafta Pazara bak (Sadece manuel kayıttan)
+                     let prevDate = new Date(currentMonday);
+                     prevDate.setDate(prevDate.getDate() - 1); // Pazar
+                     let prevHKey = getMonday(prevDate).toISOString().split('T')[0];
+                     let prevKey = `${prevHKey}_${pHedefAd}_6`; // 6 = Pazar
+                     prevVardiya = state.manuelAtamalar[prevKey];
                 }
 
                 if (prevVardiya && [SHIFTS.AKSAM, SHIFTS.GECE].includes(prevVardiya)) {
