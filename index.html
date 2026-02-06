@@ -177,7 +177,8 @@
       <div style="display: flex; align-items: center; gap: 10px;"><img src="logo.png" alt="Logo" style="height: 35px;"><div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V61</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div></div>
       <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;"><button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button><button onclick="buluttanYukle()" class="btn-main-action admin-only" style="background:#4285f4">🔄 BULUTTAN YÜKLE</button><button onclick="toggleTheme()" class="btn-main-action" style="background:#64748b" id="themeBtn">🌙</button><button onclick="excelIndir()" class="btn-main-action admin-only" style="background:#16a34a">EXCEL</button>
       <button onclick="ulastirmaExcelIndir()" class="btn-main-action admin-only" style="background:#881337; border:1px solid #fff;">🚌 ULAŞTIRMA LİSTESİ</button>
-      <button onclick="window.print()" class="btn-main-action" style="background:var(--blue)">PDF / YAZDIR</button><button onclick="haftaDegistir(7)" class="btn-main-action" style="background:#475569">İleri »</button><button onclick="toggleAdminPanel()" class="btn-main-action admin-only" style="background:var(--primary); border: 1px solid #475569;" id="adminSettingsBtn">⚙ AYARLAR</button></div>
+      <button onclick="window.print()" class="btn-main-action" style="background:var(--blue)">PDF / YAZDIR</button><button onclick="haftaDegistir(7)" class="btn-main-action" style="background:#475569">İleri »</button><button onclick="toggleAdminPanel()" class="btn-main-action admin-only" style="background:var(--primary); border: 1px solid #475569;" id="adminSettingsBtn">⚙ AYARLAR</button>
+      <button onclick="cikisYap()" class="btn-main-action admin-only" style="background:#dc2626; border: 1px solid #fff;">🚪 ÇIKIŞ</button></div>
     </header>
     <div id="persTalepArea" style="text-align:center; display:none;" class="no-print"><button onclick="talepModalAc()" class="btn-main-action" style="background:var(--warning); margin: 0 auto 15px auto; width: 250px; color: #1e293b; font-weight: 800; border: 2px solid #1e293b;">📝 VARDİYA / İZİN TALEBİ OLUŞTUR</button></div>
     <main class="table-container"><table id="vardiyaTablosu"><thead id="tableHeader"></thead><tbody id="tableBody"></tbody><tfoot id="tableFooter"></tfoot></table></main>
@@ -920,6 +921,13 @@
         }
     }
 
+    // --- YENİ EKLENEN ÇIKIŞ FONKSİYONU ---
+    function cikisYap() {
+        firebase.auth().signOut().then(() => {
+            location.reload(); // Sayfayı yenileyerek çıkış işlemini temiz bir şekilde tamamlar
+        });
+    }
+
     function mcrOfsetGuncelle(ad, val) { if(!state.mcrAyarlari.ofsetler) state.mcrAyarlari.ofsetler = {}; state.mcrAyarlari.ofsetler[ad] = parseInt(val); save(); }
     function yuzdeGuncelle(idx, val) { state.personeller[idx].yuzde = val; save(); } // YENİ FONKSİYON
     function whatsappGonder() { const hKey = currentMonday.toISOString().split('T')[0]; let m = `*📅 ${currentMonday.toLocaleDateString('tr-TR')} VARDİYASI*\n\n`; GUNLER.forEach((g, i) => { m += `*${g.toUpperCase()}*\n`; state.saatler.forEach(s => { let pList = state.personeller.filter(p => state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] === s).map(p => p.ad).join(", "); if (pList) m += `• ${s}: ${pList}\n`; }); m += `\n`; }); window.open(`https://wa.me/?text=${encodeURIComponent(m)}`, '_blank'); }
@@ -1043,19 +1051,39 @@ function anlikSenkronizasyonBaslat() {
         }
     });
 }
-       window.onload = async () => { 
-    // Tema ayarını uygula
-    if(localStorage.getItem(PREFIX + "theme") === "dark") {
-        document.documentElement.setAttribute("data-theme", "dark");
-    }
-    
-    // ÖNEMLİ: Hassas ayarları (Telegram API vb.) giriş yapmadan önce yükle
-    await hassasAyarlariYukle(); 
-    
-    // Canlı senkronizasyonu ve talepleri başlat
-    anlikSenkronizasyonBaslat();
-    talepleriYukle(); 
-};
+    window.onload = async () => { 
+        // Tema ayarını uygula
+        if(localStorage.getItem(PREFIX + "theme") === "dark") {
+            document.documentElement.setAttribute("data-theme", "dark");
+        }
+        
+        // ÖNEMLİ: Hassas ayarları (Telegram API vb.) giriş yapmadan önce yükle
+        await hassasAyarlariYukle(); 
+        
+        // --- YENİ EKLENEN: OTOMATİK GİRİŞ KONTROLÜ ---
+        firebase.auth().onAuthStateChanged(function(user) {
+            if (user) {
+                // Eğer kullanıcı zaten giriş yapmışsa
+                console.log("Oturum açık:", user.email);
+                isAdmin = true;
+                
+                // Admin arayüzünü aç
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
+                document.getElementById('persTalepArea').style.display = 'none';
+                document.getElementById('loginOverlay').style.display = 'none'; // Giriş ekranını gizle
+                
+                checkUrlActions();
+                
+                // Panel açıksa UI'ı tazele
+                const p = document.getElementById("sidePanel");
+                if(p.classList.contains("open")) tabDegistir('personel');
+            }
+        });
+
+        // Canlı senkronizasyonu ve talepleri başlat
+        anlikSenkronizasyonBaslat();
+        talepleriYukle(); 
+    };
   </script>
 </body>
 </html>
