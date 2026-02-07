@@ -1147,6 +1147,9 @@ function anlikSenkronizasyonBaslat() {
     });
 }
     window.onload = async () => { 
+        // EMNİYET SÜBABI (7 Saniye sonra perideyi zorla kaldırır)
+        setTimeout(() => hideLoader(), 7000);
+
         if(localStorage.getItem(PREFIX + "theme") === "dark") {
             document.documentElement.setAttribute("data-theme", "dark");
         }
@@ -1156,6 +1159,7 @@ function anlikSenkronizasyonBaslat() {
                 console.log("Oturum açık:", user.email);
                 isAdmin = true;
                 
+                // Hassas ayarları sadece giriş yapınca çek
                 await hassasAyarlariYukle(); 
                 
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
@@ -1169,10 +1173,10 @@ function anlikSenkronizasyonBaslat() {
                 const p = document.getElementById("sidePanel");
                 if(p.classList.contains("open")) tabDegistir('personel');
                 
-                // GİRİŞ YAPILINCA LOADER'I KAPAT (BU EKSİKTİ)
+                // GİRİŞ YAPILINCA LOADER'I KAPAT
                 hideLoader();
             } else {
-                // GİRİŞ YAPILMAMIŞSA DA LOADER'I KAPAT Kİ GİRİŞ EKRANI GÖRÜNSÜN (BU DA EKSİKTİ)
+                // GİRİŞ YAPILMAMIŞSA DA LOADER'I KAPAT
                 hideLoader();
             }
         });
