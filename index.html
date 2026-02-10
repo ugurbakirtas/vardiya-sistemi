@@ -280,6 +280,19 @@
 
     async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); if(config.telegram_api) TELEGRAM_API = config.telegram_api; if(config.telegram_id) TELEGRAM_ID = config.telegram_id; } } catch (error) { console.error(error); } }
     
+    /* --- YENİ EKLENEN GÜVENLİK FONKSİYONU --- */
+    function verileriGuvenliHaleGetir() {
+        if(!state) state = {};
+        if(!state.manuelAtamalar) state.manuelAtamalar = {};
+        if(!state.geciciGorevler) state.geciciGorevler = {};
+        if(!state.personeller) state.personeller = [];
+        if(!state.kapasite) state.kapasite = {};
+        if(!state.haftaIciSabitler) state.haftaIciSabitler = {};
+        if(!state.mcrAyarlari) state.mcrAyarlari = { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} };
+        if(!state.birimler) state.birimler = Object.values(UNITS);
+        if(!state.saatler) state.saatler = Object.values(SHIFTS).filter(s => s.includes(":"));
+    }
+
     async function enterSystem(role) { 
         if (role === 'admin') { 
             const email = prompt("Yönetici E-posta:"); const password = prompt("Yönetici Şifresi:"); 
@@ -298,11 +311,11 @@
             } 
         } else { 
             isAdmin = false; 
-            // FIX: Personel girişi yaparken verileri önden çekiyoruz
             try {
                  const snap = await database.ref('vardiya_data').once('value');
                  if(snap.exists()) { 
                      state = snap.val(); 
+                     verileriGuvenliHaleGetir(); // GÜVENLİK KONTROLÜ
                      save(); 
                  }
             } catch(e) { console.log("Veri çekilemedi: " + e.message); }
@@ -702,6 +715,7 @@
         database.ref('vardiya_data').once('value').then(snap => { 
             if(snap.exists()){ 
                 state = snap.val(); 
+                verileriGuvenliHaleGetir(); // GÜVENLİK KONTROLÜ
                 save(); 
                 tabloyuOlustur(); 
                 refreshUI();
@@ -1114,6 +1128,7 @@ function anlikSenkronizasyonBaslat() {
             const data = snap.val();
             if(data.vardiya_data) {
                 state = data.vardiya_data;
+                verileriGuvenliHaleGetir(); // GÜVENLİK KONTROLÜ
                 save();
                 tabloyuOlustur();
                 if(isAdmin) refreshUI();
@@ -1147,8 +1162,9 @@ function anlikSenkronizasyonBaslat() {
             const snap = await database.ref('vardiya_data').once('value');
             if (snap.exists()) {
                 state = snap.val();
+                verileriGuvenliHaleGetir(); // GÜVENLİK KONTROLÜ
                 save();
-                tabloyuOlustur(); // Bu fonksiyon mobilListeyiGuncelle'yi de çağırır
+                tabloyuOlustur(); 
                 alert("Veriler güncellendi, listenizi kontrol edebilirsiniz.");
             }
         } catch(e) { alert("Veri çekilemedi: " + e.message); }
