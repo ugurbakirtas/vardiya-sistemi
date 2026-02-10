@@ -156,11 +156,16 @@
     
     <div id="mobilPersonelPanel" class="no-print" style="background:white; padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid var(--border);">
         <h3 style="margin:0 0 10px 0; color:var(--primary); font-size:14px;">📅 Kişisel Vardiya Programım</h3>
-        <select id="mobilPersonelSecim" onchange="kisiselProgramiGoster()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border); font-weight:bold; margin-bottom:10px; background:#f8fafc; color:var(--primary);">
-            <option value="">İsminizi Seçiniz...</option>
-        </select>
+        
+        <div style="display:flex; gap:5px; margin-bottom:10px;">
+            <select id="mobilPersonelSecim" onchange="kisiselProgramiGoster()" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--border); font-weight:bold; background:#f8fafc; color:var(--primary);">
+                <option value="">İsminizi Seçiniz...</option>
+            </select>
+            <button onclick="mobilVerileriYenile()" class="btn-main-action" style="background:var(--blue); width:auto; padding:0 15px; border-radius:8px;" title="Listeyi Yenile">🔄</button>
+        </div>
+
         <div id="kisiselListeSonuc">
-            <div style="text-align:center; padding:20px; color:#999; font-size:12px;">Listenizi görmek için yukarıdan isminizi seçin.</div>
+            <div style="text-align:center; padding:20px; color:#999; font-size:12px;">Listenizi görmek için yukarıdan isminizi seçin.<br>Liste boşsa 🔄 butonuna basın.</div>
         </div>
     </div>
 
@@ -274,7 +279,46 @@
     let currentMonday = getMonday(new Date());
 
     async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); if(config.telegram_api) TELEGRAM_API = config.telegram_api; if(config.telegram_id) TELEGRAM_ID = config.telegram_id; } } catch (error) { console.error(error); } }
-    async function enterSystem(role) { if (role === 'admin') { const email = prompt("Yönetici E-posta:"); const password = prompt("Yönetici Şifresi:"); if (!email || !password) return; try { await firebase.auth().signInWithEmailAndPassword(email, password); isAdmin = true; await hassasAyarlariYukle(); document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); document.getElementById('persTalepArea').style.display = 'none'; checkUrlActions(); alert("Yönetici girişi başarılı!"); } catch (error) { alert("Hatalı giriş: " + error.message); return; } } else { isAdmin = false; document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); document.getElementById('persTalepArea').style.display = 'block'; } document.getElementById('loginOverlay').style.opacity = '0'; setTimeout(() => { document.getElementById('loginOverlay').style.display = 'none'; document.getElementById('appMain').style.display = 'block'; tabloyuOlustur(); }, 500); }
+    
+    async function enterSystem(role) { 
+        if (role === 'admin') { 
+            const email = prompt("Yönetici E-posta:"); const password = prompt("Yönetici Şifresi:"); 
+            if (!email || !password) return; 
+            try { 
+                await firebase.auth().signInWithEmailAndPassword(email, password); 
+                isAdmin = true; 
+                await hassasAyarlariYukle(); 
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); 
+                document.getElementById('persTalepArea').style.display = 'none'; 
+                checkUrlActions(); 
+                alert("Yönetici girişi başarılı!"); 
+            } catch (error) { 
+                alert("Hatalı giriş: " + error.message); 
+                return; 
+            } 
+        } else { 
+            isAdmin = false; 
+            // FIX: Personel girişi yaparken verileri önden çekiyoruz
+            try {
+                 const snap = await database.ref('vardiya_data').once('value');
+                 if(snap.exists()) { 
+                     state = snap.val(); 
+                     save(); 
+                 }
+            } catch(e) { console.log("Veri çekilemedi: " + e.message); }
+
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); 
+            document.getElementById('persTalepArea').style.display = 'block'; 
+        } 
+        
+        document.getElementById('loginOverlay').style.opacity = '0'; 
+        setTimeout(() => { 
+            document.getElementById('loginOverlay').style.display = 'none'; 
+            document.getElementById('appMain').style.display = 'block'; 
+            tabloyuOlustur(); 
+        }, 500); 
+    }
+    
     function checkUrlActions() { const urlParams = new URLSearchParams(window.location.search); const action = urlParams.get('action'); const talepId = urlParams.get('id'); if((action === 'onay' || action === 'red') && talepId) { talepIslem(talepId, action); window.history.replaceState({}, document.title, window.location.pathname); } }
     function talepModalAc() { const sel = document.getElementById('talepPersonel'); sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); document.getElementById('talepModal').style.display = 'flex'; }
     function talepGonder() { const ad = document.getElementById('talepPersonel').value; const tarih = document.getElementById('talepTarih').value; const tur = document.getElementById('talepTuru').value; if(!tarih) { alert("Lütfen tarih seçin!"); return; } const secilenTarih = new Date(tarih); const pzt = getMonday(secilenTarih); const hKey = pzt.toISOString().split('T')[0]; const gunIdx = (secilenTarih.getDay() + 6) % 7; const talepId = Date.now().toString(); database.ref('talepler/' + talepId).set({ id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor" }); const appUrl = window.location.href.split('?')[0]; fetch(`https://api.telegram.org/bot${TELEGRAM_API}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: TELEGRAM_ID, text: `🔔 *YENİ VARDİYA TALEBİ*\n\n👤 *Personel:* ${ad}\n📅 *Tarih:* ${tarih}\n📝 *Vardiya:* ${tur}`, parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "✅ SİTEYE GİT VE ONAYLA", url: `${appUrl}?action=onay&id=${talepId}` }, { text: "❌ SİTEYE GİT VE REDDET", url: `${appUrl}?action=red&id=${talepId}` }]] } }) }); alert("Talebiniz yöneticiye iletildi."); document.getElementById('talepModal').style.display = 'none'; }
@@ -650,8 +694,23 @@
     }
     
     function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); refreshUI(); }
+    
+    /* FIX: Sayfayı yenilemek yerine State'i güncelleyen yeni versiyon */
     function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); }
-    function buluttanYukle() { database.ref('vardiya_data').once('value').then(snap => { if(snap.exists()){ state = snap.val(); save(); location.reload(); } }); }
+    function buluttanYukle() { 
+        if(!isAdmin) return;
+        database.ref('vardiya_data').once('value').then(snap => { 
+            if(snap.exists()){ 
+                state = snap.val(); 
+                save(); 
+                tabloyuOlustur(); 
+                refreshUI();
+                alert("Veriler buluttan yüklendi ve ekran güncellendi!");
+            } else {
+                alert("Bulutta veri bulunamadı.");
+            }
+        }).catch(e => alert("Hata: " + e.message)); 
+    }
     
     function loglariTemizle() {
         if(confirm("Loglar silinsin mi?")) {
@@ -1078,6 +1137,22 @@ function anlikSenkronizasyonBaslat() {
         });
         select.innerHTML = html;
         if(mevcutSecim) kisiselProgramiGoster();
+    }
+
+    async function mobilVerileriYenile() {
+        const btn = document.querySelector('#mobilPersonelPanel button');
+        const oldText = btn.innerHTML;
+        btn.innerHTML = "⏳";
+        try {
+            const snap = await database.ref('vardiya_data').once('value');
+            if (snap.exists()) {
+                state = snap.val();
+                save();
+                tabloyuOlustur(); // Bu fonksiyon mobilListeyiGuncelle'yi de çağırır
+                alert("Veriler güncellendi, listenizi kontrol edebilirsiniz.");
+            }
+        } catch(e) { alert("Veri çekilemedi: " + e.message); }
+        btn.innerHTML = oldText;
     }
 
     function kisiselProgramiGoster() {
