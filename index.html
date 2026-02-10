@@ -94,24 +94,50 @@
     
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     
-    /* --- MOBİL DEVRİMİ 2.0 (PERSONEL GÖRÜNÜMÜ GÜNCELLEMESİ) --- */
+    /* --- MOBİL DEVRİMİ 3.0 (MODERN UI & TEMİZLİK) --- */
     #mobilPersonelPanel { display: none; }
     
     @media screen and (max-width: 768px) { 
         #mobilPersonelPanel { display: block !important; }
         .table-container { display: none; } /* Mobilde karmaşık tabloyu gizle */
         
-        /* Personel Liste Kartları */
-        .kisisel-gun-kart { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
-        .kisisel-gun-kart:last-child { border-bottom: none; }
-        .k-tarih { font-size: 11px; color: #64748b; font-weight: 600; }
-        .k-gun { font-size: 13px; font-weight: 800; color: var(--primary); display:block; }
-        .k-vardiya { font-weight: 800; font-size: 12px; padding: 6px 10px; border-radius: 6px; }
+        /* Gereksiz Butonları Gizle (Beni Bul, PDF, Excel vb.) */
+        #btnBeniBul, #btnPdf, .admin-only { display: none !important; } 
+        
+        /* Modern Mobil Kart Tasarımı */
+        .modern-shift-card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); /* Çok hafif modern gölge */
+            border: 1px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.1s;
+        }
+        .modern-shift-card:active { transform: scale(0.98); }
+        
+        .m-date-group { display: flex; flex-direction: column; gap: 2px; }
+        .m-day-name { font-size: 15px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
+        .m-date-text { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
+        
+        .m-shift-badge {
+            padding: 8px 14px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
 
         .side-panel { width: 100%; right: -100%; }
         .main-header { flex-direction: column; text-align: center; gap: 10px;}
         .main-header div { width: 100%; justify-content: center; }
-        .btn-main-action { width: 100%; padding: 12px; margin-bottom: 5px;}
+        .btn-main-action { width: 100%; padding: 14px; margin-bottom: 5px; font-size: 12px;}
         .admin-tabs { grid-template-columns: repeat(3, 1fr); }
     }  
   </style>
@@ -144,10 +170,10 @@
           <button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button>
           <button onclick="buluttanYukle()" class="btn-main-action admin-only" style="background:#4285f4">🔄 BULUTTAN YÜKLE</button>
           <button onclick="toggleTheme()" class="btn-main-action" style="background:#64748b" id="themeBtn">🌙</button>
-          <button onclick="odakModuAc()" class="btn-main-action" style="background:#8b5cf6">🎯 BENİ BUL</button>
+          <button onclick="odakModuAc()" class="btn-main-action" style="background:#8b5cf6" id="btnBeniBul">🎯 BENİ BUL</button>
           <button onclick="excelIndir()" class="btn-main-action admin-only" style="background:#16a34a">EXCEL</button>
           <button onclick="ulastirmaExcelIndir()" class="btn-main-action admin-only" style="background:#881337; border:1px solid #fff;">🚌 ULAŞTIRMA LİSTESİ</button>
-          <button onclick="window.print()" class="btn-main-action" style="background:var(--blue)">PDF / YAZDIR</button>
+          <button onclick="window.print()" class="btn-main-action" style="background:var(--blue)" id="btnPdf">PDF / YAZDIR</button>
           <button onclick="haftaDegistir(7)" class="btn-main-action" style="background:#475569">İleri »</button>
           <button onclick="toggleAdminPanel()" class="btn-main-action admin-only" style="background:var(--primary); border: 1px solid #475569;" id="adminSettingsBtn">⚙ AYARLAR</button>
           <button onclick="cikisYap()" class="btn-main-action admin-only" style="background:#dc2626; border: 1px solid #fff;">🚪 ÇIKIŞ</button>
@@ -158,18 +184,21 @@
         <h3 style="margin:0 0 10px 0; color:var(--primary); font-size:14px;">📅 Kişisel Vardiya Programım</h3>
         
         <div style="display:flex; gap:5px; margin-bottom:10px;">
-            <select id="mobilPersonelSecim" onchange="kisiselProgramiGoster()" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--border); font-weight:bold; background:#f8fafc; color:var(--primary);">
+            <select id="mobilPersonelSecim" onchange="kisiselProgramiGoster()" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--border); font-weight:bold; background:#f8fafc; color:var(--primary); font-size:14px;">
                 <option value="">İsminizi Seçiniz...</option>
             </select>
             <button onclick="mobilVerileriYenile()" class="btn-main-action" style="background:var(--blue); width:auto; padding:0 15px; border-radius:8px;" title="Listeyi Yenile">🔄</button>
         </div>
 
         <div id="kisiselListeSonuc">
-            <div style="text-align:center; padding:20px; color:#999; font-size:12px;">Listenizi görmek için yukarıdan isminizi seçin.<br>Liste boşsa 🔄 butonuna basın.</div>
+            <div style="text-align:center; padding:30px; color:#94a3b8; font-size:13px;">
+                <div style="font-size:30px; margin-bottom:10px;">👋</div>
+                Listenizi görmek için yukarıdan isminizi seçin.<br>Liste boşsa 🔄 butonuna basın.
+            </div>
         </div>
     </div>
 
-    <div id="persTalepArea" style="text-align:center; display:none;" class="no-print"><button onclick="talepModalAc()" class="btn-main-action" style="background:var(--warning); margin: 0 auto 15px auto; width: 250px; color: #1e293b; font-weight: 800; border: 2px solid #1e293b;">📝 VARDİYA / İZİN TALEBİ OLUŞTUR</button></div>
+    <div id="persTalepArea" style="text-align:center; display:none;" class="no-print"><button onclick="talepModalAc()" class="btn-main-action" style="background:var(--warning); margin: 0 auto 15px auto; width: 100%; color: #1e293b; font-weight: 800; border: 2px solid #1e293b; padding:15px;">📝 VARDİYA / İZİN TALEBİ OLUŞTUR</button></div>
     <main class="table-container"><table id="vardiyaTablosu"><thead id="tableHeader"></thead><tbody id="tableBody"></tbody><tfoot id="tableFooter"></tfoot></table></main>
   </div>
 
@@ -1176,7 +1205,7 @@ function anlikSenkronizasyonBaslat() {
         const alan = document.getElementById('kisiselListeSonuc');
         
         if(!isim) {
-            alan.innerHTML = "<div style='text-align:center; padding:10px; color:#999;'>Lütfen isminizi seçiniz.</div>";
+            alan.innerHTML = "<div style='text-align:center; padding:30px; color:#999;'>Lütfen isminizi seçiniz.</div>";
             return;
         }
 
@@ -1192,23 +1221,24 @@ function anlikSenkronizasyonBaslat() {
             
             if(!vardiya || vardiya === "BOŞ") vardiya = "İZİNLİ";
 
-            let renk = "#eee"; let yaziRengi = "#333";
+            let renk = "#eee"; let yaziRengi = "#333"; let ikon = "⚪";
             
-            if(vardiya.includes("06:30")) { renk = "#e0f2fe"; yaziRengi = "#0c4a6e"; }
-            else if(vardiya.includes("09:00")) { renk = "#f0fdf4"; yaziRengi = "#064e3b"; }
-            else if(vardiya.includes("16:00")) { renk = "#faf5ff"; yaziRengi = "#581c87"; }
-            else if(vardiya.includes("00:00")) { renk = "#fff7ed"; yaziRengi = "#7c2d12"; }
-            else if(vardiya === "İZİNLİ") { renk = "#fef2f2"; yaziRengi = "#ef4444"; }
-            else if(vardiya === "YILLIK İZİN") { renk = "#9333ea"; yaziRengi = "#ffffff"; }
+            if(vardiya.includes("06:30")) { renk = "#e0f2fe"; yaziRengi = "#0c4a6e"; ikon = "🌅"; }
+            else if(vardiya.includes("09:00")) { renk = "#f0fdf4"; yaziRengi = "#064e3b"; ikon = "☀️"; }
+            else if(vardiya.includes("16:00")) { renk = "#faf5ff"; yaziRengi = "#581c87"; ikon = "🌇"; }
+            else if(vardiya.includes("00:00")) { renk = "#fff7ed"; yaziRengi = "#7c2d12"; ikon = "🌙"; }
+            else if(vardiya === "İZİNLİ") { renk = "#fef2f2"; yaziRengi = "#ef4444"; ikon = "🏖️"; }
+            else if(vardiya === "YILLIK İZİN") { renk = "#9333ea"; yaziRengi = "#ffffff"; ikon = "✈️"; }
 
             html += `
-            <div class="kisisel-gun-kart">
-                <div>
-                    <span class="k-gun">${gunAdi}</span>
-                    <span class="k-tarih">${tarihStr}</span>
+            <div class="modern-shift-card">
+                <div class="m-date-group">
+                    <span class="m-day-name">${gunAdi}</span>
+                    <span class="m-date-text">${tarihStr}</span>
                 </div>
-                <div class="k-vardiya" style="background:${renk}; color:${yaziRengi};">
-                    ${vardiya}
+                <div class="m-shift-badge" style="background:${renk}; color:${yaziRengi};">
+                    <span style="font-size:16px;">${ikon}</span>
+                    <span>${vardiya}</span>
                 </div>
             </div>`;
         });
