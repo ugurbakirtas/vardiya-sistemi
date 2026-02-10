@@ -94,17 +94,20 @@
     
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     
-    /* --- MOBİL DEVRİMİ BAŞLIYOR (768px altı için özel tasarım) --- */
+    /* --- MOBİL DEVRİMİ 2.0 (PERSONEL GÖRÜNÜMÜ GÜNCELLEMESİ) --- */
+    #mobilPersonelPanel { display: none; }
+    
     @media screen and (max-width: 768px) { 
-        #vardiyaTablosu, #vardiyaTablosu tbody, #vardiyaTablosu tr, #vardiyaTablosu td { display: block; width: 100% !important; }
-        #tableHeader { display: none; }
-        #tableBody tr, #tableFooter tr { margin-bottom: 25px; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--card-bg); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .saat-col { display: block; width: 100% !important; background: var(--primary); color: white !important; padding: 15px; text-align: center !important; border-left: none !important; font-size: 16px; font-weight: 900; letter-spacing: 1px; }
-        .row-izin .saat-col { background: var(--danger) !important; }
-        td:not(.saat-col) { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--border); min-height: 60px; }
-        td:not(.saat-col):last-child { border-bottom: none; }
-        td:not(.saat-col):::before { content: attr(data-label); font-weight: 800; text-transform: uppercase; font-size: 13px; color: var(--primary); background: var(--bg); padding: 6px 10px; border-radius: 6px; min-width: 40px; text-align: center; margin-right: 15px; }
-        .birim-card { margin-bottom: 4px; padding: 4px 8px; border-radius: 4px; font-size: 11px; text-align: right; border-left: 4px solid var(--blue); background: #f8fafc; }
+        #mobilPersonelPanel { display: block !important; }
+        .table-container { display: none; } /* Mobilde karmaşık tabloyu gizle */
+        
+        /* Personel Liste Kartları */
+        .kisisel-gun-kart { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
+        .kisisel-gun-kart:last-child { border-bottom: none; }
+        .k-tarih { font-size: 11px; color: #64748b; font-weight: 600; }
+        .k-gun { font-size: 13px; font-weight: 800; color: var(--primary); display:block; }
+        .k-vardiya { font-weight: 800; font-size: 12px; padding: 6px 10px; border-radius: 6px; }
+
         .side-panel { width: 100%; right: -100%; }
         .main-header { flex-direction: column; text-align: center; gap: 10px;}
         .main-header div { width: 100%; justify-content: center; }
@@ -151,6 +154,16 @@
       </div>
     </header>
     
+    <div id="mobilPersonelPanel" class="no-print" style="background:white; padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid var(--border);">
+        <h3 style="margin:0 0 10px 0; color:var(--primary); font-size:14px;">📅 Kişisel Vardiya Programım</h3>
+        <select id="mobilPersonelSecim" onchange="kisiselProgramiGoster()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border); font-weight:bold; margin-bottom:10px; background:#f8fafc; color:var(--primary);">
+            <option value="">İsminizi Seçiniz...</option>
+        </select>
+        <div id="kisiselListeSonuc">
+            <div style="text-align:center; padding:20px; color:#999; font-size:12px;">Listenizi görmek için yukarıdan isminizi seçin.</div>
+        </div>
+    </div>
+
     <div id="persTalepArea" style="text-align:center; display:none;" class="no-print"><button onclick="talepModalAc()" class="btn-main-action" style="background:var(--warning); margin: 0 auto 15px auto; width: 250px; color: #1e293b; font-weight: 800; border: 2px solid #1e293b;">📝 VARDİYA / İZİN TALEBİ OLUŞTUR</button></div>
     <main class="table-container"><table id="vardiyaTablosu"><thead id="tableHeader"></thead><tbody id="tableBody"></tbody><tfoot id="tableFooter"></tfoot></table></main>
   </div>
@@ -296,6 +309,7 @@
         document.getElementById("tableFooter").innerHTML = `<tr class="row-izin"><td class="saat-col">İZİN / BOŞ</td>${[0,1,2,3,4,5,6].map(g => { let sortedPers = state.personeller.filter(p => [SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(prog[p.ad][g])).sort((a, b) => { let birimA = getGecerliBirim(a, g); let birimB = getGecerliBirim(b, g); return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); }); let cellContent = ""; let lastBirim = ""; sortedPers.forEach(p => { let gecerliBirim = getGecerliBirim(p, g); let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : ""; let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : ""; let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, 'BOŞ')"` : ""; let isYillik = prog[p.ad][g] === SHIFTS.YILLIK; let bgStyle = isYillik ? 'background:var(--yillik-izin)' : (prog[p.ad][g]===SHIFTS.IZIN?'background:var(--danger)':`background:${getBirimColor(gecerliBirim)}`); cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(gecerliBirim)};" ${dragAttr} ${clickAttr}><span class="birim-tag" style="${bgStyle}">${prog[p.ad][g] || 'BOŞ'}</span><span class="pers-name">${p.ad} (${calis[p.ad]}G)</span></div>`; lastBirim = gecerliBirim; }); return `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">${cellContent}</td>`; }).join('')}</tr>`;
         
         istatistikleriHesapla();
+        mobilListeyiGuncelle();
     }
     
     function cakismaKontrol(personelAd, hedefGun, hedefSaat) { const hKey = currentMonday.toISOString().split('T')[0]; if ([SHIFTS.IZIN, SHIFTS.BOS, null, SHIFTS.YILLIK].includes(hedefSaat)) return; if (hedefGun > 0) { let dunKey = `${hKey}_${personelAd}_${hedefGun - 1}`; let dunVardiya = state.manuelAtamalar[dunKey]; let sabahVardiyalari = [SHIFTS.SABAH, SHIFTS.GUNDUZ]; let aksamVardiyalari = [SHIFTS.AKSAM, SHIFTS.GECE]; if (aksamVardiyalari.includes(dunVardiya) && sabahVardiyalari.includes(hedefSaat)) alert(`⚠️ DİKKAT: ${personelAd} dün AKŞAM/GECE vardiyasındaydı. Bugün SABAH vardiyasına yazıyorsunuz. Dinlenme süresi yetersiz olabilir!`); } if (hedefGun < 6) { let yarinKey = `${hKey}_${personelAd}_${hedefGun + 1}`; let yarinVardiya = state.manuelAtamalar[yarinKey]; let sabahVardiyalari = [SHIFTS.SABAH, SHIFTS.GUNDUZ]; let aksamVardiyalari = [SHIFTS.AKSAM, SHIFTS.GECE]; if (aksamVardiyalari.includes(hedefSaat) && sabahVardiyalari.includes(yarinVardiya)) alert(`⚠️ DİKKAT: ${personelAd} yarın SABAH vardiyasında görünüyor. Bugün AKŞAM/GECE vardiyasına yazıyorsunuz. Dinlenme süresi yetersiz olabilir!`); } }
@@ -1052,6 +1066,65 @@ function anlikSenkronizasyonBaslat() {
         }
     });
 }
+
+    /* --- MOBİL LİSTE FONKSİYONLARI --- */
+    function mobilListeyiGuncelle() {
+        const select = document.getElementById('mobilPersonelSecim');
+        const mevcutSecim = select.value;
+        const siraliPersonel = [...state.personeller].sort((a,b) => a.ad.localeCompare(b.ad));
+        let html = '<option value="">Personel Seçiniz...</option>';
+        siraliPersonel.forEach(p => {
+            html += `<option value="${p.ad}" ${p.ad === mevcutSecim ? 'selected' : ''}>${p.ad}</option>`;
+        });
+        select.innerHTML = html;
+        if(mevcutSecim) kisiselProgramiGoster();
+    }
+
+    function kisiselProgramiGoster() {
+        const isim = document.getElementById('mobilPersonelSecim').value;
+        const alan = document.getElementById('kisiselListeSonuc');
+        
+        if(!isim) {
+            alan.innerHTML = "<div style='text-align:center; padding:10px; color:#999;'>Lütfen isminizi seçiniz.</div>";
+            return;
+        }
+
+        let html = "";
+
+        GUNLER.forEach((gunAdi, index) => {
+            let d = new Date(currentMonday);
+            d.setDate(d.getDate() + index);
+            let tarihStr = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+
+            // vardiyaBul fonksiyonunu kullanarak MCR, Ingest ve Manuel atamaların hepsini doğru çekeriz
+            let vardiya = vardiyaBul(isim, index);
+            
+            if(!vardiya || vardiya === "BOŞ") vardiya = "İZİNLİ";
+
+            let renk = "#eee"; let yaziRengi = "#333";
+            
+            if(vardiya.includes("06:30")) { renk = "#e0f2fe"; yaziRengi = "#0c4a6e"; }
+            else if(vardiya.includes("09:00")) { renk = "#f0fdf4"; yaziRengi = "#064e3b"; }
+            else if(vardiya.includes("16:00")) { renk = "#faf5ff"; yaziRengi = "#581c87"; }
+            else if(vardiya.includes("00:00")) { renk = "#fff7ed"; yaziRengi = "#7c2d12"; }
+            else if(vardiya === "İZİNLİ") { renk = "#fef2f2"; yaziRengi = "#ef4444"; }
+            else if(vardiya === "YILLIK İZİN") { renk = "#9333ea"; yaziRengi = "#ffffff"; }
+
+            html += `
+            <div class="kisisel-gun-kart">
+                <div>
+                    <span class="k-gun">${gunAdi}</span>
+                    <span class="k-tarih">${tarihStr}</span>
+                </div>
+                <div class="k-vardiya" style="background:${renk}; color:${yaziRengi};">
+                    ${vardiya}
+                </div>
+            </div>`;
+        });
+
+        alan.innerHTML = html;
+    }
+
     window.onload = async () => { 
         if(localStorage.getItem(PREFIX + "theme") === "dark") {
             document.documentElement.setAttribute("data-theme", "dark");
