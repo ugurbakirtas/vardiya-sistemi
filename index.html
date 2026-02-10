@@ -575,7 +575,7 @@
                         
                         let tumAdaylar = [...adaylar1, ...adaylar2];
                         tumAdaylar.sort((a, b) => {
-                             let aStatus = tempProg[a.ad][gun] === null ? 0 : 1;
+                             let aStatus = tempProg[a.ad][gun] === null ? 0 : 1; 
                              let bStatus = tempProg[b.ad][gun] === null ? 0 : 1;
                              if (aStatus !== bStatus) return aStatus - bStatus;
                              return calis[a.ad] - calis[b.ad];
