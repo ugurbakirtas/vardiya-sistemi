@@ -44,7 +44,6 @@
     .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
     .pers-name { font-size: 10px; font-weight: 700; display: block; }
     
-    /* --- YENİLENEN YÖNETİM PANELİ STİLLERİ --- */
     .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: #f8fafc; z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); border-left: 1px solid var(--border); }
     .side-panel.open { right: 0; }
     .panel-header { padding: 20px; background: white; color: var(--primary); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
@@ -56,12 +55,7 @@
     .panel-action-group button:hover { transform: translateY(-2px); }
     
     .admin-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; background: white; padding: 15px; border-radius: 16px; border: 1px solid var(--border); }
-    .tab-btn { 
-        display: flex; flex-direction: column; align-items: center; justify-content: center; 
-        padding: 12px 5px; font-size: 10px; text-align: center; 
-        background: #f1f5f9; border: 1px solid transparent; border-radius: 10px; 
-        color: var(--text); cursor: pointer; transition: all 0.2s; height: 70px; font-weight: 600;
-    }
+    .tab-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 5px; font-size: 10px; text-align: center; background: #f1f5f9; border: 1px solid transparent; border-radius: 10px; color: var(--text); cursor: pointer; transition: all 0.2s; height: 70px; font-weight: 600; }
     .tab-btn i { font-size: 20px; margin-bottom: 6px; font-style: normal; display: block; }
     .tab-btn:hover { background: #e2e8f0; }
     .tab-btn.active { background: var(--blue); color: white; box-shadow: 0 4px 10px -2px rgba(37, 99, 235, 0.4); transform: scale(1.03); }
@@ -91,27 +85,17 @@
     
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     
-    /* --- MOBİL DEVRİMİ 3.0 --- */
     #mobilPersonelPanel { display: none; }
-    
     @media screen and (max-width: 768px) { 
         #mobilPersonelPanel { display: block !important; }
         .table-container { display: none; } 
         #btnBeniBul, #btnPdf, .admin-only { display: none !important; } 
-        
-        .modern-shift-card {
-            background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f1f5f9;
-            display: flex; align-items: center; justify-content: space-between; transition: transform 0.1s;
-        }
+        .modern-shift-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; transition: transform 0.1s; }
         .modern-shift-card:active { transform: scale(0.98); }
         .m-date-group { display: flex; flex-direction: column; gap: 2px; }
         .m-day-name { font-size: 15px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
         .m-date-text { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
-        .m-shift-badge {
-            padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px;
-            display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
+        .m-shift-badge { padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .side-panel { width: 100%; right: -100%; }
         .main-header { flex-direction: column; text-align: center; gap: 10px;}
         .main-header div { width: 100%; justify-content: center; }
@@ -283,7 +267,6 @@
         birimAyarlari: JSON.parse(localStorage.getItem(PREFIX + "birimAyarlari")) || {}
     };
     
-    // GÜVENLİ VE YEREL TARİH FONKSİYONU
     function getDateKey(d) {
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -295,7 +278,6 @@
 
     async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); if(config.telegram_api) TELEGRAM_API = config.telegram_api; if(config.telegram_id) TELEGRAM_ID = config.telegram_id; } } catch (error) { console.error(error); } }
     
-    /* --- YENİ EKLENEN GÜVENLİK VE GÖÇ FONKSİYONU --- */
     function verileriGuvenliHaleGetir() {
         if(!state) state = {};
         if(!state.manuelAtamalar) state.manuelAtamalar = {};
@@ -307,7 +289,6 @@
         if(!state.birimler) state.birimler = Object.values(UNITS);
         if(!state.saatler) state.saatler = Object.values(SHIFTS).filter(s => s.includes(":"));
         
-        // YENİ: Otomatik Migration (Eski birimleri tanı)
         if(!state.birimAyarlari || Object.keys(state.birimAyarlari).length === 0) {
             state.birimAyarlari = {};
             state.birimler.forEach(b => {
@@ -315,7 +296,7 @@
                 let renk = BIRIM_RENKLERI[b] || "#64748b";
                 if(b.includes("MCR")) tip = "DONGU8"; 
                 if(b.includes("INGEST")) tip = "DONGU6"; 
-                if(b === UNITS.PLAYOUT || b === UNITS.SES || b === UNITS.KJ) tip = "GRUP_ABC"; // Otomatik Tanıma
+                if(b === UNITS.PLAYOUT || b === UNITS.SES || b === UNITS.KJ) tip = "GRUP_ABC"; 
                 state.birimAyarlari[b] = { tip: tip, renk: renk };
             });
         }
@@ -473,8 +454,24 @@
             if (grupA.length === 0 && grupB.length === 0 && grupC.length === 0) {
                 personelListesi.forEach((p, i) => { if (i % 3 === 0) grupA.push(p); else if (i % 3 === 1) grupB.push(p); else grupC.push(p); });
             }
-            grupA.forEach(p => { safeAssign(p, 0, SHIFTS.SABAH); safeAssign(p, 1, SHIFTS.AKSAM); safeAssign(p, 2, SHIFTS.AKSAM); safeAssign(p, 3, SHIFTS.IZIN); safeAssign(p, 4, SHIFTS.IZIN); safeAssign(p, 5, SHIFTS.SABAH); safeAssign(p, 6, SHIFTS.SABAH); });
-            grupB.forEach(p => { safeAssign(p, 0, SHIFTS.AKSAM); safeAssign(p, 1, SHIFTS.IZIN); safeAssign(p, 2, SHIFTS.IZIN); safeAssign(p, 3, SHIFTS.SABAH); safeAssign(p, 4, SHIFTS.SABAH); safeAssign(p, 5, SHIFTS.AKSAM); safeAssign(p, 6, SHIFTS.AKSAM); });
+            grupA.forEach(p => { 
+                safeAssign(p, 0, SHIFTS.SABAH); 
+                safeAssign(p, 1, SHIFTS.AKSAM); 
+                safeAssign(p, 2, SHIFTS.AKSAM); 
+                safeAssign(p, 3, SHIFTS.IZIN); 
+                safeAssign(p, 4, SHIFTS.IZIN); 
+                safeAssign(p, 5, SHIFTS.SABAH); 
+                safeAssign(p, 6, SHIFTS.SABAH); 
+            });
+            grupB.forEach(p => { 
+                safeAssign(p, 0, SHIFTS.AKSAM); 
+                safeAssign(p, 1, SHIFTS.IZIN); 
+                safeAssign(p, 2, SHIFTS.IZIN); 
+                safeAssign(p, 3, SHIFTS.SABAH); 
+                safeAssign(p, 4, SHIFTS.SABAH); 
+                safeAssign(p, 5, SHIFTS.AKSAM); 
+                safeAssign(p, 6, SHIFTS.AKSAM); 
+            });
             seededShuffle(grupC, hKey); 
             grupC.forEach((p, index) => { 
                 safeAssign(p, 0, SHIFTS.IZIN); 
@@ -484,12 +481,27 @@
                 safeAssign(p, 4, SHIFTS.AKSAM); 
                 
                 // HAFTA SONU MAKASI (Biri Cmt İzin, Diğeri Paz İzin)
+                // DÜZELTME: Doğrudan kapasite kontrolü yaparak atama yapacak helper
+                const setWeekendShift = (dayIndex) => {
+                    // Kapasiteleri kontrol et: Sabah mı Akşam mı boş?
+                    let sabahDoluluk = state.personeller.filter(x => x.birim === birim && tempProg[x.ad][dayIndex] === SHIFTS.SABAH).length;
+                    let sabahHedef = (state.kapasite[`${birim}_${SHIFTS.SABAH}`] || [0,0,0,0,0,0,0])[dayIndex];
+                    
+                    if (sabahDoluluk < sabahHedef) {
+                        return SHIFTS.SABAH;
+                    } else {
+                        return SHIFTS.AKSAM; // Sabah doluysa Akşam yaz
+                    }
+                };
+
                 if (index % 2 === 0) {
-                    tempProg[p.ad][5] = SHIFTS.IZIN;  // Cumartesi İZİN
-                    tempProg[p.ad][6] = SHIFTS.SABAH; // Pazar ÇALIŞ (Varsayılan Sabah)
+                    // 1. Kişi: Cmt İZİN - Paz ÇALIŞ
+                    tempProg[p.ad][5] = SHIFTS.IZIN;
+                    tempProg[p.ad][6] = setWeekendShift(6); 
                 } else {
-                    tempProg[p.ad][5] = SHIFTS.SABAH; // Cumartesi ÇALIŞ
-                    tempProg[p.ad][6] = SHIFTS.IZIN;  // Pazar İZİN
+                    // 2. Kişi: Cmt ÇALIŞ - Paz İZİN
+                    tempProg[p.ad][5] = setWeekendShift(5);
+                    tempProg[p.ad][6] = SHIFTS.IZIN;
                 }
             });
         });
@@ -516,7 +528,8 @@
                         // Yukarıda Makas ile 'SHIFTS.IZIN' atadıklarımızı alma (Onlar dinlenmeli).
                         let yedekAdaylar = state.personeller.filter(p => {
                             let birimUygun = getGecerliBirim(p, gun) === birim;
-                            let bosta = (tempProg[p.ad][gun] === null); // Sadece boş olanlar, zorla izin verilenler değil.
+                            // SADECE NULL OLANLARI AL (Zorla izin verilenleri alma)
+                            let bosta = (tempProg[p.ad][gun] === null); 
                             let yorgunDegil = calis[p.ad] < 6;
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
                             let manuelVar = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`];
