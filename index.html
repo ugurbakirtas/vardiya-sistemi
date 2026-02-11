@@ -163,12 +163,14 @@
     
     <div id="mobilPersonelPanel" class="no-print" style="background:white; padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid var(--border);">
         <h3 style="margin:0 0 10px 0; color:var(--primary); font-size:14px;">📅 Kişisel Vardiya Programım</h3>
+        
         <div style="display:flex; gap:5px; margin-bottom:10px;">
             <select id="mobilPersonelSecim" onchange="kisiselProgramiGoster()" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--border); font-weight:bold; background:#f8fafc; color:var(--primary); font-size:14px;">
                 <option value="">İsminizi Seçiniz...</option>
             </select>
             <button onclick="mobilVerileriYenile()" class="btn-main-action" style="background:var(--blue); width:auto; padding:0 15px; border-radius:8px;" title="Listeyi Yenile">🔄</button>
         </div>
+
         <div id="kisiselListeSonuc">
             <div style="text-align:center; padding:30px; color:#94a3b8; font-size:13px;">
                 <div style="font-size:30px; margin-bottom:10px;">👋</div>
@@ -298,6 +300,7 @@
 
     async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); if(config.telegram_api) TELEGRAM_API = config.telegram_api; if(config.telegram_id) TELEGRAM_ID = config.telegram_id; } } catch (error) { console.error(error); } }
     
+    /* --- YENİ EKLENEN GÜVENLİK VE GÖÇ FONKSİYONU --- */
     function verileriGuvenliHaleGetir() {
         if(!state) state = {};
         if(!state.manuelAtamalar) state.manuelAtamalar = {};
@@ -483,6 +486,46 @@
 
         // Çalışma günlerini say
         state.personeller.forEach(p => { calis[p.ad] = 0; for(let g=0; g<7; g++) { if(tempProg[p.ad][g] && ![SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(tempProg[p.ad][g])) calis[p.ad]++; } });
+
+        // EKSİK KAPASİTE TAMAMLAMA (YENİ EKLENTİ)
+        // Sadece GRUP_ABC mantığıyla yönetilen birimler için eksikleri kontrol et ve doldur
+        state.birimler.forEach(birim => {
+            const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
+            if (ayar.tip !== "GRUP_ABC") return;
+
+            for (let gun = 0; gun < 7; gun++) {
+                state.saatler.forEach(saat => {
+                    if(saat === SHIFTS.IZIN) return;
+
+                    const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
+                    let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length;
+
+                    if (mevcut < hedef) {
+                        // Eksik var! Dışarıdan (diğer gruplardan o gün boşta olanlardan) adam topla.
+                        let yedekAdaylar = state.personeller.filter(p => {
+                            let birimUygun = getGecerliBirim(p, gun) === birim;
+                            let bosta = (tempProg[p.ad][gun] === null || tempProg[p.ad][gun] === SHIFTS.IZIN);
+                            let yorgunDegil = calis[p.ad] < 6;
+                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
+                            // Manuel atama ile izinliyse (YILLIK vb.) dokunma
+                            let manuelVar = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`];
+                            
+                            return birimUygun && bosta && yorgunDegil && !dunGece && !manuelVar;
+                        });
+
+                        seededShuffle(yedekAdaylar, hKey + "yedek");
+
+                        for (let p of yedekAdaylar) {
+                            if (mevcut < hedef) {
+                                tempProg[p.ad][gun] = saat;
+                                calis[p.ad]++;
+                                mevcut++;
+                            }
+                        }
+                    }
+                });
+            }
+        });
 
         // 4. GENEL HAVUZ MANTIĞI (Tüm Diğer Birimler İçin - GÜNCELLENDİ)
         for (let gun = 0; gun < 7; gun++) {
