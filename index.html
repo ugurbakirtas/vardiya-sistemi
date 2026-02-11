@@ -94,46 +94,27 @@
     
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     
-    /* --- MOBİL DEVRİMİ 3.0 (MODERN UI & TEMİZLİK) --- */
+    /* --- MOBİL DEVRİMİ 3.0 --- */
     #mobilPersonelPanel { display: none; }
     
     @media screen and (max-width: 768px) { 
         #mobilPersonelPanel { display: block !important; }
-        .table-container { display: none; } /* Mobilde karmaşık tabloyu gizle */
-        
-        /* Gereksiz Butonları Gizle (Beni Bul, PDF, Excel vb.) */
+        .table-container { display: none; } 
         #btnBeniBul, #btnPdf, .admin-only { display: none !important; } 
         
-        /* Modern Mobil Kart Tasarımı */
         .modern-shift-card {
-            background: white;
-            border-radius: 16px;
-            padding: 16px;
-            margin-bottom: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03); /* Çok hafif modern gölge */
-            border: 1px solid #f1f5f9;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            transition: transform 0.1s;
+            background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f1f5f9;
+            display: flex; align-items: center; justify-content: space-between; transition: transform 0.1s;
         }
         .modern-shift-card:active { transform: scale(0.98); }
-        
         .m-date-group { display: flex; flex-direction: column; gap: 2px; }
         .m-day-name { font-size: 15px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
         .m-date-text { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
-        
         .m-shift-badge {
-            padding: 8px 14px;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px;
+            display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
-
         .side-panel { width: 100%; right: -100%; }
         .main-header { flex-direction: column; text-align: center; gap: 10px;}
         .main-header div { width: 100%; justify-content: center; }
@@ -182,14 +163,12 @@
     
     <div id="mobilPersonelPanel" class="no-print" style="background:white; padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid var(--border);">
         <h3 style="margin:0 0 10px 0; color:var(--primary); font-size:14px;">📅 Kişisel Vardiya Programım</h3>
-        
         <div style="display:flex; gap:5px; margin-bottom:10px;">
             <select id="mobilPersonelSecim" onchange="kisiselProgramiGoster()" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--border); font-weight:bold; background:#f8fafc; color:var(--primary); font-size:14px;">
                 <option value="">İsminizi Seçiniz...</option>
             </select>
             <button onclick="mobilVerileriYenile()" class="btn-main-action" style="background:var(--blue); width:auto; padding:0 15px; border-radius:8px;" title="Listeyi Yenile">🔄</button>
         </div>
-
         <div id="kisiselListeSonuc">
             <div style="text-align:center; padding:30px; color:#94a3b8; font-size:13px;">
                 <div style="font-size:30px; margin-bottom:10px;">👋</div>
@@ -307,7 +286,7 @@
         birimAyarlari: JSON.parse(localStorage.getItem(PREFIX + "birimAyarlari")) || {}
     };
     
-    // GÜVENLİ VE YEREL TARİH FONKSİYONU (UTC SORUNUNU KÖKTEN ÇÖZER)
+    // GÜVENLİ VE YEREL TARİH FONKSİYONU
     function getDateKey(d) {
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -319,7 +298,6 @@
 
     async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); if(config.telegram_api) TELEGRAM_API = config.telegram_api; if(config.telegram_id) TELEGRAM_ID = config.telegram_id; } } catch (error) { console.error(error); } }
     
-    /* --- YENİ EKLENEN GÜVENLİK VE GÖÇ FONKSİYONU --- */
     function verileriGuvenliHaleGetir() {
         if(!state) state = {};
         if(!state.manuelAtamalar) state.manuelAtamalar = {};
@@ -331,14 +309,15 @@
         if(!state.birimler) state.birimler = Object.values(UNITS);
         if(!state.saatler) state.saatler = Object.values(SHIFTS).filter(s => s.includes(":"));
         
-        // YENİ: Birim Ayarlarını Başlat (Migration)
+        // YENİ: Otomatik Migration (Eski birimleri tanı)
         if(!state.birimAyarlari || Object.keys(state.birimAyarlari).length === 0) {
             state.birimAyarlari = {};
             state.birimler.forEach(b => {
                 let tip = "HAVUZ";
                 let renk = BIRIM_RENKLERI[b] || "#64748b";
-                if(b.includes("MCR")) tip = "DONGU8"; // MCR Default
-                if(b.includes("INGEST")) tip = "DONGU6"; // Ingest Default
+                if(b.includes("MCR")) tip = "DONGU8"; 
+                if(b.includes("INGEST")) tip = "DONGU6"; 
+                if(b === UNITS.PLAYOUT || b === UNITS.SES || b === UNITS.KJ) tip = "GRUP_ABC"; // Otomatik Tanıma
                 state.birimAyarlari[b] = { tip: tip, renk: renk };
             });
         }
@@ -390,13 +369,10 @@
     function talepIslem(id, tip) { database.ref('talepler/' + id).once('value', snap => { if(!snap.exists()) return; const t = snap.val(); if(tip === 'onay') { const mKey = `${t.hKey}_${t.ad}_${t.gunIdx}`; state.manuelAtamalar[mKey] = t.tur; save(); currentMonday = new Date(t.hKey); tabloyuOlustur(); database.ref('talepler/' + id).update({ durum: 'onaylandi' }); alert(`✅ ${t.ad} için ${t.tarih} talebi ONAYLANDI.\n\nTakvim ilgili haftaya (${t.hKey}) kaydırıldı.`); logKoy(`${t.ad} için talep onaylandı: ${t.tur}`); } else { database.ref('talepler/' + id).update({ durum: 'reddedildi' }); alert("Talep reddedildi."); logKoy(`${t.ad} için talep reddedildi.`); } }); }
     function getMonday(d) { d = new Date(d); let day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day == 0 ? -6 : 1))); }
     function save() { Object.keys(state).forEach(k => localStorage.setItem(PREFIX + k, JSON.stringify(state[k]))); }
-    
-    // Gelişmiş Birim Rengi Alıcısı
     function getBirimColor(birim) { 
         if(state.birimAyarlari && state.birimAyarlari[birim]) return state.birimAyarlari[birim].renk;
         return BIRIM_RENKLERI[birim] || "#64748b"; 
     }
-    
     function getGecerliBirim(p, g) { let d = new Date(currentMonday); d.setDate(d.getDate() + g); const dateKey = getDateKey(d); const key = `${dateKey}_${p.ad}`; return state.geciciGorevler[key] || p.birim; }
     
     function logKoy(mesaj) {
@@ -466,8 +442,6 @@
             const birimAyar = state.birimAyarlari[p.birim] || { tip: "HAVUZ" };
             
             // Eğer elle girilmiş bir kayıt varsa, DÖNGÜYÜ ÇALIŞTIRMA (KORUMA KALKANI)
-            let elDegmemis = true;
-            
             if (birimAyar.tip === "DONGU8" || birimAyar.tip === "DONGU6") {
                 const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
                 const loopArr = (birimAyar.tip === "DONGU8") ? mcrDongu : ingestDongu;
@@ -483,11 +457,14 @@
             }
         });
 
-        // 3. ÖZEL GRUPLAR (Playout vb.) - Bunlar Havuz Mantığıyla Çakışmasın
-        [UNITS.PLAYOUT, UNITS.SES, UNITS.KJ].forEach(ozelBirim => {
-            let personelListesi = state.personeller.filter(p => p.birim === ozelBirim);
+        // 3. GRUP_ABC MANTIĞI (Playout/Ses/KJ Tipi) - DİNAMİKLEŞTİRİLDİ
+        state.birimler.forEach(birim => {
+            const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
+            if (ayar.tip !== "GRUP_ABC") return;
+
+            let personelListesi = state.personeller.filter(p => p.birim === birim);
             if (personelListesi.length === 0) return;
-            // ... (Eski A/B Grubu mantığı aynen korunuyor)
+             
              let grupA = []; let grupB = []; let grupC = [];
              personelListesi.forEach((p, index) => {
                 let gecenPzt = state.manuelAtamalar[`${prevHKey}_${p.ad}_0`];
@@ -511,7 +488,7 @@
         for (let gun = 0; gun < 7; gun++) {
             state.birimler.forEach(birim => {
                 const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
-                if (ayar.tip !== "HAVUZ") return; // Döngüsel olanları atla, onları yukarıda hallettik.
+                if (ayar.tip !== "HAVUZ") return; 
 
                 // Önce Gece
                 const geceSaati = SHIFTS.GECE; const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
@@ -854,16 +831,18 @@
                     <option value="HAVUZ">Standart (Havuz)</option>
                     <option value="DONGU8">MCR Tipi (8'li Döngü)</option>
                     <option value="DONGU6">Ingest Tipi (6'lı Döngü)</option>
+                    <option value="GRUP_ABC">3'lü Grup (Playout/Ses/KJ)</option>
                 </select>
                 <button onclick="birimEkle()" class="btn-main-action" style="background:var(--success); padding:8px 12px;">EKLE</button>
             </div>
             <div style="margin-top:5px; font-size:10px; color:#666; margin-bottom:10px;">
-                * <b>Standart:</b> Kapasiteye göre boş olanı atar (Kameraman vb.)<br>
-                * <b>Döngü:</b> 7/24 Sıralı sistem (S-S-A-A-G-G-İ-İ)
+                * <b>Standart:</b> Kapasiteye göre boş olanı atar<br>
+                * <b>Döngü:</b> 7/24 Sıralı sistem<br>
+                * <b>3'lü Grup:</b> Sabah/Akşam/İzin grubu (Playout mantığı)
             </div>
             ${state.birimler.map((b, i) => {
                 let ayar = state.birimAyarlari[b] || {tip:"HAVUZ", renk:"#3b82f6"};
-                let tipYazi = ayar.tip === "DONGU8" ? "8'li Döngü" : (ayar.tip === "DONGU6" ? "6'lı Döngü" : "Standart");
+                let tipYazi = ayar.tip === "DONGU8" ? "8'li Döngü" : (ayar.tip === "DONGU6" ? "6'lı Döngü" : (ayar.tip === "GRUP_ABC" ? "3'lü Grup" : "Standart"));
                 return `
                 <div style="padding:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:white; border-left: 5px solid ${getBirimColor(b)}">
                     <div>
