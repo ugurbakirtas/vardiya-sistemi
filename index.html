@@ -539,8 +539,74 @@
                 });
             }
         });
+        
+        // ------------------------------------------------------------
+        // 4. YENİ MOD: AKILLI_HAFTASONU (CUMA KORUMALI)
+        // ------------------------------------------------------------
+        state.birimler.forEach(birim => {
+            const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
+            if (ayar.tip !== "AKILLI_HAFTASONU") return;
+            
+            for (let gun = 0; gun < 7; gun++) {
+                // Sadece Cumartesi günü (Gun 5) için ÖZEL sıralama yapıyoruz.
+                // Diğer günler standart sıralama.
+                let siralama = [...state.saatler]; 
+                
+                if (gun === 5) {
+                    // CUMARTESİ ÖZEL SIRALAMA:
+                    // Önce GUNDUZ (09:00), Sonra SABAH (06:30), Sonra AKSAM (16:00), Sonra GECE
+                    siralama = siralama.filter(s => s !== SHIFTS.SABAH && s !== SHIFTS.GUNDUZ);
+                    siralama.unshift(SHIFTS.SABAH); // 2. Sıra
+                    siralama.unshift(SHIFTS.GUNDUZ); // 1. Sıra
+                }
 
-        // 4. GENEL HAVUZ MANTIĞI (Tüm Diğer Birimler İçin - GÜNCELLENDİ)
+                siralama.forEach(saat => {
+                    if (saat === SHIFTS.IZIN) return;
+                    
+                    const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
+                    let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length;
+                    
+                    if (mevcut < hedef) {
+                        let adaylar = state.personeller.filter(p => {
+                            if (getGecerliBirim(p, gun) !== birim) return false;
+                            if (tempProg[p.ad][gun] !== null) return false;
+                            if (calis[p.ad] >= 6) return false;
+
+                            // --- DİNLENME KALKANI (Anti-Zombie) ---
+                            // Eğer gün Cumartesi ise (5) ve vardiya SABAH veya GUNDUZ ise;
+                            // Cuma gününe (4) bak. Eğer Cuma AKŞAM veya GECE ise -> REDDET.
+                            if (gun === 5 && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) {
+                                let cumaVardiya = tempProg[p.ad][4];
+                                if (cumaVardiya === SHIFTS.AKSAM || cumaVardiya === SHIFTS.GECE) return false;
+                            }
+                            // -------------------------------------
+
+                            // Standart Dinlenme Kontrolü (Dün gece -> Bugün sabah olmaz)
+                            if (gun > 0) {
+                                let dun = tempProg[p.ad][gun-1];
+                                if ((dun === SHIFTS.AKSAM || dun === SHIFTS.GECE) && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) return false;
+                            }
+                            return true;
+                        });
+                        
+                        seededShuffle(adaylar, hKey + gun + saat);
+                        adaylar.sort((a,b) => calis[a.ad] - calis[b.ad]);
+
+                        for (let p of adaylar) {
+                            if (mevcut < hedef) {
+                                tempProg[p.ad][gun] = saat;
+                                calis[p.ad]++;
+                                mevcut++;
+                            }
+                        }
+                    }
+                });
+            }
+        });
+        // ------------------------------------------------------------
+
+
+        // 5. GENEL HAVUZ MANTIĞI (Tüm Diğer Birimler İçin - GÜNCELLENDİ)
         for (let gun = 0; gun < 7; gun++) {
             state.birimler.forEach(birim => {
                 const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
@@ -911,6 +977,7 @@
                     <option value="DONGU8">MCR Tipi (8'li Döngü)</option>
                     <option value="DONGU6">Ingest Tipi (6'lı Döngü)</option>
                     <option value="GRUP_ABC">3'lü Grup (Playout/Ses/KJ)</option>
+                    <option value="AKILLI_HAFTASONU">Akıllı Haftasonu (Cuma Korumalı)</option>
                 </select>
                 <button onclick="birimEkle()" class="btn-main-action" style="background:var(--success); padding:8px 12px;">EKLE</button>
             </div>
@@ -921,7 +988,10 @@
             </div>
             ${state.birimler.map((b, i) => {
                 let ayar = state.birimAyarlari[b] || {tip:"HAVUZ", renk:"#3b82f6"};
-                let tipYazi = ayar.tip === "DONGU8" ? "8'li Döngü" : (ayar.tip === "DONGU6" ? "6'lı Döngü" : (ayar.tip === "GRUP_ABC" ? "3'lü Grup" : "Standart"));
+                let tipYazi = ayar.tip === "DONGU8" ? "8'li Döngü" : 
+                             (ayar.tip === "DONGU6" ? "6'lı Döngü" : 
+                             (ayar.tip === "GRUP_ABC" ? "3'lü Grup" : 
+                             (ayar.tip === "AKILLI_HAFTASONU" ? "Akıllı H.Sonu" : "Standart")));
                 return `
                 <div style="padding:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:white; border-left: 5px solid ${getBirimColor(b)}">
                     <div>
