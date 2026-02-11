@@ -484,31 +484,54 @@
         // Çalışma günlerini say
         state.personeller.forEach(p => { calis[p.ad] = 0; for(let g=0; g<7; g++) { if(tempProg[p.ad][g] && ![SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(tempProg[p.ad][g])) calis[p.ad]++; } });
 
-        // 4. GENEL HAVUZ MANTIĞI (Tüm Diğer Birimler İçin)
+        // 4. GENEL HAVUZ MANTIĞI (Tüm Diğer Birimler İçin - GÜNCELLENDİ)
         for (let gun = 0; gun < 7; gun++) {
             state.birimler.forEach(birim => {
                 const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
                 if (ayar.tip !== "HAVUZ") return; 
 
-                // Önce Gece
-                const geceSaati = SHIFTS.GECE; const hedef = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
-                let atanan = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === geceSaati).length;
-                if (atanan < hedef) {
+                // --- GECE VARDİYASI ---
+                const geceSaati = SHIFTS.GECE; 
+                const hedefGece = (state.kapasite[`${birim}_${geceSaati}`] || [0,0,0,0,0,0,0])[gun];
+                let atananGece = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === geceSaati).length;
+
+                // TUR 1: Normal (6 Gün Kuralı Var)
+                if (atananGece < hedefGece) {
                     let adaylar = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null && (calis[p.ad] < 6));
                     seededShuffle(adaylar, hKey);
                     adaylar.sort((a,b) => calis[a.ad] - calis[b.ad]);
-                    for (let p of adaylar) { if (atanan < hedef) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atanan++; } }
+                    for (let p of adaylar) { if (atananGece < hedefGece) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atananGece++; } }
+                }
+                // TUR 2: ZORUNLU (6 Gün Kuralını Esnet)
+                if (atananGece < hedefGece) {
+                    let adaylar = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null);
+                    seededShuffle(adaylar, hKey);
+                    adaylar.sort((a,b) => calis[a.ad] - calis[b.ad]);
+                    for (let p of adaylar) { if (atananGece < hedefGece) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atananGece++; } }
                 }
                 
-                // Sonra Diğer Saatler
+                // --- DİĞER SAATLER ---
                 state.saatler.filter(s => s !== SHIFTS.GECE).forEach(saat => {
                     const hdf = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
                     let mvc = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length;
+                    
+                    // TUR 1
                     if (mvc < hdf) {
                         let ady = state.personeller.filter(p => {
                             let basic = getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null;
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
                             return basic && (calis[p.ad] < 6) && !(dunGece && saat === SHIFTS.SABAH);
+                        });
+                        seededShuffle(ady, hKey);
+                        ady.sort((a,b) => calis[a.ad] - calis[b.ad]);
+                        for (let p of ady) { if (mvc < hdf) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mvc++; } }
+                    }
+                    // TUR 2
+                    if (mvc < hdf) {
+                        let ady = state.personeller.filter(p => {
+                            let basic = getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null;
+                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
+                            return basic && !(dunGece && saat === SHIFTS.SABAH);
                         });
                         seededShuffle(ady, hKey);
                         ady.sort((a,b) => calis[a.ad] - calis[b.ad]);
