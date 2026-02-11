@@ -163,14 +163,12 @@
     
     <div id="mobilPersonelPanel" class="no-print" style="background:white; padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid var(--border);">
         <h3 style="margin:0 0 10px 0; color:var(--primary); font-size:14px;">📅 Kişisel Vardiya Programım</h3>
-        
         <div style="display:flex; gap:5px; margin-bottom:10px;">
             <select id="mobilPersonelSecim" onchange="kisiselProgramiGoster()" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--border); font-weight:bold; background:#f8fafc; color:var(--primary); font-size:14px;">
                 <option value="">İsminizi Seçiniz...</option>
             </select>
             <button onclick="mobilVerileriYenile()" class="btn-main-action" style="background:var(--blue); width:auto; padding:0 15px; border-radius:8px;" title="Listeyi Yenile">🔄</button>
         </div>
-
         <div id="kisiselListeSonuc">
             <div style="text-align:center; padding:30px; color:#94a3b8; font-size:13px;">
                 <div style="font-size:30px; margin-bottom:10px;">👋</div>
@@ -481,7 +479,22 @@
             grupA.forEach(p => { safeAssign(p, 0, SHIFTS.SABAH); safeAssign(p, 1, SHIFTS.AKSAM); safeAssign(p, 2, SHIFTS.AKSAM); safeAssign(p, 3, SHIFTS.IZIN); safeAssign(p, 4, SHIFTS.IZIN); safeAssign(p, 5, SHIFTS.SABAH); safeAssign(p, 6, SHIFTS.SABAH); });
             grupB.forEach(p => { safeAssign(p, 0, SHIFTS.AKSAM); safeAssign(p, 1, SHIFTS.IZIN); safeAssign(p, 2, SHIFTS.IZIN); safeAssign(p, 3, SHIFTS.SABAH); safeAssign(p, 4, SHIFTS.SABAH); safeAssign(p, 5, SHIFTS.AKSAM); safeAssign(p, 6, SHIFTS.AKSAM); });
             seededShuffle(grupC, hKey); 
-            grupC.forEach((p, index) => { safeAssign(p, 0, SHIFTS.IZIN); safeAssign(p, 1, SHIFTS.SABAH); safeAssign(p, 2, SHIFTS.SABAH); safeAssign(p, 3, SHIFTS.AKSAM); safeAssign(p, 4, SHIFTS.AKSAM); if (index % 2 === 0) safeAssign(p, 5, SHIFTS.IZIN); else safeAssign(p, 5, SHIFTS.AKSAM); if (index % 2 === 0) safeAssign(p, 6, SHIFTS.SABAH); else safeAssign(p, 6, SHIFTS.IZIN); });
+            grupC.forEach((p, index) => { 
+                safeAssign(p, 0, SHIFTS.IZIN); 
+                safeAssign(p, 1, SHIFTS.SABAH); 
+                safeAssign(p, 2, SHIFTS.SABAH); 
+                safeAssign(p, 3, SHIFTS.AKSAM); 
+                safeAssign(p, 4, SHIFTS.AKSAM); 
+                
+                // HAFTA SONU MAKASI (Biri Cmt İzin, Diğeri Paz İzin)
+                if (index % 2 === 0) {
+                    safeAssign(p, 5, SHIFTS.IZIN);  
+                    safeAssign(p, 6, SHIFTS.SABAH); 
+                } else {
+                    safeAssign(p, 5, SHIFTS.AKSAM); 
+                    safeAssign(p, 6, SHIFTS.IZIN);  
+                }
+            });
         });
 
         // Çalışma günlerini say
@@ -507,7 +520,6 @@
                             let bosta = (tempProg[p.ad][gun] === null || tempProg[p.ad][gun] === SHIFTS.IZIN);
                             let yorgunDegil = calis[p.ad] < 6;
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
-                            // Manuel atama ile izinliyse (YILLIK vb.) dokunma
                             let manuelVar = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`];
                             
                             return birimUygun && bosta && yorgunDegil && !dunGece && !manuelVar;
