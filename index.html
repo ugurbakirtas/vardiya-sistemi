@@ -267,6 +267,7 @@
         birimAyarlari: JSON.parse(localStorage.getItem(PREFIX + "birimAyarlari")) || {}
     };
     
+    // GÜVENLİ VE YEREL TARİH FONKSİYONU
     function getDateKey(d) {
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -278,6 +279,7 @@
 
     async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); if(config.telegram_api) TELEGRAM_API = config.telegram_api; if(config.telegram_id) TELEGRAM_ID = config.telegram_id; } } catch (error) { console.error(error); } }
     
+    /* --- YENİ EKLENEN GÜVENLİK VE GÖÇ FONKSİYONU --- */
     function verileriGuvenliHaleGetir() {
         if(!state) state = {};
         if(!state.manuelAtamalar) state.manuelAtamalar = {};
@@ -289,6 +291,7 @@
         if(!state.birimler) state.birimler = Object.values(UNITS);
         if(!state.saatler) state.saatler = Object.values(SHIFTS).filter(s => s.includes(":"));
         
+        // YENİ: Otomatik Migration (Eski birimleri tanı)
         if(!state.birimAyarlari || Object.keys(state.birimAyarlari).length === 0) {
             state.birimAyarlari = {};
             state.birimler.forEach(b => {
@@ -296,7 +299,7 @@
                 let renk = BIRIM_RENKLERI[b] || "#64748b";
                 if(b.includes("MCR")) tip = "DONGU8"; 
                 if(b.includes("INGEST")) tip = "DONGU6"; 
-                if(b === UNITS.PLAYOUT || b === UNITS.SES || b === UNITS.KJ) tip = "GRUP_ABC"; 
+                if(b === UNITS.PLAYOUT || b === UNITS.SES || b === UNITS.KJ) tip = "GRUP_ABC"; // Otomatik Tanıma
                 state.birimAyarlari[b] = { tip: tip, renk: renk };
             });
         }
@@ -454,53 +457,40 @@
             if (grupA.length === 0 && grupB.length === 0 && grupC.length === 0) {
                 personelListesi.forEach((p, i) => { if (i % 3 === 0) grupA.push(p); else if (i % 3 === 1) grupB.push(p); else grupC.push(p); });
             }
-            grupA.forEach(p => { 
-                safeAssign(p, 0, SHIFTS.SABAH); 
-                safeAssign(p, 1, SHIFTS.AKSAM); 
-                safeAssign(p, 2, SHIFTS.AKSAM); 
-                safeAssign(p, 3, SHIFTS.IZIN); 
-                safeAssign(p, 4, SHIFTS.IZIN); 
-                safeAssign(p, 5, SHIFTS.SABAH); 
-                safeAssign(p, 6, SHIFTS.SABAH); 
-            });
-            grupB.forEach(p => { 
-                safeAssign(p, 0, SHIFTS.AKSAM); 
-                safeAssign(p, 1, SHIFTS.IZIN); 
-                safeAssign(p, 2, SHIFTS.IZIN); 
-                safeAssign(p, 3, SHIFTS.SABAH); 
-                safeAssign(p, 4, SHIFTS.SABAH); 
-                // C Grubuyla paslaşma: C'den boşalan yere B gelir.
-                // Ama temel kural B'nin normal devam etmesi.
-                safeAssign(p, 5, SHIFTS.AKSAM); 
-                safeAssign(p, 6, SHIFTS.AKSAM); 
-            });
-            seededShuffle(grupC, hKey); 
-            grupC.forEach((p, index) => { 
-                safeAssign(p, 0, SHIFTS.IZIN); 
-                safeAssign(p, 1, SHIFTS.SABAH); 
-                safeAssign(p, 2, SHIFTS.SABAH); 
-                safeAssign(p, 3, SHIFTS.AKSAM); 
-                safeAssign(p, 4, SHIFTS.AKSAM); 
-                
-                // HAFTA SONU MAKASI (Biri Cmt İzin, Diğeri Paz İzin)
-                // VE KAPASİTE KONTROLÜ (0 ise yazma)
-                const checkAndAssign = (dayIndex, desiredShift) => {
-                    let kapasiteVarMi = (state.kapasite[`${birim}_${desiredShift}`] || [0,0,0,0,0,0,0])[dayIndex] > 0;
-                    if(kapasiteVarMi) {
-                        return desiredShift;
-                    } else {
-                        return SHIFTS.IZIN;
-                    }
-                };
+            grupA.forEach(p => { safeAssign(p, 0, SHIFTS.SABAH); safeAssign(p, 1, SHIFTS.AKSAM); safeAssign(p, 2, SHIFTS.AKSAM); safeAssign(p, 3, SHIFTS.IZIN); safeAssign(p, 4, SHIFTS.IZIN); safeAssign(p, 5, SHIFTS.SABAH); safeAssign(p, 6, SHIFTS.SABAH); });
+            grupB.forEach(p => { safeAssign(p, 0, SHIFTS.AKSAM); safeAssign(p, 1, SHIFTS.IZIN); safeAssign(p, 2, SHIFTS.IZIN); safeAssign(p, 3, SHIFTS.SABAH); safeAssign(p, 4, SHIFTS.SABAH); safeAssign(p, 5, SHIFTS.AKSAM); safeAssign(p, 6, SHIFTS.AKSAM); });
+            
+            // GRUP C (Pazartesi İzinliler)
+            seededShuffle(grupC, hKey);
+            grupC.forEach((p, index) => {
+                // Hafta içi standart (Pzt İzin, Sal-Çar Sabah, Per-Cum Akşam)
+                safeAssign(p, 0, SHIFTS.IZIN);
+                safeAssign(p, 1, SHIFTS.SABAH);
+                safeAssign(p, 2, SHIFTS.SABAH);
+                safeAssign(p, 3, SHIFTS.AKSAM);
+                safeAssign(p, 4, SHIFTS.AKSAM);
 
+                // HAFTA SONU MAKASI + KAPASİTE KONTROLÜ
                 if (index % 2 === 0) {
-                    // 1. Kişi: Cmt İZİN - Paz SABAH
-                    tempProg[p.ad][5] = SHIFTS.IZIN;
-                    tempProg[p.ad][6] = checkAndAssign(6, SHIFTS.SABAH); 
+                    // 1. TİP (Nöbetçi): Cuma Akşamdan çıktı -> Cmt AKŞAM devam eder -> Pazar İZİN.
+                    // Ama önce Cmt Akşam kapasitesi var mı bak?
+                    let cmtAksamCap = (state.kapasite[`${birim}_${SHIFTS.AKSAM}`] || [0,0,0,0,0,0,0])[5];
+                    if(cmtAksamCap > 0) {
+                         safeAssign(p, 5, SHIFTS.AKSAM);
+                    } else {
+                         safeAssign(p, 5, SHIFTS.IZIN);
+                    }
+                    safeAssign(p, 6, SHIFTS.IZIN);
                 } else {
-                    // 2. Kişi: Cmt AKŞAM - Paz İZİN
-                    tempProg[p.ad][5] = checkAndAssign(5, SHIFTS.AKSAM);
-                    tempProg[p.ad][6] = SHIFTS.IZIN;
+                    // 2. TİP (Dönüşümcü): Cuma Akşamdan çıktı -> Cmt İZİN -> Pazar SABAH (Pzt sabahına hazırlık).
+                    safeAssign(p, 5, SHIFTS.IZIN);
+                    // Pazar Sabah kapasitesi var mı bak?
+                    let pzSabahCap = (state.kapasite[`${birim}_${SHIFTS.SABAH}`] || [0,0,0,0,0,0,0])[6];
+                    if(pzSabahCap > 0) {
+                        safeAssign(p, 6, SHIFTS.SABAH);
+                    } else {
+                        safeAssign(p, 6, SHIFTS.IZIN);
+                    }
                 }
             });
         });
