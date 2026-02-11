@@ -469,6 +469,8 @@
                 safeAssign(p, 2, SHIFTS.IZIN); 
                 safeAssign(p, 3, SHIFTS.SABAH); 
                 safeAssign(p, 4, SHIFTS.SABAH); 
+                // C Grubuyla paslaşma: C'den boşalan yere B gelir.
+                // Ama temel kural B'nin normal devam etmesi.
                 safeAssign(p, 5, SHIFTS.AKSAM); 
                 safeAssign(p, 6, SHIFTS.AKSAM); 
             });
@@ -481,26 +483,23 @@
                 safeAssign(p, 4, SHIFTS.AKSAM); 
                 
                 // HAFTA SONU MAKASI (Biri Cmt İzin, Diğeri Paz İzin)
-                // DÜZELTME: Doğrudan kapasite kontrolü yaparak atama yapacak helper
-                const setWeekendShift = (dayIndex) => {
-                    // Kapasiteleri kontrol et: Sabah mı Akşam mı boş?
-                    let sabahDoluluk = state.personeller.filter(x => x.birim === birim && tempProg[x.ad][dayIndex] === SHIFTS.SABAH).length;
-                    let sabahHedef = (state.kapasite[`${birim}_${SHIFTS.SABAH}`] || [0,0,0,0,0,0,0])[dayIndex];
-                    
-                    if (sabahDoluluk < sabahHedef) {
-                        return SHIFTS.SABAH;
+                // VE KAPASİTE KONTROLÜ (0 ise yazma)
+                const checkAndAssign = (dayIndex, desiredShift) => {
+                    let kapasiteVarMi = (state.kapasite[`${birim}_${desiredShift}`] || [0,0,0,0,0,0,0])[dayIndex] > 0;
+                    if(kapasiteVarMi) {
+                        return desiredShift;
                     } else {
-                        return SHIFTS.AKSAM; // Sabah doluysa Akşam yaz
+                        return SHIFTS.IZIN;
                     }
                 };
 
                 if (index % 2 === 0) {
-                    // 1. Kişi: Cmt İZİN - Paz ÇALIŞ
+                    // 1. Kişi: Cmt İZİN - Paz SABAH
                     tempProg[p.ad][5] = SHIFTS.IZIN;
-                    tempProg[p.ad][6] = setWeekendShift(6); 
+                    tempProg[p.ad][6] = checkAndAssign(6, SHIFTS.SABAH); 
                 } else {
-                    // 2. Kişi: Cmt ÇALIŞ - Paz İZİN
-                    tempProg[p.ad][5] = setWeekendShift(5);
+                    // 2. Kişi: Cmt AKŞAM - Paz İZİN
+                    tempProg[p.ad][5] = checkAndAssign(5, SHIFTS.AKSAM);
                     tempProg[p.ad][6] = SHIFTS.IZIN;
                 }
             });
