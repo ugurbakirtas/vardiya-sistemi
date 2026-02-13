@@ -1444,13 +1444,13 @@ function anlikSenkronizasyonBaslat() {
                             else if(satirBasligi.includes("06") || satirBasligi.includes("07")) {
                                 atanacakVardiya = SHIFTS.SABAH;
                             }
-                            // 3. ÖNCELİK: GÜNDÜZ (08, 09 veya 10 içermeli)
-                            else if(satirBasligi.includes("08") || satirBasligi.includes("09") || satirBasligi.includes("10")) {
+                            // 3. ÖNCELİK: GÜNDÜZ (09 veya 10 içermeli)
+                            else if(satirBasligi.includes("09") || satirBasligi.includes("10")) {
                                 atanacakVardiya = SHIFTS.GUNDUZ;
                             }
-                            // 4. ÖNCELİK: AKŞAM (18, 16, 15, 14 içermeli)
+                            // 4. ÖNCELİK: AKŞAM (16, 15, 14 içermeli)
                             // "16:00 - 00:00" buraya girer.
-                            else if(satirBasligi.includes("16") || satirBasligi.includes("15") ||  satirBasligi.includes("18") || satirBasligi.includes("14")) {
+                            else if(satirBasligi.includes("16") || satirBasligi.includes("15") || satirBasligi.includes("14")) {
                                 atanacakVardiya = SHIFTS.AKSAM;
                             }
                         }
