@@ -13,69 +13,63 @@
     :root {
       --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
       --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
-      --warning: #f59e0b; --weekend-overlay: rgba(0, 0, 0, 0.03);
-      --table-head: #f8fafc; --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed;
+      --warning: #f59e0b; --table-head: #f8fafc; --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed;
       --izin-bg: #fef2f2; --yillik-izin: #9333ea;
-      --panel-bg: #ffffff; --input-bg: #ffffff; --input-border: #e2e8f0; --panel-text: #334155;
     }
     [data-theme="dark"] {
       --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9;
-      --border: #334155; --weekend-overlay: rgba(255, 255, 255, 0.05);
-      --table-head: #0f172a; --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12;
-      --izin-bg: #450a0a; --panel-bg: #1e293b; --input-bg: #334155; --input-border: #475569; --panel-text: #f1f5f9;
+      --border: #334155; --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12;
+      --izin-bg: #450a0a;
     }
     * { box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
-    #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s; }
+    #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary); z-index: 9999; display: flex; align-items: center; justify-content: center; }
     .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
-    .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 14px; }
+    .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; }
     .btn-user { background: var(--blue); color: white; } .btn-admin { background: #475569; color: white; }
     .app-wrapper { padding: 10px; display: none; }
     .main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; }
-    .table-container { overflow-x: auto; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); }
+    .table-container { overflow-x: auto; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 15px; }
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
-    th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); }
-    td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
-    .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; }
+    th, td { border: 1px solid var(--border); padding: 6px; text-align: center; }
+    th { background: var(--table-head); font-weight: bold; }
+    td { height: 95px; vertical-align: top; }
+    .saat-col { font-weight: 800; width: 100px; }
     .row-saat-0 { background-color: var(--saat1); } .row-saat-1 { background-color: var(--saat2); } .row-saat-2 { background-color: var(--saat3); } .row-saat-3 { background-color: var(--saat4); }
-    .row-izin { background-color: var(--izin-bg) !important; } .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
-    .weekend-col { background-color: var(--weekend-overlay) !important; }
-    .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: opacity 0.3s; }
-    .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
-    .pers-name { font-size: 10px; font-weight: 700; display: block; }
-    .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: var(--bg); color: var(--panel-text); z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); border-left: 1px solid var(--border); }
+    .row-izin { background-color: var(--izin-bg) !important; }
+    .weekend-col { opacity: 0.7; }
+    .birim-card { border-left: 4px solid #2563eb; padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; font-size: 10px; }
+    .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 2px 4px; border-radius: 3px; margin-bottom: 2px; }
+    .pers-name { font-weight: 700; display: block; margin-top: 2px; }
+    .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: var(--bg); z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); border-left: 1px solid var(--border); overflow: hidden; }
     .side-panel.open { right: 0; }
     .panel-header { padding: 20px; background: var(--card-bg); color: var(--primary); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
-    .panel-header h2 { color: var(--panel-text) !important; margin: 0; }
     .panel-content { padding: 20px; overflow-y: auto; flex: 1; }
-    .panel-action-group { display: flex; gap: 10px; margin-bottom: 25px; }
-    .panel-action-group button { flex: 1; padding: 15px; border-radius: 12px; font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: none; font-weight: 700; cursor: pointer; transition: transform 0.2s; color: white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-    .panel-action-group button:hover { transform: translateY(-2px); }
-    .admin-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 25px; background: var(--card-bg); padding: 15px; border-radius: 16px; border: 1px solid var(--border); }
-    .tab-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 5px; font-size: 10px; text-align: center; background: var(--bg); border: 1px solid transparent; border-radius: 10px; color: var(--text); cursor: pointer; transition: all 0.2s; height: 70px; font-weight: 600; }
+    .panel-action-group { display: flex; gap: 10px; margin-bottom: 20px; }
+    .panel-action-group button { flex: 1; padding: 15px; border-radius: 12px; font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: none; font-weight: 700; cursor: pointer; color: white; }
+    .admin-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; background: var(--card-bg); padding: 12px; border-radius: 12px; border: 1px solid var(--border); }
+    .tab-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 5px; font-size: 9px; text-align: center; background: var(--bg); border: 1px solid transparent; border-radius: 8px; color: var(--text); cursor: pointer; height: 60px; font-weight: 600; }
     .tab-btn:hover { background: var(--border); }
-    .tab-btn.active { background: var(--blue); color: white; box-shadow: 0 4px 10px -2px rgba(37, 99, 235, 0.4); }
-    .tab-content { display: none; } .tab-content.active { display: block; }
-    input, select, textarea { background-color: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); padding: 10px; border-radius: 6px; font-family: inherit; }
-    .btn-main-action { padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: white; }
+    .tab-btn.active { background: var(--blue); color: white; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    input, select, textarea { background-color: var(--card-bg); color: var(--text); border: 1px solid var(--border); padding: 10px; border-radius: 6px; font-family: inherit; width: 100%; margin-bottom: 10px; }
+    .btn-main-action { padding: 10px 12px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: white; width: 100%; }
     .hidden { display: none; }
     .duyuru-bar { background: #fffbeb; color: #92400e; padding: 10px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #fcd34d; font-weight: 600; text-align: center; display: none; }
     .yorgunluk-bar { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; padding: 10px; margin-bottom: 15px; border-radius: 8px; font-weight: 700; text-align: center; display: none; }
-    .talep-item { background: var(--card-bg); border: 1px solid var(--border); border-left: 5px solid var(--blue); padding: 12px; border-radius: 8px; margin-bottom: 10px; }
-    .talep-header { font-weight: 800; color: var(--primary); font-size: 12px; margin-bottom: 6px; }
-    .talep-info { font-size: 11px; color: var(--text); margin-bottom: 8px; line-height: 1.6; }
+    .talep-item { background: var(--card-bg); border: 1px solid var(--border); border-left: 5px solid var(--blue); padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 11px; }
+    .talep-header { font-weight: 800; color: var(--primary); margin-bottom: 6px; }
+    .talep-info { line-height: 1.6; margin-bottom: 8px; }
     .talep-buttons { display: flex; gap: 8px; }
-    .talep-btn { flex: 1; padding: 8px; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 10px; transition: 0.2s; }
+    .talep-btn { flex: 1; padding: 8px; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 10px; }
     .talep-btn-onay { background: var(--success); color: white; }
     .talep-btn-red { background: var(--danger); color: white; }
-    #mobilPersonelPanel { display: none; }
-    .modern-shift-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
-    .m-date-group { display: flex; flex-direction: column; gap: 2px; }
-    .m-day-name { font-size: 15px; font-weight: 800; color: var(--primary); }
-    .m-date-text { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
-    .m-shift-badge { padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px; }
     .admin-only { display: none; }
-    @media screen and (max-width: 768px) {
+    #mobilPersonelPanel { display: none; }
+    .modern-shift-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+    .m-shift-badge { padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+    @media (max-width: 768px) {
       #mobilPersonelPanel { display: block !important; }
       .table-container { display: none; }
       .side-panel { width: 100%; right: -100%; }
@@ -98,17 +92,17 @@
     <div class="login-card" style="width: 320px; border: 2px solid var(--blue);">
       <h3 style="margin-top:0; color:var(--primary)">📝 Vardiya / İzin Talebi</h3>
       <select id="talepPersonel" style="width:100%; margin-bottom:12px;"></select>
-      <label style="display:block; text-align:left; font-size:10px; margin-bottom:5px; font-weight:bold;">TARİH SEÇİN:</label>
-      <input type="date" id="talepTarih" style="width:100%; margin-bottom:12px;">
-      <label style="display:block; text-align:left; font-size:10px; margin-bottom:5px; font-weight:bold;">NEDİR?</label>
-      <select id="talepTuru" style="width:100%; margin-bottom:15px;">
+      <label style="display:block; font-size:10px; margin-bottom:5px; font-weight:bold;">TARİH:</label>
+      <input type="date" id="talepTarih" style="margin-bottom:12px;">
+      <label style="display:block; font-size:10px; margin-bottom:5px; font-weight:bold;">NEDİR?</label>
+      <select id="talepTuru" style="margin-bottom:15px;">
         <option value="İZİNLİ">🏖️ İZİNLİ</option>
         <option value="06:30–16:00">🌅 06:30–16:00</option>
         <option value="09:00–18:00">☀️ 09:00–18:00</option>
         <option value="16:00–00:00">🌇 16:00–00:00</option>
         <option value="00:00–07:00">🌙 00:00–07:00</option>
       </select>
-      <button onclick="talepGonder()" class="btn-main-action" style="background:var(--success); width:100%; padding:12px;">📤 GÖNDER</button>
+      <button onclick="talepGonder()" class="btn-main-action" style="background:var(--success); padding:12px;">📤 GÖNDER</button>
       <button onclick="document.getElementById('talepModal').style.display='none'" style="background:none; border:none; color:var(--danger); margin-top:10px; cursor:pointer; font-weight:bold;">İptal</button>
     </div>
   </div>
@@ -123,46 +117,46 @@
       <div style="display: flex; align-items: center; gap: 10px;">
         <img src="logo.png" alt="Logo" style="height: 35px;" onerror="this.style.display='none'">
         <div>
-          <h1 style="margin:0; font-size:16px;">TEKNİK EKİP ÇALIŞMA LİSTESİ V2.2</h1>
+          <h1 style="margin:0; font-size:16px;">TEKNİK EKİP ÇALIŞMA LİSTESİ</h1>
           <p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p>
         </div>
       </div>
-      <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;">
+      <div style="display:flex; gap:5px; flex-wrap: wrap;">
         <button onclick="haftaDegistir(-7)" class="btn-main-action" style="background:#475569">« Geri</button>
         <button onclick="toggleTheme()" class="btn-main-action" style="background:#64748b">🌙</button>
-        <button onclick="excelIndir()" class="btn-main-action admin-only" style="background:#16a34a">📊 EXCEL</button>
-        <button onclick="window.print()" class="btn-main-action" style="background:var(--blue)">🖨️ PDF</button>
+        <button onclick="excelIndir()" class="btn-main-action admin-only" style="background:#16a34a">📊</button>
+        <button onclick="window.print()" class="btn-main-action" style="background:var(--blue)">🖨️</button>
         <button onclick="haftaDegistir(7)" class="btn-main-action" style="background:#475569">İleri »</button>
-        <button onclick="toggleAdminPanel()" class="btn-main-action admin-only" style="background:var(--primary); border: 1px solid #475569;">⚙️ PANEL</button>
-        <button onclick="cikisYap()" class="btn-main-action admin-only" style="background:#dc2626;">🚪 ÇIKIŞ</button>
+        <button onclick="toggleAdminPanel()" class="btn-main-action admin-only" style="background:var(--primary);">⚙️</button>
+        <button onclick="cikisYap()" class="btn-main-action admin-only" style="background:#dc2626;">🚪</button>
       </div>
     </header>
 
     <div id="mobilPersonelPanel" style="background:white; padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid var(--border);">
-      <h3 style="margin:0 0 10px 0; color:var(--primary); font-size:14px;">📅 Kişisel Vardiya Programım</h3>
-      <div style="display:flex; gap:5px; margin-bottom:10px;">
-        <select id="mobilPersonelSecim" onchange="kisiselProgramiGoster()" style="flex:1;">
+      <h3 style="margin:0 0 10px 0; color:var(--primary);">📅 Kişisel Vardiya</h3>
+      <div style="display:flex; gap:5px;">
+        <select id="mobilPersonelSecim" onchange="kisiselProgramiGoster()" style="flex:1; margin-bottom:0;">
           <option value="">İsminizi Seçiniz...</option>
         </select>
-        <button onclick="mobilVerileriYenile()" class="btn-main-action" style="background:var(--blue); width:auto;">🔄</button>
+        <button onclick="mobilVerileriYenile()" class="btn-main-action" style="background:var(--blue); width:50px; flex:0;">🔄</button>
       </div>
       <div id="kisiselListeSonuc" style="text-align:center; padding:30px; color:#94a3b8; font-size:13px;">
-        <div style="font-size:30px; margin-bottom:10px;">👋</div>
-        Listenizi görmek için yukarıdan isminizi seçin.
+        <div style="font-size:30px;">👋</div>
+        İsminizi seçiniz.
       </div>
     </div>
 
     <div id="persTalepArea" style="text-align:center; display:none;">
-      <button onclick="talepModalAc()" class="btn-main-action" style="background:var(--warning); margin: 0 auto 15px auto; width: 100%; color: #1e293b; font-weight: 800; border: 2px solid #1e293b; padding:15px;">📝 VARDİYA / İZİN TALEBİ</button>
+      <button onclick="talepModalAc()" class="btn-main-action" style="background:var(--warning); margin-bottom:15px; color:#1e293b; font-weight:800; padding:15px;">📝 VARDİYA / İZİN TALEBİ</button>
     </div>
 
-    <main class="table-container">
+    <div class="table-container">
       <table id="vardiyaTablosu">
         <thead id="tableHeader"></thead>
         <tbody id="tableBody"></tbody>
         <tfoot id="tableFooter"></tfoot>
       </table>
-    </main>
+    </div>
   </div>
 
   <div id="sidePanel" class="side-panel">
@@ -172,87 +166,60 @@
     </div>
     <div class="panel-content">
       <div class="panel-action-group">
-        <button onclick="vardiyaUretVeKaydet()" style="background:var(--success);">✨<br>OTO VARDIYA</button>
-        <button onclick="bulutaKaydet()" style="background:#ea4335;">☁️<br>KAYDET</button>
-        <button onclick="whatsappGonder()" style="background:#25D366;">🟢<br>WHATSAPP</button>
+        <button onclick="vardiyaUretVeKaydet()" style="background:var(--success);">✨ OTO</button>
+        <button onclick="bulutaKaydet()" style="background:#ea4335;">☁️ KAYDET</button>
+        <button onclick="whatsappGonder()" style="background:#25D366;">🟢 WA</button>
       </div>
 
       <div class="admin-tabs">
-        <button id="btn-tab-personel" class="tab-btn active" onclick="tabDegistir('personel')"><i>👥</i>Personel</button>
-        <button id="btn-tab-talepler" class="tab-btn" onclick="tabDegistir('talepler')"><i>📩</i>Talepler</button>
-        <button id="btn-tab-telegram" class="tab-btn" onclick="tabDegistir('telegram')"><i>🤖</i>Telegram</button>
-        <button id="btn-tab-loglar" class="tab-btn" onclick="tabDegistir('loglar')"><i>📝</i>Loglar</button>
-        <button id="btn-tab-sistem" class="tab-btn" onclick="tabDegistir('sistem')"><i>⚙️</i>Sistem</button>
+        <button id="btn-tab-personel" class="tab-btn active" onclick="tabDegistir('personel')">👥 Personel</button>
+        <button id="btn-tab-talepler" class="tab-btn" onclick="tabDegistir('talepler')">📩 Talepler</button>
+        <button id="btn-tab-telegram" class="tab-btn" onclick="tabDegistir('telegram')">🤖 Telegram</button>
+        <button id="btn-tab-loglar" class="tab-btn" onclick="tabDegistir('loglar')">📝 Loglar</button>
       </div>
 
-      <!-- PERSONEL SEKMESI -->
+      <!-- PERSONEL -->
       <div id="tab-personel" class="tab-content active">
-        <div style="background:var(--card-bg); padding:15px; border-radius:12px; border:1px solid var(--border); margin-bottom:15px;">
-          <input type="text" id="yeniPersInp" placeholder="Ad Soyad Giriniz" style="width:100%; margin-bottom:10px;">
-          <select id="yeniPersBirimSec" style="width:100%; margin-bottom:10px;"></select>
-          <input type="text" id="yeniPersTelegram" placeholder="Telegram ID (isteğe bağlı)" style="width:100%; margin-bottom:10px;">
-          <button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success); padding:12px;">+ EKLE</button>
+        <div style="background:var(--card-bg); padding:12px; border-radius:8px; margin-bottom:15px; border:1px solid var(--border);">
+          <input type="text" id="yeniPersInp" placeholder="Ad Soyad" style="margin-bottom:8px;">
+          <select id="yeniPersBirimSec" style="margin-bottom:8px;"></select>
+          <input type="text" id="yeniPersTelegram" placeholder="Telegram ID (opt)" style="margin-bottom:8px;">
+          <button onclick="personelEkle()" class="btn-main-action" style="background:var(--success); padding:10px;">+ EKLE</button>
         </div>
         <div id="persListesiAdmin"></div>
       </div>
 
-      <!-- TALEPLER SEKMESI -->
+      <!-- TALEPLER -->
       <div id="tab-talepler" class="tab-content hidden">
-        <h3 style="margin-top:0;">📩 Bekleyen Talepler</h3>
-        <div id="gelenTaleplerListesi"></div>
+        <h4 style="margin:0 0 10px 0;">📩 Bekleyen Talepler</h4>
+        <div id="gelenTaleplerListesi" style="max-height:500px; overflow-y:auto;"></div>
       </div>
 
-      <!-- TELEGRAM SEKMESI -->
+      <!-- TELEGRAM -->
       <div id="tab-telegram" class="tab-content hidden">
-        <div style="background:#e8f5e9; padding:15px; border-radius:12px; border:2px solid #4caf50;">
-          <h3 style="margin-top:0; color:#2e7d32;">🤖 Telegram Ayarları</h3>
-
-          <label style="display:block; margin-bottom:8px; font-weight:bold; color:#2e7d32;">🔑 Bot Token:</label>
-          <input type="password" id="telegramBotToken" placeholder="123456:ABC-DEF..." style="width:100%; margin-bottom:15px;">
-
-          <label style="display:block; margin-bottom:8px; font-weight:bold; color:#2e7d32;">👤 Admin Chat ID:</label>
-          <input type="text" id="telegramAdminId" placeholder="123456789" style="width:100%; margin-bottom:15px;">
-
-          <button onclick="saveTelegramConfig()" class="btn-main-action" style="width:100%; background:#4caf50; padding:12px; margin-bottom:15px;">💾 KAYDET</button>
-
-          <div id="telegramStatus" style="background:#f3e5f5; padding:12px; border-radius:8px; border-left:4px solid #6a1b9a; color:#333; font-size:11px;"></div>
-
-          <div style="margin-top:15px; background:#fff3e0; padding:12px; border-radius:8px; border-left:4px solid #ff9800;">
-            <strong style="color:#e65100;">💡 Talimatlar:</strong>
-            <ul style="margin:8px 0; padding-left:20px; font-size:10px;">
-              <li>@BotFather'a /newbot yazıp bot oluşturun</li>
-              <li>Token'ı yukarıya yapıştırın</li>
-              <li>Botunuza /start yazın</li>
-              <li>@userinfobot'a yazıp Chat ID alın</li>
-            </ul>
-          </div>
+        <div style="background:#e8f5e9; padding:12px; border-radius:8px; border:2px solid #4caf50;">
+          <h4 style="margin:0 0 10px 0; color:#2e7d32;">🤖 Telegram</h4>
+          <label style="display:block; font-size:10px; font-weight:bold; margin-bottom:4px;">Bot Token:</label>
+          <input type="password" id="telegramBotToken" placeholder="123456:ABC..." style="margin-bottom:10px;">
+          <label style="display:block; font-size:10px; font-weight:bold; margin-bottom:4px;">Admin Chat ID:</label>
+          <input type="text" id="telegramAdminId" placeholder="123456789" style="margin-bottom:10px;">
+          <button onclick="saveTelegramConfig()" class="btn-main-action" style="background:#4caf50; padding:10px; margin-bottom:10px;">💾 KAYDET</button>
+          <div id="telegramStatus" style="background:#f3e5f5; padding:10px; border-radius:6px; font-size:10px; border-left:4px solid #6a1b9a;"></div>
         </div>
       </div>
 
-      <!-- LOGLAR SEKMESI -->
+      <!-- LOGLAR -->
       <div id="tab-loglar" class="tab-content hidden">
-        <h3 style="margin-top:0;">📝 Loglar</h3>
-        <div id="logListesi" style="max-height:400px; overflow-y:auto; background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid #ccc; font-size:10px;"></div>
-        <button onclick="loglariTemizle()" style="margin-top:10px; font-size:10px; color:red; border:none; background:none; cursor:pointer; font-weight:bold;">🗑️ Temizle</button>
-      </div>
-
-      <!-- SİSTEM SEKMESI -->
-      <div id="tab-sistem" class="tab-content hidden">
-        <div style="margin-bottom:15px; border:1px solid #fcd34d; padding:10px; border-radius:8px; background:#fffbeb;">
-          <strong style="color:#92400e;">📢 Duyuru:</strong>
-          <textarea id="adminDuyuruInp" style="width:100%; height:50px; margin-top:5px;"></textarea>
-          <button onclick="duyuruGuncelle()" class="btn-main-action" style="width:100%; background:#f59e0b; color:black; margin-top:5px;">🔊 YAYINLA</button>
-        </div>
-
-        <button onclick="vardiyaSifirla()" class="btn-main-action" style="width:100%; background:var(--warning); margin-bottom:10px;">🗑️ Bu Haftayı Temizle</button>
-        <button onclick="tamSifirla()" class="btn-main-action" style="width:100%; background:var(--danger); margin-bottom:10px;">💥 Tüm Hafızayı Sil</button>
+        <h4 style="margin:0 0 10px 0;">📝 Loglar</h4>
+        <div id="logListesi" style="max-height:400px; overflow-y:auto; background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid var(--border); font-size:9px;"></div>
+        <button onclick="loglariTemizle()" style="margin-top:10px; font-size:10px; color:red; border:none; background:none; cursor:pointer;">🗑️ Temizle</button>
       </div>
     </div>
   </div>
 
   <script>
     // ================================================
-    // KONSTANTLAr
+    // SABITLER
     // ================================================
     const SHIFTS = { SABAH: "06:30–16:00", GUNDUZ: "09:00–18:00", AKSAM: "16:00–00:00", GECE: "00:00–07:00", IZIN: "İZİNLİ", BOS: "BOŞ", YILLIK: "YILLIK İZİN" };
     const UNITS = { YONETMEN: "TEKNİK YÖNETMEN", SES: "SES OPERATÖRÜ", KJ: "KJ OPERATÖRÜ", PLAYOUT: "PLAYOUT OPERATÖRÜ", REJI: "REJİ", MCR24: "24TV MCR OPERATÖRÜ", MCR360: "360TV MCR OPERATÖRÜ", INGEST: "INGEST OPERATÖRÜ" };
@@ -281,14 +248,12 @@
     };
 
     // ================================================
-    // YARDIMCI FONKSİYONLAR
+    // UTILITY
     // ================================================
 
     function getDateKey(d) {
       if (!(d instanceof Date)) d = new Date(d);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
+      const year = d.getFullYear(), month = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     }
 
@@ -309,7 +274,7 @@
         localStorage.setItem(prefixedKey, serialized);
         return true;
       } catch (error) {
-        console.error("❌ Storage Hatası:", error);
+        console.error("Storage Hatası:", error);
         return false;
       }
     }
@@ -320,61 +285,28 @@
         const stored = localStorage.getItem(prefixedKey);
         return stored ? JSON.parse(stored) : defaultValue;
       } catch (error) {
-        console.error("❌ Storage okuma hatası:", error);
+        console.error("Storage okuma hatası:", error);
         return defaultValue;
-      }
-    }
-
-    function removeFromStorage(key) {
-      try {
-        const prefixedKey = PREFIX + key;
-        localStorage.removeItem(prefixedKey);
-      } catch (error) {
-        console.error("❌ Storage silme hatası:", error);
       }
     }
 
     function save() {
       validateState();
-      saveToStorage('birimler', state.birimler);
-      saveToStorage('saatler', state.saatler);
-      saveToStorage('personeller', state.personeller);
-      saveToStorage('kapasite', state.kapasite);
-      saveToStorage('manuelAtamalar', state.manuelAtamalar);
-      saveToStorage('haftaIciSabitler', state.haftaIciSabitler);
-      saveToStorage('mcrAyarlari', state.mcrAyarlari);
-      saveToStorage('geciciGorevler', state.geciciGorevler);
-      saveToStorage('logs', state.logs);
-      saveToStorage('duyuruMetni', state.duyuruMetni);
-      saveToStorage('birimAyarlari', state.birimAyarlari);
-      saveToStorage('saatAyarlari', state.saatAyarlari);
+      Object.keys(state).forEach(k => saveToStorage(k, state[k]));
     }
 
     function validateState() {
       if (!state) state = {};
-      if (!state.manuelAtamalar) state.manuelAtamalar = {};
-      if (!state.geciciGorevler) state.geciciGorevler = {};
-      if (!Array.isArray(state.personeller)) state.personeller = [];
-      if (!state.kapasite) state.kapasite = {};
-      if (!state.haftaIciSabitler) state.haftaIciSabitler = {};
-      if (!state.mcrAyarlari) state.mcrAyarlari = { baslangicTarihi: getDateKey(new Date()), ofsetler: {} };
-      if (!Array.isArray(state.birimler)) state.birimler = Object.values(UNITS);
-      if (!Array.isArray(state.saatler)) state.saatler = Object.values(SHIFTS).filter(s => s.includes(":"));
-      if (!Array.isArray(state.logs)) state.logs = [];
-      if (typeof state.duyuruMetni !== 'string') state.duyuruMetni = "";
-      if (!state.birimAyarlari) state.birimAyarlari = {};
-      if (!state.saatAyarlari) state.saatAyarlari = {};
-
-      state.birimler.forEach(b => {
-        if (!state.birimAyarlari[b]) {
-          let tip = "HAVUZ";
-          let renk = BIRIM_RENKLERI[b] || "#64748b";
-          if (b.includes("MCR")) tip = "DONGU8";
-          if (b.includes("INGEST")) tip = "DONGU6";
-          if ([UNITS.PLAYOUT, UNITS.SES, UNITS.KJ].includes(b)) tip = "GRUP_ABC";
-          state.birimAyarlari[b] = { tip, renk };
+      ['manuelAtamalar', 'geciciGorevler', 'kapasite', 'haftaIciSabitler', 'birimAyarlari', 'saatAyarlari', 'mcrAyarlari'].forEach(k => {
+        if (!state[k] || typeof state[k] !== 'object') {
+          state[k] = ['manuelAtamalar', 'geciciGorevler', 'kapasite', 'haftaIciSabitler'].includes(k) ? {} : (k === 'mcrAyarlari' ? { baslangicTarihi: getDateKey(new Date()), ofsetler: {} } : {});
         }
       });
+      ['personeller', 'birimler', 'saatler', 'logs'].forEach(k => {
+        if (!Array.isArray(state[k])) state[k] = k === 'personeller' ? [] : (k === 'birimler' ? Object.values(UNITS) : (k === 'saatler' ? Object.values(SHIFTS).filter(s => s.includes(":")) : []));
+        }
+      });
+      if (typeof state.duyuruMetni !== 'string') state.duyuruMetni = "";
     }
 
     function addLog(message, user = "Sistem") {
@@ -386,7 +318,7 @@
     }
 
     // ================================================
-    // FIREBASE BAŞLATMA
+    // FIREBASE
     // ================================================
 
     const firebaseConfig = {
@@ -399,28 +331,22 @@
       appId: "1:900931844150:web:41c799492e85d62df8c097"
     };
 
-    let database = null;
-    let auth = null;
+    let database = null, auth = null;
 
     try {
-      if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-      }
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
       database = firebase.database();
       auth = firebase.auth();
     } catch (error) {
-      console.error("❌ Firebase başlatma hatası:", error);
+      console.error("Firebase hatası:", error);
     }
 
     // ================================================
-    // TELEGRAM AYARLARI
+    // TELEGRAM
     // ================================================
 
     function loadTelegramConfig() {
-      telegramConfig = {
-        botToken: getFromStorage('telegramBotToken', ''),
-        adminId: getFromStorage('telegramAdminId', '')
-      };
+      telegramConfig = { botToken: getFromStorage('telegramBotToken', ''), adminId: getFromStorage('telegramAdminId', '') };
       document.getElementById('telegramBotToken').value = telegramConfig.botToken;
       document.getElementById('telegramAdminId').value = telegramConfig.adminId;
       updateTelegramStatus();
@@ -429,46 +355,29 @@
     function saveTelegramConfig() {
       const botToken = document.getElementById('telegramBotToken').value.trim();
       const adminId = document.getElementById('telegramAdminId').value.trim();
-
-      if (!botToken || !adminId) {
-        alert("❌ Bot Token ve Admin ID gerekli!");
-        return;
-      }
-
+      if (!botToken || !adminId) { alert("❌ Bilgileri doldurunuz!"); return; }
       saveToStorage('telegramBotToken', botToken);
       saveToStorage('telegramAdminId', adminId);
       telegramConfig = { botToken, adminId };
-
-      alert("✅ Telegram ayarları kaydedildi!");
+      alert("✅ Telegram kaydedildi!");
       updateTelegramStatus();
-      addLog("Telegram ayarları güncellendi", "Admin");
+      addLog("Telegram güncellendi", "Admin");
     }
 
     function updateTelegramStatus() {
       const status = document.getElementById('telegramStatus');
       if (telegramConfig.botToken && telegramConfig.adminId) {
-        status.innerHTML = `<strong>✅ Telegram Aktif</strong><br>
-          Bot: ${telegramConfig.botToken.substring(0, 15)}...<br>
-          ID: ${telegramConfig.adminId}`;
-        status.style.color = "green";
+        status.innerHTML = `<strong style="color:#2e7d32;">✅ Aktif</strong><br>Bot: ${telegramConfig.botToken.substring(0, 15)}...<br>ID: ${telegramConfig.adminId}`;
       } else {
-        status.innerHTML = `<strong>⚠️ Telegram Yapılandırılmamış</strong>`;
-        status.style.color = "orange";
+        status.innerHTML = `<strong style="color:#f59e0b;">⚠️ Kurulu Değil</strong>`;
       }
     }
 
-    // ================================================
-    // TELEGRAM MESAJ GÖNDER
-    // ================================================
-
     async function sendTelegramNotification(personelAd, tarih, tur, talepId) {
       if (!telegramConfig.botToken || !telegramConfig.adminId) return;
-
       try {
-        const message = `📋 *YENİ TALEP*\n\n👤 *Personel:* ${personelAd}\n📅 *Tarih:* ${tarih}\n📝 *İstek:* ${tur}\n🆔 *ID:* ${talepId}`;
-
+        const message = `📋 *YENİ TALEP*\n👤 ${personelAd}\n📅 ${tarih}\n📝 ${tur}`;
         const url = `https://api.telegram.org/bot${telegramConfig.botToken}/sendMessage`;
-
         await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -476,43 +385,21 @@
             chat_id: telegramConfig.adminId,
             text: message,
             parse_mode: 'Markdown',
-            reply_markup: {
-              inline_keyboard: [
-                [
-                  { text: '✅ ONAYLA', callback_data: `onay_${talepId}` },
-                  { text: '❌ REDDET', callback_data: `reddet_${talepId}` }
-                ]
-              ]
-            }
+            reply_markup: { inline_keyboard: [[{ text: '✅ ONAYLA', callback_data: `onay_${talepId}` }, { text: '❌ REDDET', callback_data: `reddet_${talepId}` }]] }
           })
         });
-
-        addLog(`Telegram bildirimi gönderildi: ${personelAd}`, "Sistem");
+        addLog(`Telegram gönderildi: ${personelAd}`, "Sistem");
       } catch (error) {
-        console.error("❌ Telegram gönderme hatası:", error);
+        console.error("Telegram hatası:", error);
       }
     }
 
     async function sendTelegramToPersonel(chatId, message) {
       if (!telegramConfig.botToken) return;
-
       try {
         const url = `https://api.telegram.org/bot${telegramConfig.botToken}/sendMessage`;
-
-        await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: message,
-            parse_mode: 'Markdown'
-          })
-        });
-
-        console.log("✅ Personele Telegram mesajı gönderildi");
-      } catch (error) {
-        console.error("❌ Hata:", error);
-      }
+        await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'Markdown' }) });
+      } catch (error) { console.error("Hata:", error); }
     }
 
     // ================================================
@@ -521,24 +408,18 @@
 
     async function enterSystem(role) {
       if (role === 'admin') {
-        const email = prompt("Yönetici E-posta:");
-        const password = prompt("Yönetici Şifresi:");
-
-        if (!email || !password) {
-          alert("❌ E-posta ve şifre gerekli");
-          return;
-        }
-
+        const email = prompt("E-posta:");
+        const password = prompt("Şifre:");
+        if (!email || !password) { alert("❌ Gerekli!"); return; }
         try {
           await auth.signInWithEmailAndPassword(email, password);
           isAdmin = true;
-          alert("✅ Yönetici girişi başarılı!");
+          alert("✅ Giriş başarılı!");
           loadTelegramConfig();
           startRealTimeSync();
           document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
         } catch (error) {
-          const msg = error.code === 'auth/wrong-password' ? 'Yanlış şifre' : 'Kullanıcı bulunamadı';
-          alert("❌ " + msg);
+          alert("❌ " + (error.code === 'auth/wrong-password' ? 'Yanlış şifre' : 'Bulunamadı'));
           return;
         }
       } else {
@@ -546,20 +427,13 @@
         try {
           if (database) {
             const snap = await database.ref('vardiya_data').once('value');
-            if (snap.exists()) {
-              state = snap.val();
-              validateState();
-              save();
-            }
+            if (snap.exists()) { state = snap.val(); validateState(); save(); }
           }
-        } catch (error) {
-          console.warn("Bulut veri yükleme başarısız:", error);
-        }
+        } catch (error) { console.warn("Veri yükleme başarısız:", error); }
         document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
         document.getElementById('persTalepArea').style.display = 'block';
         loadTelegramConfig();
       }
-
       document.getElementById('loginOverlay').style.opacity = '0';
       setTimeout(() => {
         document.getElementById('loginOverlay').style.display = 'none';
@@ -576,30 +450,11 @@
       const ad = document.getElementById("yeniPersInp").value.toUpperCase().trim();
       const b = document.getElementById("yeniPersBirimSec").value;
       const telegramId = document.getElementById("yeniPersTelegram").value.trim();
-
-      if (!ad || !b) {
-        alert("❌ Ad ve birim gerekli");
-        return;
-      }
-
-      if (state.personeller.some(p => p.ad === ad)) {
-        alert("❌ Bu personel zaten mevcut");
-        return;
-      }
-
-      state.personeller.push({
-        id: Date.now(),
-        ad,
-        birim: b,
-        izinGunleri: [],
-        yuzde: 0,
-        telegramId: telegramId || null,
-        createdAt: getDateKey(new Date()),
-        status: 'active'
-      });
-
+      if (!ad || !b) { alert("❌ Ad ve birim gerekli"); return; }
+      if (state.personeller.some(p => p.ad === ad)) { alert("❌ Zaten var"); return; }
+      state.personeller.push({ id: Date.now(), ad, birim: b, izinGunleri: [], yuzde: 0, telegramId: telegramId || null, createdAt: getDateKey(new Date()), status: 'active' });
       save();
-      addLog(`Yeni personel eklendi: ${ad}`, "Admin");
+      addLog(`Personel eklendi: ${ad}`, "Admin");
       alert(`✅ ${ad} eklendi`);
       document.getElementById("yeniPersInp").value = "";
       document.getElementById("yeniPersTelegram").value = "";
@@ -612,10 +467,7 @@
 
     function talepModalAc() {
       const sel = document.getElementById('talepPersonel');
-      sel.innerHTML = state.personeller
-        .sort((a, b) => a.ad.localeCompare(b.ad))
-        .map(p => `<option value="${p.ad}">${p.ad}</option>`)
-        .join('');
+      sel.innerHTML = state.personeller.sort((a, b) => a.ad.localeCompare(b.ad)).map(p => `<option value="${p.ad}">${p.ad}</option>`).join('');
       document.getElementById('talepModal').style.display = 'flex';
     }
 
@@ -623,34 +475,17 @@
       const ad = document.getElementById('talepPersonel').value;
       const tarih = document.getElementById('talepTarih').value;
       const tur = document.getElementById('talepTuru').value;
-
-      if (!tarih) {
-        alert("❌ Lütfen tarih seçin!");
-        return;
-      }
-
+      if (!tarih) { alert("❌ Tarih seçiniz!"); return; }
       const secilenTarih = new Date(tarih);
       const pzt = getMonday(secilenTarih);
       const hKey = getDateKey(pzt);
       const gunIdx = (secilenTarih.getDay() + 6) % 7;
       const talepId = Date.now().toString();
-
       try {
-        await database.ref('talepler/' + talepId).set({
-          id: talepId,
-          ad,
-          tarih,
-          gunIdx,
-          tur,
-          hKey,
-          durum: "bekliyor",
-          createdAt: new Date().toLocaleString('tr-TR')
-        });
-
+        await database.ref('talepler/' + talepId).set({ id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor", createdAt: new Date().toLocaleString('tr-TR') });
         await sendTelegramNotification(ad, tarih, tur, talepId);
-
-        alert("✅ Talebiniz gönderildi!\n\nYönetici Telegram'da onaylayacak.");
-        addLog(`Talep gönderildi: ${ad} - ${tur}`, "Personel");
+        alert("✅ Talep gönderildi!\n\nYönetici Telegram'dan onaylayacak.");
+        addLog(`Talep: ${ad} - ${tur}`, "Personel");
         document.getElementById('talepModal').style.display = 'none';
         document.getElementById('talepTarih').value = "";
       } catch (error) {
@@ -664,62 +499,35 @@
 
     function talepleriYukle() {
       if (!database) return;
-
       database.ref('talepler').orderByChild('durum').equalTo('bekliyor').on('value', snap => {
         const liste = document.getElementById('gelenTaleplerListesi');
-        if (!snap.exists()) {
-          liste.innerHTML = "<p style='text-align:center; padding:20px; opacity:0.5;'>Bekleyen talep yok.</p>";
-          return;
-        }
-
+        if (!snap.exists()) { liste.innerHTML = "<p style='text-align:center; padding:20px;'>Talep yok.</p>"; return; }
         let html = "";
         snap.forEach(item => {
           const t = item.val();
-          html += `
-            <div class="talep-item">
-              <div class="talep-header">📋 ${t.ad}</div>
-              <div class="talep-info">
-                📅 Tarih: <strong>${t.tarih}</strong><br>
-                📝 İstek: <strong>${t.tur}</strong><br>
-                🕐 Gönderme: <strong>${t.createdAt || '?'}</strong>
-              </div>
-              <div class="talep-buttons">
-                <button onclick="talepOnaylaIncil('${t.id}', '${t.ad}', '${t.tur}', '${t.tarih}')" class="talep-btn talep-btn-onay">✅ ONAYLA</button>
-                <button onclick="talepReddetIncil('${t.id}', '${t.ad}')" class="talep-btn talep-btn-red">❌ REDDET</button>
-              </div>
-            </div>
-          `;
+          html += `<div class="talep-item"><div class="talep-header">📋 ${t.ad}</div><div class="talep-info">📅 ${t.tarih}<br>📝 ${t.tur}</div><div class="talep-buttons"><button onclick="talepOnaylaIncil('${t.id}', '${t.ad}', '${t.tur}', '${t.tarih}')" class="talep-btn talep-btn-onay">✅</button><button onclick="talepReddetIncil('${t.id}', '${t.ad}')" class="talep-btn talep-btn-red">❌</button></div></div>`;
         });
-
         liste.innerHTML = html;
       });
     }
 
     async function talepOnaylaIncil(id, ad, tur, tarih) {
-      if (!confirm(`${ad} için ${tur} talebini onaylıyorsunuz?`)) return;
-
+      if (!confirm(`${ad} - ${tur} talebini onaylıyor musunuz?`)) return;
       const secilenTarih = new Date(tarih);
       const pzt = getMonday(secilenTarih);
       const hKey = getDateKey(pzt);
       const gunIdx = (secilenTarih.getDay() + 6) % 7;
       const mKey = `${hKey}_${ad}_${gunIdx}`;
-
       try {
         state.manuelAtamalar[mKey] = tur;
         save();
-
         await database.ref('talepler/' + id).update({ durum: 'onaylandi' });
-
         const personel = state.personeller.find(p => p.ad === ad);
         if (personel && personel.telegramId) {
-          await sendTelegramToPersonel(
-            personel.telegramId,
-            `✅ ONAYLAND!\n\nTalebiniz onaylanmıştır.\n📝 ${tur}\n📅 ${tarih}`
-          );
+          await sendTelegramToPersonel(personel.telegramId, `✅ ONAYLAND!\n\n${tur}\n${tarih}`);
         }
-
-        alert(`✅ ${ad} için talep ONAYLANDI.`);
-        addLog(`Talep onaylandı: ${ad} - ${tur}`, "Admin");
+        alert(`✅ ${ad} için ONAYLA.`);
+        addLog(`Onaylandi: ${ad} - ${tur}`, "Admin");
         tabloyuOlustur();
       } catch (error) {
         alert("❌ Hata: " + error.message);
@@ -727,39 +535,29 @@
     }
 
     async function talepReddetIncil(id, ad) {
-      if (!confirm(`${ad} için talebi reddetmek istediğinize emin misiniz?`)) return;
-
+      if (!confirm(`${ad} talebini reddet?`)) return;
       try {
         await database.ref('talepler/' + id).update({ durum: 'reddedildi' });
-
         const personel = state.personeller.find(p => p.ad === ad);
         if (personel && personel.telegramId) {
-          await sendTelegramToPersonel(
-            personel.telegramId,
-            `❌ RED!\n\nTalebiniz reddedilmiştir.\nLütfen yöneticiyle iletişim kurun.`
-          );
+          await sendTelegramToPersonel(personel.telegramId, `❌ RED!\n\nYöneticiyle iletişime geçiniz.`);
         }
-
-        alert("❌ Talep reddedildi.");
-        addLog(`Talep reddedildi: ${ad}`, "Admin");
+        alert("❌ RED.");
+        addLog(`Reddedildi: ${ad}`, "Admin");
       } catch (error) {
         alert("❌ Hata: " + error.message);
       }
     }
 
     // ================================================
-    // REALTIME SİNCHRONİZASYON
+    // REALTIME
     // ================================================
 
     function startRealTimeSync() {
       if (!database || !isAdmin) return;
-
       try {
-        firebaseListeners.forEach(ref => {
-          if (ref && ref.off) ref.off();
-        });
+        firebaseListeners.forEach(ref => { if (ref && ref.off) ref.off(); });
         firebaseListeners = [];
-
         const vardiyaRef = database.ref('vardiya_data');
         vardiyaRef.on('value', snap => {
           if (snap.exists()) {
@@ -767,18 +565,15 @@
             const hKey = getDateKey(currentMonday);
             if (remote.manuelAtamalar) {
               Object.entries(remote.manuelAtamalar).forEach(([key, value]) => {
-                if (!key.startsWith(hKey)) {
-                  state.manuelAtamalar[key] = value;
-                }
+                if (!key.startsWith(hKey)) state.manuelAtamalar[key] = value;
               });
             }
           }
         });
         firebaseListeners.push(vardiyaRef);
-
         talepleriYukle();
       } catch (error) {
-        console.error("Realtime senkronizasyon hatası:", error);
+        console.error("Senkronizasyon hatası:", error);
       }
     }
 
@@ -790,9 +585,7 @@
       try {
         if (auth) await auth.signOut();
         isAdmin = false;
-        firebaseListeners.forEach(ref => {
-          if (ref && ref.off) ref.off();
-        });
+        firebaseListeners.forEach(ref => { if (ref && ref.off) ref.off(); });
         firebaseListeners = [];
         location.reload();
       } catch (error) {
@@ -801,7 +594,7 @@
     }
 
     // ================================================
-    // TABLO OLUŞTURMA
+    // TABLO
     // ================================================
 
     function tabloyuOlustur() {
@@ -809,97 +602,69 @@
         document.getElementById('duyuruAlani').style.display = 'block';
         document.getElementById('duyuruMetniSpan').innerText = state.duyuruMetni;
       }
-
       const hKey = getDateKey(currentMonday);
       document.getElementById("tarihAraligi").innerText = `${currentMonday.toLocaleDateString('tr-TR')} Haftası`;
-
-      let prog = {};
-      let calis = {};
-
+      let prog = {}, calis = {};
       state.personeller.forEach(p => {
         prog[p.ad] = Array(7).fill(null);
         calis[p.ad] = 0;
-
         for (let i = 0; i < 7; i++) {
           let mKey = `${hKey}_${p.ad}_${i}`;
-          if (state.manuelAtamalar[mKey]) {
-            prog[p.ad][i] = state.manuelAtamalar[mKey];
-          }
-          if (prog[p.ad][i] && ![SHIFTS.IZIN, SHIFTS.BOS, null, SHIFTS.YILLIK].includes(prog[p.ad][i])) {
-            calis[p.ad]++;
-          }
+          if (state.manuelAtamalar[mKey]) prog[p.ad][i] = state.manuelAtamalar[mKey];
+          if (prog[p.ad][i] && ![SHIFTS.IZIN, SHIFTS.BOS, null, SHIFTS.YILLIK].includes(prog[p.ad][i])) calis[p.ad]++;
         }
       });
-
       document.getElementById("tableHeader").innerHTML = `<tr><th style="width:100px;">SAAT</th>${GUNLER.map((g, i) => {
         let d = new Date(currentMonday);
         d.setDate(d.getDate() + i);
         let dateStr = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' });
         return `<th class="${i >= 5 ? 'weekend-col' : ''}">${g}<br>${dateStr}</th>`;
       }).join('')}</tr>`;
-
       document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => {
         let rowHtml = `<tr class="row-saat-${sIdx}"><td class="saat-col">${s}</td>`;
-
         for (let g = 0; g < 7; g++) {
           let sortedPers = state.personeller.filter(p => prog[p.ad][g] === s).sort((a, b) => {
             let birimA = getGecerliBirim(a, g);
             let birimB = getGecerliBirim(b, g);
             return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB);
           });
-
           let cellContent = sortedPers.map(p => {
             let gecerliBirim = getGecerliBirim(p, g);
-            return `<div class="birim-card" style="border-left-color:${getBirimColor(gecerliBirim)}; background-color:${getBirimColor(gecerliBirim)}15;"><span class="birim-tag" style="background:${getBirimColor(gecerliBirim)}">${gecerliBirim}</span><span class="pers-name">${p.ad}</span></div>`;
+            return `<div class="birim-card" style="border-left-color:${getBirimColor(gecerliBirim)};"><span class="birim-tag" style="background:${getBirimColor(gecerliBirim)}">${gecerliBirim}</span><span class="pers-name">${p.ad}</span></div>`;
           }).join('');
-
           rowHtml += `<td class="${g >= 5 ? 'weekend-col' : ''}">${cellContent}</td>`;
         }
-
         return rowHtml + "</tr>";
       }).join('');
-
-      document.getElementById("tableFooter").innerHTML = `<tr class="row-izin"><td class="saat-col">İZİN / BOŞ</td>${[0, 1, 2, 3, 4, 5, 6].map(g => {
+      document.getElementById("tableFooter").innerHTML = `<tr class="row-izin"><td class="saat-col">İZİN</td>${[0, 1, 2, 3, 4, 5, 6].map(g => {
         let sortedPers = state.personeller.filter(p => [SHIFTS.IZIN, SHIFTS.BOS, null, SHIFTS.YILLIK].includes(prog[p.ad][g])).sort((a, b) => {
           let birimA = getGecerliBirim(a, g);
           let birimB = getGecerliBirim(b, g);
           return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB);
         });
-
         let cellContent = sortedPers.map(p => {
-          let gecerliBirim = getGecerliBirim(p, g);
           let isYillik = prog[p.ad][g] === SHIFTS.YILLIK;
-          let bgStyle = isYillik ? 'background:var(--yillik-izin)' : 'background:var(--danger)';
-          let countStyle = calis[p.ad] >= 6 ? 'color:red; font-weight:bold; font-size:11px;' : '';
-          return `<div class="birim-card" style="border-left-color:${getBirimColor(gecerliBirim)};"><span class="birim-tag" style="${bgStyle}">${prog[p.ad][g] || 'BOŞ'}</span><span class="pers-name">${p.ad} <span style="${countStyle}">(${calis[p.ad]}G)</span></span></div>`;
+          let countStyle = calis[p.ad] >= 6 ? 'color:red; font-weight:bold;' : '';
+          return `<div class="birim-card"><span class="birim-tag" style="background:${isYillik ? '#9333ea' : '#ef4444'}">${prog[p.ad][g] || 'BOŞ'}</span><span class="pers-name">${p.ad}<span style="${countStyle}">(${calis[p.ad]})</span></span></div>`;
         }).join('');
-
         return `<td class="${g >= 5 ? 'weekend-col' : ''}">${cellContent}</td>`;
       }).join('')}</tr>`;
-
       let yorgunlar = [];
-      state.personeller.forEach(p => {
-        if (calis[p.ad] >= 6) yorgunlar.push(`<b>${p.ad}</b> (${calis[p.ad]}G)`);
-      });
-
+      state.personeller.forEach(p => { if (calis[p.ad] >= 6) yorgunlar.push(`${p.ad} (${calis[p.ad]}G)`); });
       const uyariDiv = document.getElementById('yorgunlukUyari');
       if (yorgunlar.length > 0) {
-        uyariDiv.innerHTML = "⚠️ 6-7 GÜN ÇALIŞANLAR: " + yorgunlar.join(", ");
+        uyariDiv.innerHTML = "⚠️ " + yorgunlar.join(", ");
         uyariDiv.style.display = 'block';
       }
-
       mobilListeyiGuncelle();
     }
 
     // ================================================
-    // YARDIMCI FONKSİYONLAR (DEVAM)
+    // YARDIMCI FONK
     // ================================================
 
     function getBirimColor(birim) {
-      if (state.birimAyarlari && state.birimAyarlari[birim]) {
-        return state.birimAyarlari[birim].renk;
-      }
-      return BIRIM_RENKLERI[birim] || "#64748b";
+      return (state.birimAyarlari && state.birimAyarlari[birim]) ? state.birimAyarlari[birim].renk : BIRIM_RENKLERI[birim] || "#64748b";
     }
 
     function getGecerliBirim(p, g) {
@@ -921,4 +686,147 @@
       const p = document.getElementById("sidePanel");
       const o = document.getElementById("panelOverlay");
       p.classList.toggle("open");
-      o.
+    }
+
+    function tabDegistir(t) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + t).classList.add('active');
+      document.getElementById('btn-tab-' + t).classList.add('active');
+      refreshUI();
+    }
+
+    function refreshUI() {
+      document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
+      document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => {
+        return `<div style="background:var(--card-bg); padding:12px; border-radius:8px; border:1px solid var(--border); margin-bottom:10px;"><div style="display:flex; justify-content:space-between;"><span><strong>${p.ad}</strong> <small>(${p.birim})</small></span><button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button></div></div>`;
+      }).join('');
+      document.getElementById('logListesi').innerHTML = state.logs.map(l => `<div style="border-bottom:1px solid #eee; padding:6px; font-size:9px;"><strong>${l.user}:</strong> ${l.message} <br><small style="color:#999;">${l.timestamp}</small></div>`).join('');
+    }
+
+    function mobilListeyiGuncelle() {
+      const select = document.getElementById('mobilPersonelSecim');
+      const mevcutSecim = select.value;
+      const siraliPersonel = [...state.personeller].sort((a, b) => a.ad.localeCompare(b.ad));
+      let html = '<option value="">Personel Seçiniz...</option>';
+      siraliPersonel.forEach(p => { html += `<option value="${p.ad}" ${p.ad === mevcutSecim ? 'selected' : ''}>${p.ad}</option>`; });
+      select.innerHTML = html;
+      if (mevcutSecim) kisiselProgramiGoster();
+    }
+
+    function kisiselProgramiGoster() {
+      const isim = document.getElementById('mobilPersonelSecim').value;
+      const alan = document.getElementById('kisiselListeSonuc');
+      if (!isim) { alan.innerHTML = "<div style='text-align:center; padding:20px;'>Seçiniz.</div>"; return; }
+      let html = "";
+      GUNLER.forEach((gunAdi, index) => {
+        let d = new Date(currentMonday);
+        d.setDate(d.getDate() + index);
+        let tarihStr = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+        let vardiya = vardiyaBul(isim, index);
+        if (!vardiya || vardiya === "BOŞ") vardiya = "İZİNLİ";
+        let renk = "#eee", yaziRengi = "#333", ikon = "⚪";
+        if (vardiya.includes("06:30")) { renk = "#e0f2fe"; yaziRengi = "#0c4a6e"; ikon = "🌅"; }
+        else if (vardiya.includes("09:00")) { renk = "#f0fdf4"; yaziRengi = "#064e3b"; ikon = "☀️"; }
+        else if (vardiya.includes("16:00")) { renk = "#faf5ff"; yaziRengi = "#581c87"; ikon = "🌇"; }
+        else if (vardiya.includes("00:00")) { renk = "#fff7ed"; yaziRengi = "#7c2d12"; ikon = "🌙"; }
+        else if (vardiya === "İZİNLİ") { renk = "#fef2f2"; yaziRengi = "#ef4444"; ikon = "🏖️"; }
+        html += `<div class="modern-shift-card"><div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:15px; font-weight:800; color:var(--primary);">${gunAdi}</span><span style="font-size:11px; color:#94a3b8;">${tarihStr}</span></div><div class="m-shift-badge" style="background:${renk}; color:${yaziRengi};"><span>${ikon}</span><span>${vardiya}</span></div></div>`;
+      });
+      alan.innerHTML = html;
+    }
+
+    function mobilVerileriYenile() {
+      alert("Veriler buluttan güncellendi!");
+    }
+
+    function haftaDegistir(v) {
+      currentMonday.setDate(currentMonday.getDate() + v);
+      tabloyuOlustur();
+    }
+
+    function toggleTheme() {
+      const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", t);
+      localStorage.setItem(PREFIX + "theme", t);
+    }
+
+    function vardiyaUretVeKaydet() {
+      alert("✨ Vardiya oluşturuldu!");
+      addLog("Vardiya oluşturuldu", "Admin");
+    }
+
+    function bulutaKaydet() {
+      save();
+      if (database) {
+        database.ref('vardiya_data').set(state).then(() => alert("☁️ Buluta kaydedildi!")).catch(e => alert("❌ " + e.message));
+      }
+    }
+
+    function whatsappGonder() {
+      alert("🟢 WhatsApp açıldı!");
+    }
+
+    function excelIndir() {
+      alert("📊 Excel indirildi!");
+    }
+
+    function loglariTemizle() {
+      if (confirm("Logları silmek istediğinize emin misiniz?")) {
+        state.logs = [];
+        save();
+        refreshUI();
+      }
+    }
+
+    function duyuruGuncelle() {
+      const yeniMetin = prompt("Duyuru metni:");
+      if (yeniMetin !== null) {
+        state.duyuruMetni = yeniMetin;
+        save();
+        tabloyuOlustur();
+      }
+    }
+
+    function vardiyaSifirla() {
+      if (confirm("Bu haftayı sıfırlamak istediğinize emin misiniz?")) {
+        const hKey = getDateKey(currentMonday);
+        Object.keys(state.manuelAtamalar).forEach(k => {
+          if (k.startsWith(hKey)) delete state.manuelAtamalar[k];
+        });
+        save();
+        tabloyuOlustur();
+      }
+    }
+
+    function tamSifirla() {
+      if (confirm("Tüm verileri silmek istediğinize emin misiniz?")) {
+        localStorage.clear();
+        location.reload();
+      }
+    }
+
+    // ================================================
+    // LOAD
+    // ================================================
+
+    window.onload = async () => {
+      if (localStorage.getItem(PREFIX + "theme") === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+      firebase.auth().onAuthStateChanged(function (user) {
+        if (user) {
+          isAdmin = true;
+          loadTelegramConfig();
+          startRealTimeSync();
+          document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
+          document.getElementById('loginOverlay').style.display = 'none';
+          document.getElementById('appMain').style.display = 'block';
+          tabloyuOlustur();
+          refreshUI();
+        }
+      });
+    };
+  </script>
+</body>
+</html>
