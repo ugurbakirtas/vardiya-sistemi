@@ -7,6 +7,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     :root {
       --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
@@ -217,6 +218,16 @@
                 <textarea id="adminDuyuruInp" style="width:96%; height:50px; margin-top:5px; border-radius:4px; border:1px solid #ccc; padding:5px;" placeholder="Buraya yazılanlar ana sayfada bant olarak geçer..."></textarea>
                 <button onclick="duyuruGuncelle()" class="btn-main-action" style="width:100%; background:#f59e0b; color:black; margin-top:5px;">DUYURUYU YAYINLA / GİZLE</button>
             </div>
+            
+            <div style="margin-bottom:15px; border:1px solid #22c55e; padding:10px; border-radius:8px; background:#f0fdf4;">
+                <strong>📊 Dışarıdan Liste Yükle (Ulaştırma Tipi):</strong>
+                <div style="font-size:10px; color:#666; margin-bottom:5px;">
+                    Format: A Sütunu=Saatler (09:00, İZİN vb.), Hücreler=İsimler
+                </div>
+                <input type="file" id="excelUploadInput" accept=".xlsx, .xls" style="width:100%; margin-bottom:5px;">
+                <button onclick="exceldenVardiyaYukle()" class="btn-main-action" style="width:100%; background:#15803d;">LİSTEYİ SİSTEME İŞLE</button>
+            </div>
+            
             <button onclick="jsonYedekAl()" class="btn-main-action" style="width:100%; background:var(--blue); margin-bottom:10px;">💾 JSON İNDİR</button>
             <input type="file" id="jsonInput" style="display:none" onchange="handleFileSelect(this)"><button onclick="githubdanYedekYukle()" class="btn-main-action" style="width:100%; background:#000; color:#fff; margin-bottom:10px;">📂 GITHUB'DAN YÜKLE</button><button onclick="vardiyaSifirla()" class="btn-main-action" style="width:100%; background:var(--warning); margin-bottom:10px;">Bu Haftayı Temizle</button><button onclick="tamSifirla()" class="btn-main-action" style="width:100%; background:var(--danger); margin-bottom:10px;">Tüm Hafızayı Sil</button>
             <button onclick="arsivleVeTemizle()" class="btn-main-action" style="width:100%; background:#7c3aed; color:white; border:1px solid white;">🗑️ ESKİ VERİLERİ TEMİZLE (ARŞİV)</button>
@@ -606,7 +617,7 @@
         // ------------------------------------------------------------
 
 
-        // 5. GENEL HAVUZ VE PUANLI GECE MANTIĞI (GÜNCELLENDİ)
+        // 5. GENEL HAVUZ VE PUANLI GECE MANTIĞI (GÜNCELLENDİ: SADECE GECE PUANLI)
         for (let gun = 0; gun < 7; gun++) {
             state.birimler.forEach(birim => {
                 const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
@@ -614,14 +625,15 @@
                 // SADECE HAVUZ VEYA YENİ GECE ÖNCELİKLİ TİPİNİ KABUL ET
                 if (ayar.tip !== "HAVUZ" && ayar.tip !== "GECE_ONCELIKLI") return; 
 
-                // SIRALAMA FONKSİYONU (TİPE GÖRE DEĞİŞİR)
-                const siralamaYap = (adaylar) => {
+                // SIRALAMA FONKSİYONU (AKILLI REVİZE EDİLDİ)
+                const siralamaYap = (adaylar, isGece) => {
                     seededShuffle(adaylar, hKey);
-                    if (ayar.tip === "GECE_ONCELIKLI") {
-                        // Yeni Mod: Önce PUAN (% Yüzde), Sonra AZ ÇALIŞMA
+                    
+                    if (ayar.tip === "GECE_ONCELIKLI" && isGece) {
+                        // SADECE GECE İSE: Önce PUAN (% Yüzde), Sonra AZ ÇALIŞMA
                         adaylar.sort((a,b) => (b.yuzde || 0) - (a.yuzde || 0) || calis[a.ad] - calis[b.ad]);
                     } else {
-                        // Eski Mod: Sadece AZ ÇALIŞMA (Standart Havuz)
+                        // DİĞER DURUMLARDA (Gündüz vb.): Sadece AZ ÇALIŞMA (Adil Karışım)
                         adaylar.sort((a,b) => calis[a.ad] - calis[b.ad]);
                     }
                 };
@@ -634,17 +646,17 @@
                 // TUR 1: Normal (6 Gün Kuralı Var)
                 if (atananGece < hedefGece) {
                     let adaylar = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null && (calis[p.ad] < 6));
-                    siralamaYap(adaylar); 
+                    siralamaYap(adaylar, true); // GECE = TRUE
                     for (let p of adaylar) { if (atananGece < hedefGece) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atananGece++; } }
                 }
                 // TUR 2: ZORUNLU (6 Gün Kuralını Esnet)
                 if (atananGece < hedefGece) {
                     let adaylar = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null);
-                    siralamaYap(adaylar);
+                    siralamaYap(adaylar, true); // GECE = TRUE
                     for (let p of adaylar) { if (atananGece < hedefGece) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atananGece++; } }
                 }
                 
-                // --- DİĞER SAATLER ---
+                // --- DİĞER SAATLER (GÜNDÜZ, AKŞAM VB.) ---
                 state.saatler.filter(s => s !== SHIFTS.GECE).forEach(saat => {
                     const hdf = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
                     let mvc = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length;
@@ -656,7 +668,7 @@
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
                             return basic && (calis[p.ad] < 6) && !(dunGece && saat === SHIFTS.SABAH);
                         });
-                        siralamaYap(ady);
+                        siralamaYap(ady, false); // GECE DEĞİL = FALSE (Adil Karışım)
                         for (let p of ady) { if (mvc < hdf) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mvc++; } }
                     }
                     // TUR 2
@@ -666,7 +678,7 @@
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
                             return basic && !(dunGece && saat === SHIFTS.SABAH);
                         });
-                        siralamaYap(ady);
+                        siralamaYap(ady, false); // GECE DEĞİL = FALSE
                         for (let p of ady) { if (mvc < hdf) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mvc++; } }
                     }
                 });
@@ -1358,6 +1370,106 @@ function anlikSenkronizasyonBaslat() {
         });
 
         alan.innerHTML = html;
+    }
+
+    /* --- YENİ EKLENEN EXCEL OKUMA FONKSİYONU (TERSTEN OKUMA) --- */
+    function exceldenVardiyaYukle() {
+        const fileInput = document.getElementById('excelUploadInput');
+        if (!fileInput.files.length) { alert("Lütfen bir Excel dosyası seçin!"); return; }
+        
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                
+                const hKey = getDateKey(currentMonday);
+                let islenenSayisi = 0;
+                let taninmayanSayisi = 0;
+
+                // Satır Satır İlerle
+                jsonData.forEach(row => {
+                    if (!row || row.length < 2) return; 
+
+                    // A Sütunu (row[0]) = Saat veya Durum
+                    let satirBasligi = row[0];
+                    if(!satirBasligi || typeof satirBasligi !== 'string') return;
+                    satirBasligi = satirBasligi.toUpperCase().trim();
+
+                    // 1. ADIM: SATIRDAKİ VARDİYAYI BELİRLE
+                    let atanacakVardiya = null;
+
+                    if (satirBasligi.includes("İZİN") || satirBasligi.includes("OFF")) {
+                        atanacakVardiya = SHIFTS.IZIN;
+                    } else if (satirBasligi.includes("YILLIK")) {
+                        atanacakVardiya = SHIFTS.YILLIK;
+                    } else {
+                        // Saat bulmaca (Örn: "09" yazarsa "09:00-18:00" bul)
+                        // Önce sistemdeki saatleri tara
+                        atanacakVardiya = state.saatler.find(s => s.includes(satirBasligi) || s.replace(/[:\-\s]/g, "").includes(satirBasligi.replace(/[:\-\s]/g, "")));
+                        
+                        // Basit eşleşmeler (Kodun içinde sabit tanımlı olanlar)
+                        if(!atanacakVardiya) {
+                            if(satirBasligi.includes("06") || satirBasligi.includes("07")) atanacakVardiya = SHIFTS.SABAH;
+                            else if(satirBasligi.includes("09") || satirBasligi.includes("10")) atanacakVardiya = SHIFTS.GUNDUZ;
+                            else if(satirBasligi.includes("16") || satirBasligi.includes("14") || satirBasligi.includes("15")) atanacakVardiya = SHIFTS.AKSAM;
+                            else if(satirBasligi.includes("00") || satirBasligi.includes("24")) atanacakVardiya = SHIFTS.GECE;
+                        }
+                    }
+
+                    if (!atanacakVardiya) return; // Bu satırda vardiya bulamadık, geç.
+
+                    // 2. ADIM: SÜTUNLARDAKİ İSİMLERİ BUL (B=Pzt -> H=Paz)
+                    for (let i = 1; i <= 7; i++) {
+                        let hucreVerisi = row[i];
+                        if (hucreVerisi && typeof hucreVerisi === 'string') {
+                            // İSMİ TEMİZLE: "AHMET YILMAZ ***" -> "AHMET YILMAZ"
+                            // Regex: Sadece harfleri ve boşlukları al, sondaki sayıları/işaretleri at
+                            let temizIsim = hucreVerisi
+                                .split('*')[0] // Yıldızdan sonrasını at
+                                .split('-')[0] // Tireden sonrasını at (varsa)
+                                .replace(/[\d\(\)\.]/g, '') // Sayıları ve parantezleri sil
+                                .trim().toUpperCase();
+
+                            // 3. ADIM: PERSONELİ BUL VE ATAMA YAP
+                            // Tam eşleşme ara, bulamazsan içerip içermediğine bak (Riskli ama hayat kurtarır)
+                            let personel = state.personeller.find(p => p.ad === temizIsim);
+                            
+                            // Tam eşleşme yoksa, belki "AHMET YILMAZ" yerine "AHMET Y." yazılmıştır?
+                            // Şimdilik sadece tam eşleşme (güvenlik için).
+                            
+                            if (personel) {
+                                // Gün İndeksi: Excelde 1. Sütun (B) -> Pzt (Index 0)
+                                let gunIdx = i - 1;
+                                state.manuelAtamalar[`${hKey}_${personel.ad}_${gunIdx}`] = atanacakVardiya;
+                                islenenSayisi++;
+                            } else if (temizIsim.length > 3) {
+                                // İsim dolu ama sistemde yok
+                                console.log(`Bilinmeyen Personel: ${temizIsim}`);
+                            }
+                        }
+                    }
+                });
+
+                if (islenenSayisi > 0) {
+                    save();
+                    tabloyuOlustur();
+                    alert(`✅ Excel Başarıyla İşlendi!\n\nToplam ${islenenSayisi} hücre sisteme aktarıldı.\nLütfen tabloyu kontrol edin.`);
+                    logKoy(`Excel yüklendi (${islenenSayisi} atama)`);
+                } else {
+                    alert("⚠️ Excel okundu ancak eşleşen veri bulunamadı.\n\nLütfen A sütununda SAATLERİN, hücrelerde İSİMLERİN olduğundan emin olun.");
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert("Dosya okuma hatası: " + err.message);
+            }
+        };
+        reader.readAsArrayBuffer(file);
     }
 
     window.onload = async () => { 
