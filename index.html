@@ -76,7 +76,7 @@
     .admin-only { display: none; }
     
     .duyuru-bar { background: #fffbeb; color: #92400e; padding: 10px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #fcd34d; font-weight: 600; text-align: center; display: none; animation: fadeIn 0.5s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    /* YENİ EKLENEN YORGUNLUK UYARI BARI */
+    /* YORGUNLUK UYARI BARI */
     .yorgunluk-bar { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; padding: 10px; margin-bottom: 15px; border-radius: 8px; font-weight: 700; text-align: center; display: none; animation: fadeIn 0.5s; }
     
     .log-item { font-size: 10px; padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
@@ -395,7 +395,7 @@
         document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => { let rowHtml = `<tr class="row-saat-${sIdx}"><td class="saat-col">${s}</td>`; for(let g=0; g<7; g++) { let sortedPers = state.personeller.filter(p => prog[p.ad][g] === s).sort((a, b) => { let birimA = getGecerliBirim(a, g); let birimB = getGecerliBirim(b, g); return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); }); let cellContent = ""; let lastBirim = ""; sortedPers.forEach((p) => { let gecerliBirim = getGecerliBirim(p, g); let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : ""; let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : ""; let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, '${s}')"` : ""; cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(gecerliBirim)}; background-color:${getBirimColor(gecerliBirim)}15;" ${dragAttr} ${clickAttr}><span class="birim-tag" style="background:${getBirimColor(gecerliBirim)}">${gecerliBirim}</span><span class="pers-name">${p.ad}</span></div>`; lastBirim = gecerliBirim; }); rowHtml += `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, '${s}', ${g})">${cellContent}</td>`; } return rowHtml + "</tr>"; }).join('');
         document.getElementById("tableFooter").innerHTML = `<tr class="row-izin"><td class="saat-col">İZİN / BOŞ</td>${[0,1,2,3,4,5,6].map(g => { let sortedPers = state.personeller.filter(p => [SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(prog[p.ad][g])).sort((a, b) => { let birimA = getGecerliBirim(a, g); let birimB = getGecerliBirim(b, g); return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); }); let cellContent = ""; let lastBirim = ""; sortedPers.forEach(p => { let gecerliBirim = getGecerliBirim(p, g); let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : ""; let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : ""; let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, 'BOŞ')"` : ""; let isYillik = prog[p.ad][g] === SHIFTS.YILLIK; let bgStyle = isYillik ? 'background:var(--yillik-izin)' : (prog[p.ad][g]===SHIFTS.IZIN?'background:var(--danger)':`background:${getBirimColor(gecerliBirim)}`); let countStyle = calis[p.ad] >= 6 ? 'color:red; font-weight:bold; font-size:11px;' : ''; cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(gecerliBirim)};" ${dragAttr} ${clickAttr}><span class="birim-tag" style="${bgStyle}">${prog[p.ad][g] || 'BOŞ'}</span><span class="pers-name">${p.ad} <span style="${countStyle}">(${calis[p.ad]}G)</span></span></div>`; lastBirim = gecerliBirim; }); return `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">${cellContent}</td>`; }).join('')}</tr>`;
         
-        // YENİ: YORGUNLUK KONTROLÜ
+        // YENİ: YORGUNLUK KONTROLÜ (6-7 GÜN UYARISI)
         let yorgunlar = [];
         state.personeller.forEach(p => {
             if(calis[p.ad] >= 6) {
@@ -1420,7 +1420,7 @@ function anlikSenkronizasyonBaslat() {
                     if(!satirBasligi || typeof satirBasligi !== 'string') return;
                     satirBasligi = satirBasligi.toUpperCase().trim();
 
-                    // 1. ADIM: SATIRDAKİ VARDİYAYI BELİRLE
+                    // 1. ADIM: SATIRDAKİ VARDİYAYI BELİRLE (ÖNCELİK SIRALAMASI GÜNCELLENDİ)
                     let atanacakVardiya = null;
 
                     if (satirBasligi.includes("İZİN") || satirBasligi.includes("OFF")) {
@@ -1428,16 +1428,30 @@ function anlikSenkronizasyonBaslat() {
                     } else if (satirBasligi.includes("YILLIK")) {
                         atanacakVardiya = SHIFTS.YILLIK;
                     } else {
-                        // Saat bulmaca (Örn: "09" yazarsa "09:00-18:00" bul)
-                        // Önce sistemdeki saatleri tara
+                        // Saat bulmaca - ÖNCELİKLE TAM EŞLEŞME ARA
                         atanacakVardiya = state.saatler.find(s => s.includes(satirBasligi) || s.replace(/[:\-\s]/g, "").includes(satirBasligi.replace(/[:\-\s]/g, "")));
                         
-                        // Basit eşleşmeler (Kodun içinde sabit tanımlı olanlar)
+                        // BULAMAZSA MANTIK YÜRÜT (BURASI KRİTİK NOKTA)
                         if(!atanacakVardiya) {
-                            if(satirBasligi.includes("06") || satirBasligi.includes("07")) atanacakVardiya = SHIFTS.SABAH;
-                            else if(satirBasligi.includes("09") || satirBasligi.includes("10")) atanacakVardiya = SHIFTS.GUNDUZ;
-                            else if(satirBasligi.includes("16") || satirBasligi.includes("14") || satirBasligi.includes("15")) atanacakVardiya = SHIFTS.AKSAM;
-                            else if(satirBasligi.includes("00") || satirBasligi.includes("24")) atanacakVardiya = SHIFTS.GECE;
+                            // 1. ÖNCELİK: GECE (00:xx, 00., 24:, GECE)
+                            // "00" ile başlaması veya "00:" içermesi gerekir. 
+                            // Dikkat: "16:00" içinde de 00 var ama o "16" ile başlıyor.
+                            if(satirBasligi.includes("00:") || satirBasligi.includes("00.") || satirBasligi.startsWith("00") || satirBasligi.includes("24:")) {
+                                atanacakVardiya = SHIFTS.GECE;
+                            }
+                            // 2. ÖNCELİK: AKŞAM (16:xx, 15:xx, 14:xx)
+                            else if(satirBasligi.includes("16") || satirBasligi.includes("15") || satirBasligi.includes("14")) {
+                                atanacakVardiya = SHIFTS.AKSAM;
+                            }
+                            // 3. ÖNCELİK: GÜNDÜZ (09:xx, 10:xx)
+                            else if(satirBasligi.includes("09") || satirBasligi.includes("10")) {
+                                atanacakVardiya = SHIFTS.GUNDUZ;
+                            }
+                            // 4. ÖNCELİK: SABAH (06:xx, 07:xx)
+                            // "00:00 - 07:00" buraya düşmez çünkü 1. öncelikte yakalandı.
+                            else if(satirBasligi.includes("06") || satirBasligi.includes("07")) {
+                                atanacakVardiya = SHIFTS.SABAH;
+                            }
                         }
                     }
 
@@ -1447,8 +1461,7 @@ function anlikSenkronizasyonBaslat() {
                     for (let i = 1; i <= 7; i++) {
                         let hucreVerisi = row[i];
                         if (hucreVerisi && typeof hucreVerisi === 'string') {
-                            // İSMİ TEMİZLE: "AHMET YILMAZ ***" -> "AHMET YILMAZ"
-                            // Regex: Sadece harfleri ve boşlukları al, sondaki sayıları/işaretleri at
+                            // İSMİ TEMİZLE
                             let temizIsim = hucreVerisi
                                 .split('*')[0] // Yıldızdan sonrasını at
                                 .split('-')[0] // Tireden sonrasını at (varsa)
@@ -1456,11 +1469,7 @@ function anlikSenkronizasyonBaslat() {
                                 .trim().toUpperCase();
 
                             // 3. ADIM: PERSONELİ BUL VE ATAMA YAP
-                            // Tam eşleşme ara, bulamazsan içerip içermediğine bak (Riskli ama hayat kurtarır)
                             let personel = state.personeller.find(p => p.ad === temizIsim);
-                            
-                            // Tam eşleşme yoksa, belki "AHMET YILMAZ" yerine "AHMET Y." yazılmıştır?
-                            // Şimdilik sadece tam eşleşme (güvenlik için).
                             
                             if (personel) {
                                 // Gün İndeksi: Excelde 1. Sütun (B) -> Pzt (Index 0)
