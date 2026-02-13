@@ -58,7 +58,6 @@
     .admin-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; background: white; padding: 15px; border-radius: 16px; border: 1px solid var(--border); }
     .tab-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 5px; font-size: 10px; text-align: center; background: #f1f5f9; border: 1px solid transparent; border-radius: 10px; color: var(--text); cursor: pointer; transition: all 0.2s; height: 70px; font-weight: 600; }
     .tab-btn i { font-size: 20px; margin-bottom: 6px; font-style: normal; display: block; }
-    .tab-btn:hover { background: #e2e8f0; }
     .tab-btn.active { background: var(--blue); color: white; box-shadow: 0 4px 10px -2px rgba(37, 99, 235, 0.4); transform: scale(1.03); }
     
     .btn-main-action { padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: white; }
@@ -77,6 +76,9 @@
     .admin-only { display: none; }
     
     .duyuru-bar { background: #fffbeb; color: #92400e; padding: 10px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #fcd34d; font-weight: 600; text-align: center; display: none; animation: fadeIn 0.5s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    /* YENİ EKLENEN YORGUNLUK UYARI BARI */
+    .yorgunluk-bar { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; padding: 10px; margin-bottom: 15px; border-radius: 8px; font-weight: 700; text-align: center; display: none; animation: fadeIn 0.5s; }
+    
     .log-item { font-size: 10px; padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
     .log-item:last-child { border-bottom: none; }
     .log-time { color: #999; font-size: 9px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
@@ -126,6 +128,8 @@
   
   <div class="app-wrapper" id="appMain">
     <div id="duyuruAlani" class="duyuru-bar no-print">📢 <span id="duyuruMetniSpan"></span></div>
+    
+    <div id="yorgunlukUyari" class="yorgunluk-bar no-print"></div>
     
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;"><img src="logo.png" alt="Logo" style="height: 35px;"><div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V61</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div></div>
@@ -389,8 +393,24 @@
         const hKey = getDateKey(currentMonday); document.getElementById("tarihAraligi").innerText = `${currentMonday.toLocaleDateString('tr-TR')} Haftası`; document.getElementById("tableHeader").innerHTML = `<tr><th style="width:100px;">SAAT</th>${GUNLER.map((g, i) => { let d = new Date(currentMonday); d.setDate(d.getDate() + i); let dateStr = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }); return `<th class="${i>=5?'weekend-col':''}">${g}<div style="font-size:9px; opacity:0.7; font-weight:normal;">${dateStr}</div></th>`; }).join('')}</tr>`;
         let prog = {}; let calis = {}; state.personeller.forEach(p => { prog[p.ad] = Array(7).fill(null); calis[p.ad] = 0; for(let i=0; i<7; i++) { let mKey = `${hKey}_${p.ad}_${i}`; if(state.manuelAtamalar[mKey]) prog[p.ad][i] = state.manuelAtamalar[mKey]; if(prog[p.ad][i] && ![SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(prog[p.ad][i])) calis[p.ad]++; } });
         document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => { let rowHtml = `<tr class="row-saat-${sIdx}"><td class="saat-col">${s}</td>`; for(let g=0; g<7; g++) { let sortedPers = state.personeller.filter(p => prog[p.ad][g] === s).sort((a, b) => { let birimA = getGecerliBirim(a, g); let birimB = getGecerliBirim(b, g); return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); }); let cellContent = ""; let lastBirim = ""; sortedPers.forEach((p) => { let gecerliBirim = getGecerliBirim(p, g); let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : ""; let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : ""; let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, '${s}')"` : ""; cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(gecerliBirim)}; background-color:${getBirimColor(gecerliBirim)}15;" ${dragAttr} ${clickAttr}><span class="birim-tag" style="background:${getBirimColor(gecerliBirim)}">${gecerliBirim}</span><span class="pers-name">${p.ad}</span></div>`; lastBirim = gecerliBirim; }); rowHtml += `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, '${s}', ${g})">${cellContent}</td>`; } return rowHtml + "</tr>"; }).join('');
-        document.getElementById("tableFooter").innerHTML = `<tr class="row-izin"><td class="saat-col">İZİN / BOŞ</td>${[0,1,2,3,4,5,6].map(g => { let sortedPers = state.personeller.filter(p => [SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(prog[p.ad][g])).sort((a, b) => { let birimA = getGecerliBirim(a, g); let birimB = getGecerliBirim(b, g); return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); }); let cellContent = ""; let lastBirim = ""; sortedPers.forEach(p => { let gecerliBirim = getGecerliBirim(p, g); let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : ""; let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : ""; let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, 'BOŞ')"` : ""; let isYillik = prog[p.ad][g] === SHIFTS.YILLIK; let bgStyle = isYillik ? 'background:var(--yillik-izin)' : (prog[p.ad][g]===SHIFTS.IZIN?'background:var(--danger)':`background:${getBirimColor(gecerliBirim)}`); cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(gecerliBirim)};" ${dragAttr} ${clickAttr}><span class="birim-tag" style="${bgStyle}">${prog[p.ad][g] || 'BOŞ'}</span><span class="pers-name">${p.ad} (${calis[p.ad]}G)</span></div>`; lastBirim = gecerliBirim; }); return `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">${cellContent}</td>`; }).join('')}</tr>`;
+        document.getElementById("tableFooter").innerHTML = `<tr class="row-izin"><td class="saat-col">İZİN / BOŞ</td>${[0,1,2,3,4,5,6].map(g => { let sortedPers = state.personeller.filter(p => [SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(prog[p.ad][g])).sort((a, b) => { let birimA = getGecerliBirim(a, g); let birimB = getGecerliBirim(b, g); return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); }); let cellContent = ""; let lastBirim = ""; sortedPers.forEach(p => { let gecerliBirim = getGecerliBirim(p, g); let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : ""; let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : ""; let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, 'BOŞ')"` : ""; let isYillik = prog[p.ad][g] === SHIFTS.YILLIK; let bgStyle = isYillik ? 'background:var(--yillik-izin)' : (prog[p.ad][g]===SHIFTS.IZIN?'background:var(--danger)':`background:${getBirimColor(gecerliBirim)}`); let countStyle = calis[p.ad] >= 6 ? 'color:red; font-weight:bold; font-size:11px;' : ''; cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(gecerliBirim)};" ${dragAttr} ${clickAttr}><span class="birim-tag" style="${bgStyle}">${prog[p.ad][g] || 'BOŞ'}</span><span class="pers-name">${p.ad} <span style="${countStyle}">(${calis[p.ad]}G)</span></span></div>`; lastBirim = gecerliBirim; }); return `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">${cellContent}</td>`; }).join('')}</tr>`;
         
+        // YENİ: YORGUNLUK KONTROLÜ
+        let yorgunlar = [];
+        state.personeller.forEach(p => {
+            if(calis[p.ad] >= 6) {
+                yorgunlar.push(`<b>${p.ad}</b> (${calis[p.ad]} Gün)`);
+            }
+        });
+        
+        const uyariDiv = document.getElementById('yorgunlukUyari');
+        if(yorgunlar.length > 0) {
+            uyariDiv.innerHTML = "⚠️ DİKKAT (6-7 Gün Çalışanlar): " + yorgunlar.join(", ");
+            uyariDiv.style.display = 'block';
+        } else {
+            uyariDiv.style.display = 'none';
+        }
+
         istatistikleriHesapla();
         mobilListeyiGuncelle();
     }
