@@ -13,27 +13,27 @@
       --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
       --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
       --warning: #f59e0b; 
-      /* İSTEK 1: Hafta Sonu Tül Perde Rengi (Transparan) */
       --weekend-overlay: rgba(0, 0, 0, 0.03); 
       --table-head: #f8fafc;
       --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed;
       --izin-bg: #fef2f2;
       --yillik-izin: #9333ea;
-      /* İSTEK 2: Yönetim Paneli Renk Değişkenleri */
       --panel-bg: #ffffff;
       --input-bg: #ffffff;
       --input-border: #e2e8f0;
+      --panel-text: #334155; /* Panel içi yazı rengi değişkeni */
     }
     [data-theme="dark"] {
       --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9;
       --border: #334155; 
-      --weekend-overlay: rgba(255, 255, 255, 0.05); /* Koyu Modda Tül Perde */
+      --weekend-overlay: rgba(255, 255, 255, 0.05);
       --table-head: #0f172a;
       --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12;
       --izin-bg: #450a0a;
       --panel-bg: #1e293b;
       --input-bg: #334155;
       --input-border: #475569;
+      --panel-text: #f1f5f9; /* Koyu modda panel yazı rengi BEYAZ */
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
     
@@ -50,15 +50,12 @@
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
     .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; }
     
-    /* Varsayılan Satır Renkleri */
     .row-saat-0 { background-color: var(--saat1); } 
     .row-saat-1 { background-color: var(--saat2); } 
     .row-saat-2 { background-color: var(--saat3); } 
     .row-saat-3 { background-color: var(--saat4); }
     
     .row-izin { background-color: var(--izin-bg) !important; } .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
-    
-    /* GÜNCELLEME 1: Hafta Sonu Tül Perde (Transparan Overlay) */
     .weekend-col { background-color: var(--weekend-overlay) !important; }
     
     .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: opacity 0.3s; }
@@ -66,33 +63,32 @@
     .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
     .pers-name { font-size: 10px; font-weight: 700; display: block; }
     
-    /* GÜNCELLEME 2: Yönetim Paneli Değişken Renkleri */
-    .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: var(--bg); color: var(--text); z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); border-left: 1px solid var(--border); }
+    .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: var(--bg); color: var(--panel-text); z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); border-left: 1px solid var(--border); }
     .side-panel.open { right: 0; }
     .panel-header { padding: 20px; background: var(--card-bg); color: var(--primary); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
-    .panel-header h2 { font-size: 18px; font-weight: 800; color: var(--text); }
+    /* Panel içi başlıklar için düzeltme */
+    .panel-header h2, .side-panel h3, .side-panel strong, .side-panel label { color: var(--panel-text) !important; }
+    
     .panel-content { padding: 20px; overflow-y: auto; flex: 1; }
     
     .panel-action-group { display: flex; gap: 10px; margin-bottom: 25px; }
     .panel-action-group button { flex: 1; padding: 15px; border-radius: 12px; font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: none; font-weight: 700; cursor: pointer; transition: transform 0.2s; color: white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
     .panel-action-group button:hover { transform: translateY(-2px); }
     
-    /* Admin Tab Butonları Karanlık Mod */
     .admin-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; background: var(--card-bg); padding: 15px; border-radius: 16px; border: 1px solid var(--border); }
     .tab-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 5px; font-size: 10px; text-align: center; background: var(--bg); border: 1px solid transparent; border-radius: 10px; color: var(--text); cursor: pointer; transition: all 0.2s; height: 70px; font-weight: 600; }
     .tab-btn i { font-size: 20px; margin-bottom: 6px; font-style: normal; display: block; }
     .tab-btn:hover { background: var(--border); }
     .tab-btn.active { background: var(--blue); color: white; box-shadow: 0 4px 10px -2px rgba(37, 99, 235, 0.4); transform: scale(1.03); }
     
-    /* Inputlar Karanlık Mod */
     input, select, textarea { background-color: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); }
 
     .btn-main-action { padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: white; }
     .hidden { display: none; }
     
-    .izin-gun-pill { padding: 4px 6px; background: var(--bg); border-radius: 4px; margin: 2px; font-size: 9px; cursor: pointer; display: inline-block; font-weight: 700; border: 1px solid var(--border); }
+    .izin-gun-pill { padding: 4px 6px; background: var(--bg); border-radius: 4px; margin: 2px; font-size: 9px; cursor: pointer; display: inline-block; font-weight: 700; border: 1px solid var(--border); color: var(--text); }
     .izin-gun-pill.active { background: var(--danger); color: white; }
-    .mcr-ayarlar { background: var(--bg); border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; }
+    .mcr-ayarlar { background: var(--bg); border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; color: var(--text); }
     .swap-container { border: 2px solid var(--blue); border-radius: 12px; padding: 15px; background: var(--saat3); margin-bottom: 15px; color: #333; }
     [data-theme="dark"] .swap-container { background: var(--card-bg); color: var(--text); }
     .swap-header { font-weight: 800; color: var(--primary); margin-bottom: 10px; display: flex; align-items: center; gap: 5px; font-size: 13px; text-transform: uppercase; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
@@ -102,13 +98,14 @@
     [data-theme="dark"] .swap-label { color: #94a3b8; }
     .swap-select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-weight: 600; font-size: 11px; }
     .swap-days { display: flex; gap: 10px; margin-top: 10px; justify-content: space-between; }
-    .swap-day-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
+    .swap-day-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--text); }
     .admin-only { display: none; }
     
     .duyuru-bar { background: #fffbeb; color: #92400e; padding: 10px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #fcd34d; font-weight: 600; text-align: center; display: none; animation: fadeIn 0.5s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .yorgunluk-bar { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; padding: 10px; margin-bottom: 15px; border-radius: 8px; font-weight: 700; text-align: center; display: none; animation: fadeIn 0.5s; }
     
-    .log-item { font-size: 10px; padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    /* İSTEK 3: Loglar ve Listeler için Renk Düzeltmesi */
+    .log-item { font-size: 10px; padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; color: var(--text); }
     .log-item:last-child { border-bottom: none; }
     .log-time { color: #999; font-size: 9px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
     [data-theme="dark"] .log-time { background: #334155; color: #cbd5e1; }
@@ -158,6 +155,7 @@
   
   <div class="app-wrapper" id="appMain">
     <div id="duyuruAlani" class="duyuru-bar no-print">📢 <span id="duyuruMetniSpan"></span></div>
+    
     <div id="yorgunlukUyari" class="yorgunluk-bar no-print"></div>
     
     <header class="main-header no-print">
@@ -209,17 +207,20 @@
             <button id="btn-tab-personel" class="tab-btn active" onclick="tabDegistir('personel')"><i>👥</i>Personel</button>
             <button id="btn-tab-talepler" class="tab-btn" onclick="tabDegistir('talepler')"><i>📩</i>Talepler</button>
             <button id="btn-tab-degisim" class="tab-btn" onclick="tabDegistir('degisim')"><i>⚡</i>Değişim</button>
+            
             <button id="btn-tab-yillik" class="tab-btn" onclick="tabDegistir('yillik')"><i>🏖️</i>Yıllık</button>
             <button id="btn-tab-istatistik" class="tab-btn" onclick="tabDegistir('istatistik')"><i>📊</i>Analiz</button>
             <button id="btn-tab-loglar" class="tab-btn" onclick="tabDegistir('loglar')"><i>🕵️</i>Loglar</button>
+            
             <button id="btn-tab-birimler" class="tab-btn" onclick="tabDegistir('birimler')"><i>🏢</i>Birimler</button>
             <button id="btn-tab-saatler" class="tab-btn" onclick="tabDegistir('saatler')"><i>⏰</i>Saatler</button>
             <button id="btn-tab-sabitle" class="tab-btn" onclick="tabDegistir('sabitle')"><i>🔒</i>Sabitler</button>
+            
             <button id="btn-tab-kapasite" class="tab-btn" onclick="tabDegistir('kapasite')"><i>🔢</i>Kapasite</button>
             <button id="btn-tab-sistem" class="tab-btn" onclick="tabDegistir('sistem')"><i>⚙️</i>Sistem</button>
         </div>
         
-        <div id="tab-personel" class="tab-content"><div style="background:white; padding:15px; border-radius:12px; border:1px solid var(--border); box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:15px;"><input type="text" id="yeniPersInp" placeholder="Ad Soyad Giriniz" style="width:92%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border);"><select id="yeniPersBirimSec" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border);"></select><button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success); padding:12px;">+ YENİ PERSONEL EKLE</button></div><div id="persListesiAdmin"></div></div>
+        <div id="tab-personel" class="tab-content"><div style="background:var(--card-bg); padding:15px; border-radius:12px; border:1px solid var(--border); box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:15px;"><input type="text" id="yeniPersInp" placeholder="Ad Soyad Giriniz" style="width:92%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border);"><select id="yeniPersBirimSec" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border);"></select><button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success); padding:12px;">+ YENİ PERSONEL EKLE</button></div><div id="persListesiAdmin"></div></div>
         
         <div id="tab-birimler" class="tab-content hidden"><div id="birimListesiAdmin"></div></div>
         <div id="tab-saatler" class="tab-content hidden"><div id="saatListesiAdmin"></div></div>
@@ -235,26 +236,26 @@
         <div id="tab-yillik" class="tab-content hidden"><div class="swap-container" style="border-color:#9333ea; background:#f3e8ff;"><div class="swap-header" style="color:#9333ea;">🏖️ TOPLU YILLIK İZİN İŞLEME</div><div class="swap-row"><label class="swap-label">PERSONEL SEÇİN:</label><select id="yillikIzinPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row" style="display:flex; gap:10px;"><div style="flex:1;"><label class="swap-label">BAŞLANGIÇ:</label><input type="date" id="yillikBaslangic" class="swap-select"></div><div style="flex:1;"><label class="swap-label">BİTİŞ (Dahil):</label><input type="date" id="yillikBitis" class="swap-select"></div></div><button onclick="yillikIzinIsle()" class="btn-main-action" style="background:#9333ea; width:100%; padding:12px; margin-top:10px;">İZİNLERİ İŞLE</button><div style="margin-top:10px; font-size:10px; color:#666; text-align:center;">* Seçilen tarih aralığına "YILLIK İZİN" yazılacak ve sistem gerektiğinde yerine başkasını atayacaktır.</div></div></div>
         
         <div id="tab-loglar" class="tab-content hidden">
-            <h3 style="margin-top:0; font-size:14px; color:var(--primary);">Son İşlem Kayıtları</h3>
-            <div id="logListesi" style="max-height:400px; overflow-y:auto; background:white; padding:10px; border-radius:8px; border:1px solid #ccc;"></div>
+            <h3 style="margin-top:0; font-size:14px; color:var(--panel-text);">Son İşlem Kayıtları</h3>
+            <div id="logListesi" style="max-height:400px; overflow-y:auto; background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid #ccc;"></div>
             <button onclick="loglariTemizle()" style="margin-top:10px; font-size:10px; color:red; border:none; background:none; cursor:pointer;">Logları Temizle</button>
         </div>
         
         <div id="tab-istatistik" class="tab-content hidden">
-            <h3 style="margin-top:0; font-size:14px; color:var(--primary);">Bu Hafta Çalışma Analizi</h3>
-            <div id="istatistikListesi" style="max-height:400px; overflow-y:auto; background:white; padding:10px; border-radius:8px; border:1px solid #ccc;"></div>
+            <h3 style="margin-top:0; font-size:14px; color:var(--panel-text);">Bu Hafta Çalışma Analizi</h3>
+            <div id="istatistikListesi" style="max-height:400px; overflow-y:auto; background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid #ccc;"></div>
         </div>
         
         <div id="tab-sistem" class="tab-content hidden">
             <div style="margin-bottom:15px; border:1px solid #fcd34d; padding:10px; border-radius:8px; background:#fffbeb;">
-                <strong>📢 Sistem Duyurusu:</strong>
+                <strong style="color:#92400e;">📢 Sistem Duyurusu:</strong>
                 <textarea id="adminDuyuruInp" style="width:96%; height:50px; margin-top:5px; border-radius:4px; border:1px solid #ccc; padding:5px;" placeholder="Buraya yazılanlar ana sayfada bant olarak geçer..."></textarea>
                 <button onclick="duyuruGuncelle()" class="btn-main-action" style="width:100%; background:#f59e0b; color:black; margin-top:5px;">DUYURUYU YAYINLA / GİZLE</button>
             </div>
             
             <div style="margin-bottom:15px; border:1px solid #22c55e; padding:10px; border-radius:8px; background:#f0fdf4;">
-                <strong>📊 Dışarıdan Liste Yükle (Ulaştırma Tipi):</strong>
-                <div style="font-size:10px; color:#666; margin-bottom:5px;">Format: A Sütunu=Saatler (09:00, İZİN vb.), Hücreler=İsimler</div>
+                <strong style="color:#166534;">📊 Dışarıdan Liste Yükle (Ulaştırma Tipi):</strong>
+                <div style="font-size:10px; color:#166534; margin-bottom:5px;">Format: A Sütunu=Saatler (09:00, İZİN vb.), Hücreler=İsimler</div>
                 <input type="file" id="excelUploadInput" accept=".xlsx, .xls" style="width:100%; margin-bottom:5px;">
                 <button onclick="exceldenVardiyaYukle()" class="btn-main-action" style="width:100%; background:#15803d;">LİSTEYİ SİSTEME İŞLE</button>
             </div>
@@ -375,6 +376,18 @@
         verileriGuvenliHaleGetir();
         state.personeller.forEach(p => { tempProg[p.ad] = Array(7).fill(null); for(let g=0; g<7; g++) { let mKey = `${hKey}_${p.ad}_${g}`; if(state.manuelAtamalar[mKey]) tempProg[p.ad][g] = state.manuelAtamalar[mKey]; } if (state.haftaIciSabitler[p.ad]) { for(let i=0; i<5; i++) { if(!tempProg[p.ad][i]) tempProg[p.ad][i] = state.haftaIciSabitler[p.ad]; } if(!tempProg[p.ad][5]) tempProg[p.ad][5] = SHIFTS.IZIN; if(!tempProg[p.ad][6]) tempProg[p.ad][6] = SHIFTS.IZIN; } if(p.izinGunleri) { p.izinGunleri.forEach(gi => { if(!tempProg[p.ad][gi]) tempProg[p.ad][gi] = SHIFTS.IZIN; }); } });
         const safeAssign = (p, day, shift) => { if (tempProg[p.ad][day] !== null) return; if (shift === SHIFTS.IZIN) { tempProg[p.ad][day] = shift; return; } const cap = (state.kapasite[`${p.birim}_${shift}`] || [0,0,0,0,0,0,0])[day]; let currentCount = 0; state.personeller.filter(x => x.birim === p.birim).forEach(x => { if(tempProg[x.ad][day] === shift) currentCount++; }); if (currentCount < cap) tempProg[p.ad][day] = shift; };
+        
+        // YENİ DİNLENME KURALI FONKSİYONU (HER YERDE KULLANILACAK)
+        const isRestViolated = (p, gun, hedefSaat) => {
+            if (gun > 0) {
+                let dunVardiya = tempProg[p.ad][gun-1];
+                if ((dunVardiya === SHIFTS.AKSAM || dunVardiya === SHIFTS.GECE) && (hedefSaat === SHIFTS.SABAH || hedefSaat === SHIFTS.GUNDUZ)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
         const mcrDongu = [SHIFTS.SABAH, SHIFTS.SABAH, SHIFTS.AKSAM, SHIFTS.AKSAM, SHIFTS.GECE, SHIFTS.GECE, SHIFTS.IZIN, SHIFTS.IZIN]; const ingestDongu = [SHIFTS.SABAH, SHIFTS.SABAH, SHIFTS.AKSAM, SHIFTS.AKSAM, SHIFTS.IZIN, SHIFTS.IZIN]; const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
         state.personeller.forEach(p => { const birimAyar = state.birimAyarlari[p.birim] || { tip: "HAVUZ" }; if (birimAyar.tip === "DONGU8" || birimAyar.tip === "DONGU6") { const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0); const loopArr = (birimAyar.tip === "DONGU8") ? mcrDongu : ingestDongu; const modVal = loopArr.length; for(let g=0; g<7; g++) { if(tempProg[p.ad][g] !== null) continue; let d = new Date(currentMonday); d.setDate(d.getDate() + g); const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24)); tempProg[p.ad][g] = loopArr[((diffDays + persOfset) % modVal + modVal) % modVal]; } } });
         state.birimler.forEach(birim => {
@@ -389,16 +402,20 @@
             grupC.forEach((p, index) => { safeAssign(p, 0, SHIFTS.IZIN); safeAssign(p, 1, SHIFTS.SABAH); safeAssign(p, 2, SHIFTS.SABAH); safeAssign(p, 3, SHIFTS.AKSAM); safeAssign(p, 4, SHIFTS.AKSAM); if (index % 2 === 0) { let cmtAksamCap = (state.kapasite[`${birim}_${SHIFTS.AKSAM}`] || [0,0,0,0,0,0,0])[5]; if(cmtAksamCap > 0) { safeAssign(p, 5, SHIFTS.AKSAM); } else { safeAssign(p, 5, SHIFTS.IZIN); } safeAssign(p, 6, SHIFTS.IZIN); } else { safeAssign(p, 5, SHIFTS.IZIN); let pzSabahCap = (state.kapasite[`${birim}_${SHIFTS.SABAH}`] || [0,0,0,0,0,0,0])[6]; if(pzSabahCap > 0) { safeAssign(p, 6, SHIFTS.SABAH); } else { safeAssign(p, 6, SHIFTS.IZIN); } } });
         });
         state.personeller.forEach(p => { calis[p.ad] = 0; for(let g=0; g<7; g++) { if(tempProg[p.ad][g] && ![SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(tempProg[p.ad][g])) calis[p.ad]++; } });
+        
+        // GRUP ABC EKSİK TAMAMLAMA (Sıkı Dinlenme Kuralı Eklendi)
         state.birimler.forEach(birim => {
             const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" }; if (ayar.tip !== "GRUP_ABC") return;
-            for (let gun = 0; gun < 7; gun++) { state.saatler.forEach(saat => { if(saat === SHIFTS.IZIN) return; const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun]; let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length; if (mevcut < hedef) { let yedekAdaylar = state.personeller.filter(p => { let birimUygun = getGecerliBirim(p, gun) === birim; let bosta = (tempProg[p.ad][gun] === null); let yorgunDegil = calis[p.ad] < 6; let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE); let manuelVar = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`]; return birimUygun && bosta && yorgunDegil && !dunGece && !manuelVar; }); seededShuffle(yedekAdaylar, hKey + "yedek"); for (let p of yedekAdaylar) { if (mevcut < hedef) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; } } } }); }
-        });
-        state.birimler.forEach(birim => {
-            const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" }; if (ayar.tip !== "AKILLI_HAFTASONU") return;
-            for (let gun = 0; gun < 7; gun++) { let siralama = [...state.saatler]; if (gun === 5) { siralama = siralama.filter(s => s !== SHIFTS.SABAH && s !== SHIFTS.GUNDUZ); siralama.unshift(SHIFTS.SABAH); siralama.unshift(SHIFTS.GUNDUZ); } siralama.forEach(saat => { if (saat === SHIFTS.IZIN) return; const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun]; let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length; if (mevcut < hedef) { let adaylar = state.personeller.filter(p => { if (getGecerliBirim(p, gun) !== birim) return false; if (tempProg[p.ad][gun] !== null) return false; if (calis[p.ad] >= 6) return false; if (gun === 5 && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) { let cumaVardiya = tempProg[p.ad][4]; if (cumaVardiya === SHIFTS.AKSAM || cumaVardiya === SHIFTS.GECE) return false; } if (gun > 0) { let dun = tempProg[p.ad][gun-1]; if ((dun === SHIFTS.AKSAM || dun === SHIFTS.GECE) && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) return false; } return true; }); seededShuffle(adaylar, hKey + gun + saat); adaylar.sort((a,b) => calis[a.ad] - calis[b.ad]); for (let p of adaylar) { if (mevcut < hedef) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; } } } }); }
+            for (let gun = 0; gun < 7; gun++) { state.saatler.forEach(saat => { if(saat === SHIFTS.IZIN) return; const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun]; let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length; if (mevcut < hedef) { let yedekAdaylar = state.personeller.filter(p => { let birimUygun = getGecerliBirim(p, gun) === birim; let bosta = (tempProg[p.ad][gun] === null); let yorgunDegil = calis[p.ad] < 6; let manuelVar = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`]; return birimUygun && bosta && yorgunDegil && !manuelVar && !isRestViolated(p, gun, saat); }); seededShuffle(yedekAdaylar, hKey + "yedek"); for (let p of yedekAdaylar) { if (mevcut < hedef) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; } } } }); }
         });
         
-        // 5. GENEL HAVUZ (GÜNCELLEME 1: SIKI DİNLENME KURALI EKLENDİ)
+        // AKILLI HAFTA SONU (Sıkı Dinlenme Kuralı Eklendi)
+        state.birimler.forEach(birim => {
+            const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" }; if (ayar.tip !== "AKILLI_HAFTASONU") return;
+            for (let gun = 0; gun < 7; gun++) { let siralama = [...state.saatler]; if (gun === 5) { siralama = siralama.filter(s => s !== SHIFTS.SABAH && s !== SHIFTS.GUNDUZ); siralama.unshift(SHIFTS.SABAH); siralama.unshift(SHIFTS.GUNDUZ); } siralama.forEach(saat => { if (saat === SHIFTS.IZIN) return; const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun]; let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length; if (mevcut < hedef) { let adaylar = state.personeller.filter(p => { if (getGecerliBirim(p, gun) !== birim) return false; if (tempProg[p.ad][gun] !== null) return false; if (calis[p.ad] >= 6) return false; return !isRestViolated(p, gun, saat); }); seededShuffle(adaylar, hKey + gun + saat); adaylar.sort((a,b) => calis[a.ad] - calis[b.ad]); for (let p of adaylar) { if (mevcut < hedef) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; } } } }); }
+        });
+        
+        // GENEL HAVUZ (Sıkı Dinlenme Kuralı Zaten Vardı, Korundu)
         for (let gun = 0; gun < 7; gun++) {
             state.birimler.forEach(birim => {
                 const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
@@ -416,16 +433,7 @@
                     if (mvc < hdf) {
                         let ady = state.personeller.filter(p => {
                             let basic = getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null;
-                            
-                            // YENİ KURAL: DÜN AKŞAM VEYA GECE GELEN, BUGÜN SABAH VEYA GÜNDÜZ GELEMEZ
-                            let yorgunlukEngel = false;
-                            if (gun > 0) {
-                                let dunVardiya = tempProg[p.ad][gun-1];
-                                if ((dunVardiya === SHIFTS.AKSAM || dunVardiya === SHIFTS.GECE) && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) {
-                                    yorgunlukEngel = true;
-                                }
-                            }
-                            return basic && (calis[p.ad] < 6) && !yorgunlukEngel;
+                            return basic && (calis[p.ad] < 6) && !isRestViolated(p, gun, saat);
                         });
                         siralamaYap(ady, false);
                         for (let p of ady) { if (mvc < hdf) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mvc++; } }
@@ -433,15 +441,7 @@
                     if (mvc < hdf) {
                         let ady = state.personeller.filter(p => {
                             let basic = getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null;
-                            // YENİ KURAL TUR 2
-                            let yorgunlukEngel = false;
-                            if (gun > 0) {
-                                let dunVardiya = tempProg[p.ad][gun-1];
-                                if ((dunVardiya === SHIFTS.AKSAM || dunVardiya === SHIFTS.GECE) && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) {
-                                    yorgunlukEngel = true;
-                                }
-                            }
-                            return basic && !yorgunlukEngel;
+                            return basic && !isRestViolated(p, gun, saat);
                         });
                         siralamaYap(ady, false);
                         for (let p of ady) { if (mvc < hdf) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mvc++; } }
@@ -455,8 +455,22 @@
     }
 
     function excelIndir() {
+        // DÜZELTME: Excel'e Renkleri Gönderme
         const hKey = getDateKey(currentMonday); let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>table { border-collapse: collapse; font-family: Arial; } td { border: 1px solid #000; text-align: center; padding: 4px; font-size: 8pt; } .title { background: #312e81; color: white; font-weight: bold; font-size: 12pt; } .header { background: #1e1b4b; color: white; font-weight: bold; } .saat-0630 { background: #ffff00; font-weight: bold; } .saat-0900 { background: #00b0f0; color: white; font-weight: bold; } .saat-1600 { background: #7030a0; color: white; font-weight: bold; } .saat-0000 { background: #ed7d31; color: white; font-weight: bold; } .saat-izin { background: #ff0000; color: white; font-weight: bold; } </style></head><body><table><tr><th colspan="8" class="title">TEKNİK PERSONEL ÇALIŞMA LİSTESİ</th></tr><tr><th class="header">SAAT</th>${GUNLER.map(g => `<th class="header">${g.toUpperCase()}</th>`).join('')}</tr>`;
-        state.birimler.forEach(birim => { html += `<tr><td colspan="8" style="background:${getBirimColor(birim)}; color:white; font-weight:bold;">${birim}</td></tr>`; [...state.saatler, "İZİN"].forEach(s => { let pByDay = []; let maxRow = 1; for(let i=0; i<7; i++) { let list = state.personeller.filter(p => { let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`]; if(s === "İZİN") return p.birim === birim && (v === SHIFTS.IZIN || v === SHIFTS.BOS || !v || v === SHIFTS.YILLIK); return p.birim === birim && v === s; }); pByDay[i] = list; if(list.length > maxRow) maxRow = list.length; } let cls = s.includes("06:30") ? "saat-0630" : s.includes("09:00") ? "saat-0900" : s.includes("16:00") ? "saat-1600" : s.includes("00:00") ? "saat-0000" : s === "İZİN" ? "saat-izin" : ""; for(let r=0; r<maxRow; r++) { html += `<tr>${r===0 ? `<td rowspan="${maxRow}" class="${cls}">${s}</td>`:""}${pByDay.map(d => `<td>${d[r]?d[r].ad:""}</td>`).join('')}</tr>`; } }); }); html += `</table></body></html>`; const blob = new Blob([html], { type: 'application/vnd.ms-excel' }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Vardiya_${hKey}.xls`; a.click();
+        state.birimler.forEach(birim => { 
+            html += `<tr><td colspan="8" style="background:${getBirimColor(birim)}; color:white; font-weight:bold;">${birim}</td></tr>`; 
+            [...state.saatler, "İZİN"].forEach(s => { 
+                let pByDay = []; let maxRow = 1; for(let i=0; i<7; i++) { let list = state.personeller.filter(p => { let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`]; if(s === "İZİN") return p.birim === birim && (v === SHIFTS.IZIN || v === SHIFTS.BOS || !v || v === SHIFTS.YILLIK); return p.birim === birim && v === s; }); pByDay[i] = list; if(list.length > maxRow) maxRow = list.length; } 
+                let cls = s.includes("06:30") ? "saat-0630" : s.includes("09:00") ? "saat-0900" : s.includes("16:00") ? "saat-1600" : s.includes("00:00") ? "saat-0000" : s === "İZİN" ? "saat-izin" : ""; 
+                
+                // SATIR RENGİ (EXCEL İÇİN STYLE EKLENDİ)
+                const ozelRenk = (state.saatAyarlari && state.saatAyarlari[s]) ? state.saatAyarlari[s].renk : null;
+                const rowStyle = ozelRenk ? `style="background-color:${ozelRenk}"` : "";
+
+                for(let r=0; r<maxRow; r++) { html += `<tr ${rowStyle}>${r===0 ? `<td rowspan="${maxRow}" class="${cls}" ${rowStyle}>${s}</td>`:""}${pByDay.map(d => `<td ${rowStyle}>${d[r]?d[r].ad:""}</td>`).join('')}</tr>`; } 
+            }); 
+        }); html += `</table></body></html>`; 
+        const blob = new Blob([html], { type: 'application/vnd.ms-excel' }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Vardiya_${hKey}.xls`; a.click();
     }
 
     function ulastirmaExcelIndir() {
@@ -480,26 +494,24 @@
         document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => {
             let mcrHtml = ""; if(p.birim.includes("MCR") || p.birim.includes("INGEST")) { mcrHtml = `<div class="mcr-ayarlar"><span>${p.birim.includes("INGEST") ? 'INGEST' : 'MCR'} Döngü Ofseti: </span><input type="number" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:40px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)"></div>`; }
             let yuzdeHtml = `<div style="margin-top:5px; font-size:10px;"><span style="font-weight:bold;">Vardiya Öncelik Puanı (%):</span><input type="number" value="${p.yuzde || 0}" style="width:50px; padding:3px; border-radius:4px; border:1px solid #ccc;" onchange="yuzdeGuncelle(${i}, this.value)"></div>`;
-            return `<div style="background:white; border:1px solid var(--border); padding:10px; border-radius:8px; margin-bottom:5px; box-shadow:0 2px 4px rgba(0,0,0,0.02);"><div style="display:flex; justify-content:space-between; align-items:center;"><span><strong>${p.ad}</strong> <small style="color:#64748b">(${p.birim})</small></span><button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button></div><div style="margin-top:5px;">${GUNLER.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div>${yuzdeHtml}${mcrHtml}</div>`;
+            return `<div style="background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid var(--border); box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:15px;"><div style="display:flex; justify-content:space-between; align-items:center;"><span><strong>${p.ad}</strong> <small style="color:#64748b">(${p.birim})</small></span><button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur();" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button></div><div style="margin-top:5px;">${GUNLER.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div>${yuzdeHtml}${mcrHtml}</div>`;
         }).join('');
         const swapKaynak = document.getElementById('swapKaynakPersonel'); const swapHedef = document.getElementById('swapHedefPersonel'); const optionsHtml = "<option value=''>Seçiniz...</option>" + state.personeller.sort((a,b) => a.ad.localeCompare(b.ad)).map(p => `<option value="${p.ad}">${p.ad} (${p.birim})</option>`).join(''); if(swapKaynak) swapKaynak.innerHTML = optionsHtml; if(swapHedef) swapHedef.innerHTML = optionsHtml; const yillikSel = document.getElementById('yillikIzinPersonel'); if(yillikSel) yillikSel.innerHTML = optionsHtml;
         if(!state.geciciGorevler) state.geciciGorevler = {}; let degisimHtml = "<strong>Aktif Değişimler (Bu Hafta):</strong><br>"; let hasDegisim = false; Object.keys(state.geciciGorevler).forEach(k => { const [dateStr, pName] = k.split('_'); const targetUnit = state.geciciGorevler[k]; let d = new Date(dateStr); let nextMonday = new Date(currentMonday); nextMonday.setDate(nextMonday.getDate() + 7); if(d >= currentMonday && d < nextMonday) { degisimHtml += `<div style="font-size:10px; border-bottom:1px solid #eee; padding:2px;">📅 ${dateStr} - <b>${pName}</b> ➡️ ${targetUnit}</div>`; hasDegisim = true; } }); document.getElementById("aktifDegisimlerListesi").innerHTML = hasDegisim ? degisimHtml : "<div style='font-size:10px; color:#999;'>Bu hafta için aktif değişim yok.</div>";
         if(state.logs) { document.getElementById('logListesi').innerHTML = state.logs.map(l => `<div class="log-item"><span>${l.mesaj} <br><i style="color:#666">(${l.user})</i></span> <span class="log-time">${l.zaman}</span></div>`).join(''); }
         document.getElementById('adminDuyuruInp').value = state.duyuruMetni || "";
         
-        // GÜNCELLEME 4: Kapasite Tablosuna Gün Başlıkları Eklendi
         let capHtml = ""; state.birimler.forEach(b => { 
-            capHtml += `<div style="margin-bottom:15px; background:white; padding:10px; border-radius:8px; border:1px solid var(--border);"><strong>${b}</strong>`; 
-            // Başlık Satırı
+            capHtml += `<div style="margin-bottom:15px; background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid var(--border);"><strong>${b}</strong>`; 
             capHtml += `<div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:2px; font-size:9px; font-weight:bold; text-align:center;"><span>Pzt</span><span>Sal</span><span>Çar</span><span>Per</span><span>Cum</span><span>Cmt</span><span>Paz</span></div>`;
             state.saatler.forEach(s => { const v = state.kapasite[`${b}_${s}`] || [0,0,0,0,0,0,0]; capHtml += `<div style="font-size:9px; margin-top:5px; color:#64748b;">${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">${GUNLER.map((g, gi) => `<input type="number" value="${v[gi]}" style="width:100%; text-align:center; padding:4px; border:1px solid #e2e8f0; border-radius:4px;" onchange="capUp('${b}_${s}',${gi},this.value)">`).join('')}</div>`; }); capHtml += `</div>`; 
         });
         document.getElementById("kapasiteTable").innerHTML = capHtml;
         
-        let mcrSistemHtml = `<div style="background:#e0f2fe; padding:10px; border-radius:8px; margin-bottom:10px;"><strong>MCR/INGEST Döngü Başlangıç Tarihi:</strong><br><input type="date" value="${state.mcrAyarlari.baslangicTarihi}" onchange="state.mcrAyarlari.baslangicTarihi = this.value; save();" style="width:96%; padding:5px; margin-top:5px; border-radius:4px; border:1px solid #ccc;"></div>`;
-        document.getElementById("sabitListeAdmin").innerHTML = mcrSistemHtml + state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:white; padding:8px; border-radius:5px; border:1px solid #eee;"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''} style="border:1px solid #ccc; border-radius:4px;">${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
-        document.getElementById("birimListesiAdmin").innerHTML = `<div style="margin-bottom:10px; display:flex; gap:5px; align-items:center; flex-wrap:wrap;"><input type="text" id="yeniBirimInp" placeholder="Yeni Birim Adı" style="flex:1; padding:8px; border-radius:4px; border:1px solid #ccc; min-width:120px;"><input type="color" id="yeniBirimRenk" value="#3b82f6" style="width:40px; height:35px; border:none; border-radius:4px; cursor:pointer;" title="Birim Rengi"><select id="yeniBirimTipi" style="padding:8px; border-radius:4px; border:1px solid #ccc;"><option value="HAVUZ">Standart (Havuz)</option><option value="GECE_ONCELIKLI">🌙 Gece Öncelikli (Puanlı)</option><option value="DONGU8">MCR Tipi (8'li Döngü)</option><option value="DONGU6">Ingest Tipi (6'lı Döngü)</option><option value="GRUP_ABC">3'lü Grup (Playout/Ses/KJ)</option><option value="AKILLI_HAFTASONU">Akıllı Haftasonu (Cuma Korumalı)</option></select><button onclick="birimEkle()" class="btn-main-action" style="background:var(--success); padding:8px 12px;">EKLE</button></div><div style="margin-top:5px; font-size:10px; color:#666; margin-bottom:10px;">* <b>Standart:</b> Kapasiteye göre boş olanı atar<br>* <b>Döngü:</b> 7/24 Sıralı sistem<br>* <b>3'lü Grup:</b> Sabah/Akşam/İzin grubu (Playout mantığı)</div>${state.birimler.map((b, i) => { let ayar = state.birimAyarlari[b] || {tip:"HAVUZ", renk:"#3b82f6"}; let tipYazi = ayar.tip === "DONGU8" ? "8'li Döngü" : (ayar.tip === "DONGU6" ? "6'lı Döngü" : (ayar.tip === "GRUP_ABC" ? "3'lü Grup" : (ayar.tip === "AKILLI_HAFTASONU" ? "Akıllı H.Sonu" : (ayar.tip === "GECE_ONCELIKLI" ? "Gece Puanlı" : "Standart")))); return `<div style="padding:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:white; border-left: 5px solid ${getBirimColor(b)}"><div><span style="font-weight:bold;">${b}</span><span style="font-size:9px; background:#eee; padding:2px 4px; border-radius:3px; margin-left:5px;">${tipYazi}</span></div><button onclick="birimSil(${i})" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:10px;">Sil</button></div>`; }).join('')}`;
-        document.getElementById("saatListesiAdmin").innerHTML = `<div style="margin-bottom:10px; display:flex; gap:5px;"><input type="text" id="yeniSaatInp" placeholder="Örn: 10:00–19:00" style="flex:1; padding:8px; border-radius:4px; border:1px solid #ccc;"><button onclick="saatEkle()" class="btn-main-action" style="background:var(--success); padding:5px 10px;">EKLE</button></div>${state.saatler.map((s, i) => { let mevcutRenk = (state.saatAyarlari && state.saatAyarlari[s]) ? state.saatAyarlari[s].renk : "#ffffff"; return `<div style="padding:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:white;"><div style="display:flex; align-items:center; gap:10px;"><input type="color" value="${mevcutRenk}" onchange="saatRenkGuncelle('${s}', this.value)" style="width:30px; height:30px; border:none; cursor:pointer;" title="Saat Rengini Değiştir"><span>${s}</span></div><button onclick="saatSil(${i})" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:10px;">Sil</button></div>`}).join('')}`;
+        let mcrSistemHtml = `<div style="background:#e0f2fe; padding:10px; border-radius:8px; margin-bottom:10px; color:#334155;"><strong>MCR/INGEST Döngü Başlangıç Tarihi:</strong><br><input type="date" value="${state.mcrAyarlari.baslangicTarihi}" onchange="state.mcrAyarlari.baslangicTarihi = this.value; save();" style="width:96%; padding:5px; margin-top:5px; border-radius:4px; border:1px solid #ccc;"></div>`;
+        document.getElementById("sabitListeAdmin").innerHTML = mcrSistemHtml + state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--card-bg); padding:8px; border-radius:5px; border:1px solid #eee;"><label><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''} style="border:1px solid #ccc; border-radius:4px;">${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
+        document.getElementById("birimListesiAdmin").innerHTML = `<div style="margin-bottom:10px; display:flex; gap:5px; align-items:center; flex-wrap:wrap;"><input type="text" id="yeniBirimInp" placeholder="Yeni Birim Adı" style="flex:1; padding:8px; border-radius:4px; border:1px solid #ccc; min-width:120px;"><input type="color" id="yeniBirimRenk" value="#3b82f6" style="width:40px; height:35px; border:none; border-radius:4px; cursor:pointer;" title="Birim Rengi"><select id="yeniBirimTipi" style="padding:8px; border-radius:4px; border:1px solid #ccc;"><option value="HAVUZ">Standart (Havuz)</option><option value="GECE_ONCELIKLI">🌙 Gece Öncelikli (Puanlı)</option><option value="DONGU8">MCR Tipi (8'li Döngü)</option><option value="DONGU6">Ingest Tipi (6'lı Döngü)</option><option value="GRUP_ABC">3'lü Grup (Playout/Ses/KJ)</option><option value="AKILLI_HAFTASONU">Akıllı Haftasonu (Cuma Korumalı)</option></select><button onclick="birimEkle()" class="btn-main-action" style="background:var(--success); padding:8px 12px;">EKLE</button></div><div style="margin-top:5px; font-size:10px; color:#666; margin-bottom:10px;">* <b>Standart:</b> Kapasiteye göre boş olanı atar<br>* <b>Döngü:</b> 7/24 Sıralı sistem<br>* <b>3'lü Grup:</b> Sabah/Akşam/İzin grubu (Playout mantığı)</div>${state.birimler.map((b, i) => { let ayar = state.birimAyarlari[b] || {tip:"HAVUZ", renk:"#3b82f6"}; let tipYazi = ayar.tip === "DONGU8" ? "8'li Döngü" : (ayar.tip === "DONGU6" ? "6'lı Döngü" : (ayar.tip === "GRUP_ABC" ? "3'lü Grup" : (ayar.tip === "AKILLI_HAFTASONU" ? "Akıllı H.Sonu" : (ayar.tip === "GECE_ONCELIKLI" ? "Gece Puanlı" : "Standart")))); return `<div style="padding:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg); border-left: 5px solid ${getBirimColor(b)}"><div><span style="font-weight:bold;">${b}</span><span style="font-size:9px; background:#eee; padding:2px 4px; border-radius:3px; margin-left:5px; color:#333;">${tipYazi}</span></div><button onclick="birimSil(${i})" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:10px;">Sil</button></div>`; }).join('')}`;
+        document.getElementById("saatListesiAdmin").innerHTML = `<div style="margin-bottom:10px; display:flex; gap:5px;"><input type="text" id="yeniSaatInp" placeholder="Örn: 10:00–19:00" style="flex:1; padding:8px; border-radius:4px; border:1px solid #ccc;"><button onclick="saatEkle()" class="btn-main-action" style="background:var(--success); padding:5px 10px;">EKLE</button></div>${state.saatler.map((s, i) => { let mevcutRenk = (state.saatAyarlari && state.saatAyarlari[s]) ? state.saatAyarlari[s].renk : "#ffffff"; return `<div style="padding:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg);"><div style="display:flex; align-items:center; gap:10px;"><input type="color" value="${mevcutRenk}" onchange="saatRenkGuncelle('${s}', this.value)" style="width:30px; height:30px; border:none; cursor:pointer;" title="Saat Rengini Değiştir"><span>${s}</span></div><button onclick="saatSil(${i})" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:10px;">Sil</button></div>`}).join('')}`;
     }
     
     function saatRenkGuncelle(saat, renk) { if(!state.saatAyarlari) state.saatAyarlari = {}; if(!state.saatAyarlari[saat]) state.saatAyarlari[saat] = {}; state.saatAyarlari[saat].renk = renk; save(); refreshUI(); tabloyuOlustur(); }
