@@ -606,11 +606,25 @@
         // ------------------------------------------------------------
 
 
-        // 5. GENEL HAVUZ MANTIĞI (Tüm Diğer Birimler İçin - GÜNCELLENDİ)
+        // 5. GENEL HAVUZ VE PUANLI GECE MANTIĞI (GÜNCELLENDİ)
         for (let gun = 0; gun < 7; gun++) {
             state.birimler.forEach(birim => {
                 const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
-                if (ayar.tip !== "HAVUZ") return; 
+                
+                // SADECE HAVUZ VEYA YENİ GECE ÖNCELİKLİ TİPİNİ KABUL ET
+                if (ayar.tip !== "HAVUZ" && ayar.tip !== "GECE_ONCELIKLI") return; 
+
+                // SIRALAMA FONKSİYONU (TİPE GÖRE DEĞİŞİR)
+                const siralamaYap = (adaylar) => {
+                    seededShuffle(adaylar, hKey);
+                    if (ayar.tip === "GECE_ONCELIKLI") {
+                        // Yeni Mod: Önce PUAN (% Yüzde), Sonra AZ ÇALIŞMA
+                        adaylar.sort((a,b) => (b.yuzde || 0) - (a.yuzde || 0) || calis[a.ad] - calis[b.ad]);
+                    } else {
+                        // Eski Mod: Sadece AZ ÇALIŞMA (Standart Havuz)
+                        adaylar.sort((a,b) => calis[a.ad] - calis[b.ad]);
+                    }
+                };
 
                 // --- GECE VARDİYASI ---
                 const geceSaati = SHIFTS.GECE; 
@@ -620,15 +634,13 @@
                 // TUR 1: Normal (6 Gün Kuralı Var)
                 if (atananGece < hedefGece) {
                     let adaylar = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null && (calis[p.ad] < 6));
-                    seededShuffle(adaylar, hKey);
-                    adaylar.sort((a,b) => calis[a.ad] - calis[b.ad]);
+                    siralamaYap(adaylar); 
                     for (let p of adaylar) { if (atananGece < hedefGece) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atananGece++; } }
                 }
                 // TUR 2: ZORUNLU (6 Gün Kuralını Esnet)
                 if (atananGece < hedefGece) {
                     let adaylar = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null);
-                    seededShuffle(adaylar, hKey);
-                    adaylar.sort((a,b) => calis[a.ad] - calis[b.ad]);
+                    siralamaYap(adaylar);
                     for (let p of adaylar) { if (atananGece < hedefGece) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atananGece++; } }
                 }
                 
@@ -644,8 +656,7 @@
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
                             return basic && (calis[p.ad] < 6) && !(dunGece && saat === SHIFTS.SABAH);
                         });
-                        seededShuffle(ady, hKey);
-                        ady.sort((a,b) => calis[a.ad] - calis[b.ad]);
+                        siralamaYap(ady);
                         for (let p of ady) { if (mvc < hdf) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mvc++; } }
                     }
                     // TUR 2
@@ -655,8 +666,7 @@
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
                             return basic && !(dunGece && saat === SHIFTS.SABAH);
                         });
-                        seededShuffle(ady, hKey);
-                        ady.sort((a,b) => calis[a.ad] - calis[b.ad]);
+                        siralamaYap(ady);
                         for (let p of ady) { if (mvc < hdf) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mvc++; } }
                     }
                 });
@@ -974,6 +984,7 @@
                 <input type="color" id="yeniBirimRenk" value="#3b82f6" style="width:40px; height:35px; border:none; border-radius:4px; cursor:pointer;" title="Birim Rengi">
                 <select id="yeniBirimTipi" style="padding:8px; border-radius:4px; border:1px solid #ccc;">
                     <option value="HAVUZ">Standart (Havuz)</option>
+                    <option value="GECE_ONCELIKLI">🌙 Gece Öncelikli (Puanlı)</option>
                     <option value="DONGU8">MCR Tipi (8'li Döngü)</option>
                     <option value="DONGU6">Ingest Tipi (6'lı Döngü)</option>
                     <option value="GRUP_ABC">3'lü Grup (Playout/Ses/KJ)</option>
@@ -991,7 +1002,8 @@
                 let tipYazi = ayar.tip === "DONGU8" ? "8'li Döngü" : 
                              (ayar.tip === "DONGU6" ? "6'lı Döngü" : 
                              (ayar.tip === "GRUP_ABC" ? "3'lü Grup" : 
-                             (ayar.tip === "AKILLI_HAFTASONU" ? "Akıllı H.Sonu" : "Standart")));
+                             (ayar.tip === "AKILLI_HAFTASONU" ? "Akıllı H.Sonu" : 
+                             (ayar.tip === "GECE_ONCELIKLI" ? "Gece Puanlı" : "Standart"))));
                 return `
                 <div style="padding:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:white; border-left: 5px solid ${getBirimColor(b)}">
                     <div>
