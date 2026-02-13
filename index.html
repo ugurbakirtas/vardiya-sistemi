@@ -1392,7 +1392,7 @@ function anlikSenkronizasyonBaslat() {
         alan.innerHTML = html;
     }
 
-    /* --- YENİ EKLENEN EXCEL OKUMA FONKSİYONU (TERSTEN OKUMA) --- */
+    /* --- YENİ EKLENEN EXCEL OKUMA FONKSİYONU (TERSTEN OKUMA - DÜZELTİLDİ) --- */
     function exceldenVardiyaYukle() {
         const fileInput = document.getElementById('excelUploadInput');
         if (!fileInput.files.length) { alert("Lütfen bir Excel dosyası seçin!"); return; }
@@ -1420,7 +1420,7 @@ function anlikSenkronizasyonBaslat() {
                     if(!satirBasligi || typeof satirBasligi !== 'string') return;
                     satirBasligi = satirBasligi.toUpperCase().trim();
 
-                    // 1. ADIM: SATIRDAKİ VARDİYAYI BELİRLE (ÖNCELİK SIRALAMASI GÜNCELLENDİ)
+                    // 1. ADIM: SATIRDAKİ VARDİYAYI BELİRLE (YENİ SIRALAMA)
                     let atanacakVardiya = null;
 
                     if (satirBasligi.includes("İZİN") || satirBasligi.includes("OFF")) {
@@ -1428,29 +1428,30 @@ function anlikSenkronizasyonBaslat() {
                     } else if (satirBasligi.includes("YILLIK")) {
                         atanacakVardiya = SHIFTS.YILLIK;
                     } else {
-                        // Saat bulmaca - ÖNCELİKLE TAM EŞLEŞME ARA
+                        // ÖNCE TAM EŞLEŞME ARA (Saat listesinde varsa)
                         atanacakVardiya = state.saatler.find(s => s.includes(satirBasligi) || s.replace(/[:\-\s]/g, "").includes(satirBasligi.replace(/[:\-\s]/g, "")));
                         
-                        // BULAMAZSA MANTIK YÜRÜT (BURASI KRİTİK NOKTA)
+                        // BULAMAZSA MANTIK YÜRÜT (BURASI KRİTİK NOKTA - DÜZELTİLDİ)
                         if(!atanacakVardiya) {
-                            // 1. ÖNCELİK: GECE (00:xx, 00., 24:, GECE)
-                            // "00" ile başlaması veya "00:" içermesi gerekir. 
-                            // Dikkat: "16:00" içinde de 00 var ama o "16" ile başlıyor.
-                            if(satirBasligi.includes("00:") || satirBasligi.includes("00.") || satirBasligi.startsWith("00") || satirBasligi.includes("24:")) {
+                            // 1. ÖNCELİK: GECE (00 ile BAŞLAMALI veya 24 veya GECE içermeli)
+                            // "16:00 - 00:00" içinde 00 var ama başta değil, o yüzden buraya girmez.
+                            if(satirBasligi.startsWith("00") || satirBasligi.startsWith("24") || satirBasligi.includes("GECE")) {
                                 atanacakVardiya = SHIFTS.GECE;
                             }
-                            // 2. ÖNCELİK: AKŞAM (16:xx, 15:xx, 14:xx)
-                            else if(satirBasligi.includes("16") || satirBasligi.includes("15") || satirBasligi.includes("14")) {
-                                atanacakVardiya = SHIFTS.AKSAM;
+                            // 2. ÖNCELİK: SABAH (06 veya 07 içermeli)
+                            // "00:00 - 07:00" buraya düşmez çünkü 1. adımda yakalandı.
+                            // "06:30 - 16:00" buraya girer (16'dan önce kontrol edilmeli!)
+                            else if(satirBasligi.includes("06") || satirBasligi.includes("07")) {
+                                atanacakVardiya = SHIFTS.SABAH;
                             }
-                            // 3. ÖNCELİK: GÜNDÜZ (09:xx, 10:xx)
+                            // 3. ÖNCELİK: GÜNDÜZ (09 veya 10 içermeli)
                             else if(satirBasligi.includes("09") || satirBasligi.includes("10")) {
                                 atanacakVardiya = SHIFTS.GUNDUZ;
                             }
-                            // 4. ÖNCELİK: SABAH (06:xx, 07:xx)
-                            // "00:00 - 07:00" buraya düşmez çünkü 1. öncelikte yakalandı.
-                            else if(satirBasligi.includes("06") || satirBasligi.includes("07")) {
-                                atanacakVardiya = SHIFTS.SABAH;
+                            // 4. ÖNCELİK: AKŞAM (16, 15, 14 içermeli)
+                            // "16:00 - 00:00" buraya girer.
+                            else if(satirBasligi.includes("16") || satirBasligi.includes("15") || satirBasligi.includes("14")) {
+                                atanacakVardiya = SHIFTS.AKSAM;
                             }
                         }
                     }
