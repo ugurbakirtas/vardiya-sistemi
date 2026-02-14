@@ -541,8 +541,8 @@
             let targetSatGunduz = (state.kapasite[`${birim}_${SHIFTS.GUNDUZ}`] || [])[5] || 0;
             let targetSatAksam = (state.kapasite[`${birim}_${SHIFTS.AKSAM}`] || [])[5] || 0;
 
-            // 2. Mevcut Doluluğu Say (Sistem döngüsü veya manuel atamalarla dolmuş olabilir)
-            let currentSatGunduz = personelListesi.filter(p => tempProg[p.ad][5] === SHIFTS.GUNDUZ || tempProg[p.ad][5] === SHIFTS.SABAH).length;
+            // 2. Mevcut Doluluğu Say (SIKI KONTROL - Sadece kendi saatine bak)
+            let currentSatGunduz = personelListesi.filter(p => tempProg[p.ad][5] === SHIFTS.GUNDUZ).length;
             let currentSatAksam = personelListesi.filter(p => tempProg[p.ad][5] === SHIFTS.AKSAM).length;
 
             // 3. Aday Havuzlarını Oluştur (Sıkı Ayrım: Sabahçı -> Sabah, Akşamcı -> Akşam)
