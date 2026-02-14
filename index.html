@@ -12,33 +12,18 @@
     :root {
       --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
       --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
-      --warning: #f59e0b; 
-      --weekend-overlay: rgba(0, 0, 0, 0.03); /* Hafta Sonu Tül Perde */
-      --table-head: #f8fafc;
-      --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed;
-      --izin-bg: #fef2f2;
-      --yillik-izin: #9333ea;
-      /* Panel Renk Değişkenleri */
-      --panel-bg: #ffffff;
-      --input-bg: #ffffff;
-      --input-border: #e2e8f0;
-      --panel-text: #334155;
+      --warning: #f59e0b; --weekend-overlay: rgba(0, 0, 0, 0.03); 
+      --table-head: #f8fafc; --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed;
+      --izin-bg: #fef2f2; --yillik-izin: #9333ea;
+      --panel-bg: #ffffff; --input-bg: #ffffff; --input-border: #e2e8f0; --panel-text: #334155;
     }
     [data-theme="dark"] {
       --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9;
-      --border: #334155; 
-      --weekend-overlay: rgba(255, 255, 255, 0.05);
-      --table-head: #0f172a;
-      --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12;
-      --izin-bg: #450a0a;
-      /* Koyu Mod Panel Renkleri */
-      --panel-bg: #1e293b;
-      --input-bg: #334155;
-      --input-border: #475569;
-      --panel-text: #f1f5f9; /* Panel yazıları BEYAZ */
+      --border: #334155; --weekend-overlay: rgba(255, 255, 255, 0.05);
+      --table-head: #0f172a; --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12;
+      --izin-bg: #450a0a; --panel-bg: #1e293b; --input-bg: #334155; --input-border: #475569; --panel-text: #f1f5f9;
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
-    
     #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
     .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
     .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 14px; }
@@ -52,7 +37,6 @@
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
     .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; }
     
-    /* Satır Renkleri */
     .row-saat-0 { background-color: var(--saat1); } 
     .row-saat-1 { background-color: var(--saat2); } 
     .row-saat-2 { background-color: var(--saat3); } 
@@ -66,7 +50,6 @@
     .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
     .pers-name { font-size: 10px; font-weight: 700; display: block; }
     
-    /* Side Panel */
     .side-panel { position: fixed; top: 0; right: -550px; width: 500px; height: 100%; background: var(--bg); color: var(--panel-text); z-index: 1000; transition: 0.4s; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.2); border-left: 1px solid var(--border); }
     .side-panel.open { right: 0; }
     .panel-header { padding: 20px; background: var(--card-bg); color: var(--primary); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
@@ -541,7 +524,7 @@
             });
         });
 
-        // -------------------- CUMARTESİ KURTARMA (REEL TAKTİK - FİNAL) --------------------
+        // -------------------- CUMARTESİ KURTARMA (SABİTLER HARİÇ) --------------------
         state.birimler.forEach(birim => {
             const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
             if (ayar.tip !== "GRUP_ABC") return;
@@ -552,8 +535,10 @@
             
             if(cmtSabahMevcut < cmtSabahHedef) {
                 // Aday: Cuma SABAH veya GÜNDÜZ gelmiş, Cumartesi SABAH DEĞİL (yani boş/izinli/başka yerde)
+                // VE EN ÖNEMLİSİ: SABİT DEĞİL (!state.haftaIciSabitler[p.ad])
                 let adaylar = state.personeller.filter(p => 
                     p.birim === birim && 
+                    !state.haftaIciSabitler[p.ad] && 
                     (tempProg[p.ad][4] === SHIFTS.SABAH || tempProg[p.ad][4] === SHIFTS.GUNDUZ) &&
                     tempProg[p.ad][5] !== SHIFTS.SABAH
                 );
@@ -573,8 +558,10 @@
             
             if(cmtAksamMevcut < cmtAksamHedef) {
                 // Aday: Cuma AKŞAM gelmiş, Cumartesi AKŞAM DEĞİL
+                // VE SABİT DEĞİL
                 let adaylar = state.personeller.filter(p => 
                     p.birim === birim && 
+                    !state.haftaIciSabitler[p.ad] && 
                     tempProg[p.ad][4] === SHIFTS.AKSAM &&
                     tempProg[p.ad][5] !== SHIFTS.AKSAM
                 );
@@ -592,7 +579,7 @@
 
         state.personeller.forEach(p => { calis[p.ad] = 0; for(let g=0; g<7; g++) { if(tempProg[p.ad][g] && ![SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(tempProg[p.ad][g])) calis[p.ad]++; } });
 
-        // EKSİK KAPASİTE TAMAMLAMA (YAMA)
+        // EKSİK KAPASİTE TAMAMLAMA (SABİTLER HARİÇ)
         state.birimler.forEach(birim => {
             const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
             if (ayar.tip !== "GRUP_ABC") return;
@@ -611,6 +598,7 @@
                             let musait = (tempProg[p.ad][gun] === null || tempProg[p.ad][gun] === SHIFTS.IZIN); 
                             let yorgunDegil = calis[p.ad] < 6;
                             let manuelVar = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`];
+                            let sabitDegil = !state.haftaIciSabitler[p.ad]; // KORUMA: Sabitleri alma
                             
                             // Dinlenme Kuralı: Dün Akşam/Gece -> Bugün Sabah/Gündüz OLMAZ
                             let dinlenmeUygun = true;
@@ -620,7 +608,7 @@
                                     dinlenmeUygun = false;
                                 }
                             }
-                            return birimUygun && musait && yorgunDegil && !manuelVar && dinlenmeUygun;
+                            return birimUygun && musait && yorgunDegil && !manuelVar && dinlenmeUygun && sabitDegil;
                         });
 
                         seededShuffle(yedekAdaylar, hKey + "yedek");
@@ -660,6 +648,7 @@
                             if (getGecerliBirim(p, gun) !== birim) return false;
                             if (tempProg[p.ad][gun] !== null) return false;
                             if (calis[p.ad] >= 6) return false;
+                            if (state.haftaIciSabitler[p.ad]) return false; // KORUMA
 
                             // SIKI DİNLENME KURALI (AKILLI_HAFTASONU İÇİN DE GEÇERLİ)
                             if (gun > 0) {
@@ -684,6 +673,11 @@
             }
         });
 
+        for (let gun = 7; gun < 7; gun++) {
+             // ... (Diğer genel havuz kodları aynı şekilde sabit kontrolü içeriyor) ...
+        }
+        
+        // GENEL HAVUZ (SABİTLER HARİÇ) - DÜZELTME: Döngü şartını ve içeriği kontrol et
         for (let gun = 0; gun < 7; gun++) {
             state.birimler.forEach(birim => {
                 const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
@@ -703,12 +697,12 @@
                 let atananGece = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === geceSaati).length;
 
                 if (atananGece < hedefGece) {
-                    let adaylar = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null && (calis[p.ad] < 6));
+                    let adaylar = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null && (calis[p.ad] < 6) && !state.haftaIciSabitler[p.ad]);
                     siralamaYap(adaylar, true);
                     for (let p of adaylar) { if (atananGece < hedefGece) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atananGece++; } }
                 }
                 if (atananGece < hedefGece) {
-                    let adaylar = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null);
+                    let adaylar = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null && !state.haftaIciSabitler[p.ad]);
                     siralamaYap(adaylar, true);
                     for (let p of adaylar) { if (atananGece < hedefGece) { tempProg[p.ad][gun] = geceSaati; calis[p.ad]++; atananGece++; } }
                 }
@@ -720,6 +714,7 @@
                     if (mvc < hdf) {
                         let ady = state.personeller.filter(p => {
                             let basic = getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null;
+                            let sabitDegil = !state.haftaIciSabitler[p.ad];
                             
                             // SIKI DİNLENME KURALI (GENEL HAVUZ İÇİN)
                             let dinlenmeUygun = true;
@@ -729,7 +724,7 @@
                                     dinlenmeUygun = false;
                                 }
                             }
-                            return basic && (calis[p.ad] < 6) && dinlenmeUygun;
+                            return basic && (calis[p.ad] < 6) && dinlenmeUygun && sabitDegil;
                         });
                         siralamaYap(ady, false);
                         for (let p of ady) { if (mvc < hdf) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mvc++; } }
@@ -737,6 +732,7 @@
                     if (mvc < hdf) {
                         let ady = state.personeller.filter(p => {
                             let basic = getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null;
+                            let sabitDegil = !state.haftaIciSabitler[p.ad];
                             let dinlenmeUygun = true;
                             if (gun > 0) {
                                 let dun = tempProg[p.ad][gun-1];
@@ -744,7 +740,7 @@
                                     dinlenmeUygun = false;
                                 }
                             }
-                            return basic && dinlenmeUygun;
+                            return basic && dinlenmeUygun && sabitDegil;
                         });
                         siralamaYap(ady, false);
                         for (let p of ady) { if (mvc < hdf) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mvc++; } }
