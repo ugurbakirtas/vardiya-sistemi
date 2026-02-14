@@ -10,7 +10,7 @@
   --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed;
   --izin-bg: #fef2f2; --yillik-izin: #9333ea;
   
-  /* GÖRÜNÜM AYARLARI */
+  /* GÖRÜNÜM AYARLARI (Varsayılanlar) */
   --custom-panel-bg: var(--bg);
   --custom-panel-text: var(--text);
   --name-color: var(--text);
@@ -23,6 +23,7 @@
   --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12;
   --izin-bg: #450a0a;
   
+  /* Koyu modda varsayılanlar */
   --custom-panel-bg: #020617;
   --custom-panel-text: #f1f5f9;
   --name-color: #ffffff;
@@ -72,10 +73,32 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: transform 0.2s, background-color 0.3s; font-size: 14px; }
 .login-btn:hover { transform: scale(1.02); }
 .btn-user { background: var(--blue); color: white; } .btn-admin { background: #475569; color: white; }
-.login-logo { height: 60px; margin-bottom: 20px; }
+
+/* 🌟 DÜZELTME: LOGO TAŞMA SORUNU ÇÖZÜLDÜ 🌟 */
+.login-logo { 
+    max-height: 70px; 
+    height: auto; 
+    width: 100%; 
+    object-fit: contain; 
+    margin-bottom: 20px; 
+}
 
 .app-wrapper { padding: 10px; display: none; } 
-.main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; gap: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+
+/* 🌟 DÜZELTME: HEADER DÜZENİ VE BUTON SIKIŞMASI ÇÖZÜLDÜ 🌟 */
+.main-header { 
+    display: flex; 
+    flex-wrap: wrap; 
+    justify-content: space-between; 
+    align-items: center; 
+    background: var(--primary); 
+    color: white; 
+    padding: 10px 15px; 
+    border-radius: 12px; 
+    margin-bottom: 15px; 
+    gap: 15px; 
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); 
+}
 .table-container { overflow-x: auto; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); max-height: 80vh; }
 
 table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
@@ -101,6 +124,9 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
 .birim-ayirici { border-top: 5px solid #1e293b !important; margin-top: 8px !important; padding-top: 8px !important; }
 .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
 
+/* ------------------------------------------------------------- */
+/* İSİM GÖRÜNÜRLÜĞÜ AYARLARI */
+/* ------------------------------------------------------------- */
 .pers-name { 
     font-size: 10px; 
     display: block; 
@@ -127,6 +153,9 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
     color: #fca5a5 !important; 
 }
 
+/* ------------------------------------------------------------- */
+/* YÖNETİCİ PANELİ STİLLERİ */
+/* ------------------------------------------------------------- */
 .side-panel { 
     position: fixed; top: 0; right: -550px; width: 500px; height: 100%; 
     background: var(--custom-panel-bg) !important; 
@@ -183,7 +212,8 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
 .tab-btn:hover { background: rgba(128,128,128,0.2); }
 .tab-btn.active { background: var(--blue); color: white !important; box-shadow: 0 4px 10px -2px rgba(37, 99, 235, 0.4); transform: scale(1.03); }
 
-.btn-main-action { padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: white; transition: filter 0.2s, transform 0.1s; }
+/* Buton Padding ayarı daraltıldı ki hepsi rahat sığsın */
+.btn-main-action { padding: 8px 12px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: white; transition: filter 0.2s, transform 0.1s; }
 .btn-main-action:hover { filter: brightness(1.1); transform: translateY(-1px); }
 .btn-main-action:active { transform: translateY(1px); }
 .hidden { display: none; }

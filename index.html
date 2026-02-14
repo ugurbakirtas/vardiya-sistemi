@@ -43,8 +43,15 @@
     <div id="yorgunlukUyari" class="yorgunluk-bar no-print"></div>
     
     <header class="main-header no-print">
-      <div style="display: flex; align-items: center; gap: 10px;"><img src="logo.png" alt="Logo" style="height: 35px;"><div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V63</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div></div>
-      <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center; align-items: center;">
+      <div style="display: flex; align-items: center; gap: 15px;">
+          <img src="logo.png" alt="Logo" style="max-height: 40px; max-width: 160px; object-fit: contain;">
+          <div>
+              <h1 style="margin:0; font-size:16px; white-space: nowrap;">TEKNiK EKİP ÇALIŞMA LİSTESİ V63</h1>
+              <p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p>
+          </div>
+      </div>
+      
+      <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: flex-end; align-items: center; flex: 1; padding-left: 10px;">
           <input type="text" id="tabloArama" onkeyup="tabloFiltrele()" placeholder="🔍 Listede Ara (Örn: Ahmet)..." class="search-input no-print">
           <button onclick="geriAl()" class="btn-main-action admin-only" id="btnUndo" style="background:var(--warning); color:#000; display:none; font-weight:800; border:2px solid #000;">🔙 GERİ AL</button>
           
