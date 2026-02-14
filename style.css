@@ -117,14 +117,13 @@ th.today-col { border-top: 3px solid var(--warning) !important; background-color
 .row-izin { background-color: var(--izin-bg) !important; } .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
 th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { background-color: rgba(0,0,0,0.02); }
 
-/* 🌟 DÜZELTME: BİRİM KARTI SOL KALIN RENKLİ ÇİZGİSİ SABİTLENDİ 🌟 */
 .birim-card { 
     padding: 6px 8px; 
     margin-bottom: 5px; 
     background: var(--card-bg); 
     border-radius: 6px; 
     border: 1px solid var(--border); 
-    border-left-width: 5px !important; /* İnce kenarlığın bunu ezmesi engellendi */
+    border-left-width: 5px !important; 
     border-left-style: solid !important;
     cursor: pointer; 
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
@@ -133,7 +132,6 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
 .birim-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); filter: brightness(1.05); }
 .birim-ayirici { border-top: 5px solid #1e293b !important; margin-top: 8px !important; padding-top: 8px !important; }
 .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
-
 
 /* ------------------------------------------------------------- */
 /* İSİM GÖRÜNÜRLÜĞÜ AYARLARI */
@@ -147,7 +145,6 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
 }
 
 [data-theme="dark"] .birim-card {
-    /* Background important kaldirildi ki arkaplandaki hafif birim renkleri gorunsun */
     border-top-color: #1e293b !important;
     border-right-color: #1e293b !important;
     border-bottom-color: #1e293b !important;
@@ -195,14 +192,23 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
     color: inherit; 
 }
 
+/* 🌟 DÜZELTME: BİRİM LİSTESİ RENKLERİNİ EZEN KOD KALDIRILDI 🌟 */
 .panel-content .admin-tabs, 
 .panel-content .swap-container,
 .panel-content .login-card,
 .panel-content div[style*="background:var(--card-bg)"] {
     background: rgba(255, 255, 255, 0.05) !important; 
-    border: 1px solid rgba(128,128,128, 0.2) !important;
+    
+    /* Eskiden burada "border: 1px solid... !important" vardı, bu sol kenarlığı (renkleri) öldürüyordu. 
+       Şimdi sol kenarlığa dokunmuyoruz. */
+    border-top: 1px solid rgba(128,128,128, 0.2) !important;
+    border-right: 1px solid rgba(128,128,128, 0.2) !important;
+    border-bottom: 1px solid rgba(128,128,128, 0.2) !important;
+    border-left: 1px solid rgba(128,128,128, 0.2); 
+    
     color: inherit !important;
 }
+
 [data-theme="light"] .panel-content .admin-tabs, 
 [data-theme="light"] .panel-content div[style*="background:var(--card-bg)"] {
      background: rgba(255,255,255, 0.8) !important; 
