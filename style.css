@@ -10,7 +10,7 @@
   --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed;
   --izin-bg: #fef2f2; --yillik-izin: #9333ea;
   
-  /* GÖRÜNÜM AYARLARI (Varsayılanlar) */
+  /* GÖRÜNÜM AYARLARI */
   --custom-panel-bg: var(--bg);
   --custom-panel-text: var(--text);
   --name-color: var(--text);
@@ -23,7 +23,6 @@
   --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12;
   --izin-bg: #450a0a;
   
-  /* Koyu modda varsayılanlar */
   --custom-panel-bg: #020617;
   --custom-panel-text: #f1f5f9;
   --name-color: #ffffff;
@@ -102,17 +101,11 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
 .birim-ayirici { border-top: 5px solid #1e293b !important; margin-top: 8px !important; padding-top: 8px !important; }
 .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
 
-/* ------------------------------------------------------------- */
-/* İSİM GÖRÜNÜRLÜĞÜ AYARLARI */
-/* ------------------------------------------------------------- */
 .pers-name { 
     font-size: 10px; 
     display: block; 
-    
-    /* Dinamik Değişkenler */
     color: var(--name-color) !important; 
     font-weight: var(--name-weight);
-    
     transition: all 0.3s ease;
 }
 
@@ -127,23 +120,17 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
     background-color: rgba(0, 0, 0, 0.6) !important; 
 }
 [data-theme="dark"] .pers-name { 
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.8); /* Yazı okunurluğu için gölge */
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
     letter-spacing: 0.3px; 
 }
 [data-theme="dark"] .row-izin .saat-col { 
     color: #fca5a5 !important; 
 }
 
-/* ------------------------------------------------------------- */
-/* YÖNETİCİ PANELİ STİLLERİ */
-/* ------------------------------------------------------------- */
 .side-panel { 
     position: fixed; top: 0; right: -550px; width: 500px; height: 100%; 
-    
-    /* Panel Arkaplanı ve Yazı Rengi Değişkenlerden Geliyor */
     background: var(--custom-panel-bg) !important; 
     color: var(--custom-panel-text) !important;
-    
     z-index: 1000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
     display: flex; flex-direction: column; 
     box-shadow: -10px 0 30px rgba(0,0,0,0.5); 
@@ -151,7 +138,6 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
 }
 .side-panel.open { right: 0; }
 
-/* Panel başlığı ve içeriği üstten miras alır (inherit) */
 .panel-header { 
     padding: 20px; 
     background: inherit; 
@@ -165,27 +151,24 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
     padding: 20px; 
     overflow-y: auto; 
     flex: 1; 
-    background: transparent !important; /* Şeffaf yapıyoruz ki panel rengi görünsün */
-    color: inherit; /* Rengi panelden al */
+    background: transparent !important; 
+    color: inherit; 
 }
 
-/* Panel içindeki kartların/kutuların da uyumlu olması için */
 .panel-content .admin-tabs, 
 .panel-content .swap-container,
 .panel-content .login-card,
 .panel-content div[style*="background:var(--card-bg)"] {
-    /* Hafif şeffaflık verelim ki arka renk belli olsun ama okunabilsin */
     background: rgba(255, 255, 255, 0.05) !important; 
     border: 1px solid rgba(128,128,128, 0.2) !important;
     color: inherit !important;
 }
 [data-theme="light"] .panel-content .admin-tabs, 
 [data-theme="light"] .panel-content div[style*="background:var(--card-bg)"] {
-     background: rgba(255,255,255, 0.8) !important; /* Açık modda daha beyaz */
+     background: rgba(255,255,255, 0.8) !important; 
      color: #000 !important;
 }
 
-/* Panel içindeki başlıklar ve etiketler */
 .panel-content h3, .panel-content strong, .panel-content label, .panel-content span {
     color: inherit !important;
 }

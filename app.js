@@ -19,12 +19,11 @@ const UNITS = {
     INGEST: "INGEST OPERATÖRÜ"
 };
 
-// VARSAYILAN RENK PALETİ
 const DEFAULT_SHIFT_COLORS = [
-    "#e0f2fe", // Saat 1 (Sabah)
-    "#f0fdf4", // Saat 2 (Gündüz)
-    "#faf5ff", // Saat 3 (Akşam)
-    "#fff7ed"  // Saat 4 (Gece)
+    "#e0f2fe", 
+    "#f0fdf4", 
+    "#faf5ff", 
+    "#fff7ed"  
 ];
 
 let TELEGRAM_API = ""; 
@@ -675,80 +674,49 @@ function vardiyaUretVeKaydet() {
     adim6_EksikleriKapatVeKaydet();
 }
 
-
-function excelIndir() {
+function excelHtmlOlustur() {
     const hKey = getDateKey(currentMonday);
-    
-    // EXCEL ÖZELLEŞTİRMELERİ
-    // Arial font, 7pt boyut, Kalın (Bold), Özel Kenarlıklar
-    // Sütun genişliği Excel'de 24.76 yaklaşık 180-190px'e denk gelir.
-    // Satır yüksekliği 14 yaklaşık 19px'e denk gelir.
-    
     let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
     <head>
         <meta charset="UTF-8">
         <style>
             @page { mso-page-orientation: landscape; }
             table { border-collapse: collapse; font-family: 'Arial', sans-serif; width: 100%; table-layout: fixed; }
-            
-            /* SÜTUN GENİŞLİĞİ: Excel'de 24.76 birim ~ 190px */
             col { width: 190px; }
-            
             td, th { 
-                /* HÜCRE STİLİ: Arial, 7pt, Kalın */
                 font-family: 'Arial', sans-serif;
                 font-size: 7pt;
                 font-weight: bold;
-                
-                /* SATIR YÜKSEKLİĞİ: 14 birim ~ 19px */
                 height: 19px; 
                 line-height: 14px;
-                
                 text-align: center; 
                 vertical-align: middle;
-                
-                /* BİRİM İÇİ İNCE KENARLIK */
                 border: 0.5pt solid #000000;
-                
-                /* TAŞMAYI ENGELLE (Word Wrap) */
                 white-space: normal; 
                 word-wrap: break-word; 
             }
-            
             .title { background: #1e293b; color: white; font-size: 12pt; padding:10px; border: 2pt solid #000; }
             .header { background: #f8fafc; color: #1e293b; font-size: 10pt; padding:8px; border: 1pt solid #000; }
-            
-            /* BİRİM BAŞLIKLARI: Arial, 12pt, Kalın, KALIN KENARLIK */
             .unit-header {
                 font-family: 'Arial', sans-serif;
                 font-size: 12pt;
                 font-weight: bold;
                 color: white;
-                
-                /* KALIN KENARLIK (Birimler arası ayrım) */
                 border-top: 2.0pt solid #000000;
                 border-bottom: 2.0pt solid #000000;
                 border-left: 2.0pt solid #000000;
                 border-right: 2.0pt solid #000000;
             }
-            
-            /* Saatin olduğu ilk sütun için ekstra kalın kenarlık opsiyonel */
-            .first-col {
-                border-right: 1.0pt solid #000000;
-            }
+            .first-col { border-right: 1.0pt solid #000000; }
         </style>
     </head>
     <body>
         <table>
-            <colgroup>
-                <col span="8" width="190">
-            </colgroup>
-            
+            <colgroup><col span="8" width="190"></colgroup>
             <tr><th colspan="8" class="title">TEKNİK PERSONEL ÇALIŞMA LİSTESİ</th></tr>
             <tr><th class="header">SAAT</th>${GUNLER.map(g => `<th class="header">${g.toUpperCase()}</th>`).join('')}</tr>`;
     
     state.birimler.forEach(birim => {
-        // BİRİM BAŞLIĞI (KALIN KENARLIKLI)
         html += `<tr><td colspan="8" class="unit-header" style="background:${getBirimColor(birim)};">${birim}</td></tr>`;
         
         [...state.saatler, "İZİN"].forEach((s, index) => {
@@ -763,21 +731,14 @@ function excelIndir() {
                 pByDay[i] = list; if(list.length > maxRow) maxRow = list.length;
             }
 
-            // RENKLER (Tablo ve Ayarlar ile senkronize)
             let rowColor = (state.saatAyarlari && state.saatAyarlari[s]) ? state.saatAyarlari[s].renk : (DEFAULT_SHIFT_COLORS[index] || '#ffffff');
             if(s === "İZİN") rowColor = "#fef2f2"; 
 
             for(let r=0; r<maxRow; r++) {
                 html += `<tr>`;
-                
-                if(r === 0) {
-                    // Saat hücresi
-                    html += `<td rowspan="${maxRow}" class="first-col" style="background-color:${rowColor};">${s}</td>`;
-                }
-
+                if(r === 0) html += `<td rowspan="${maxRow}" class="first-col" style="background-color:${rowColor};">${s}</td>`;
                 for(let i=0; i<7; i++) {
                     let pName = pByDay[i][r] ? pByDay[i][r].ad : "";
-                    // Hücreler (İnce kenarlık stili CSS'den geliyor)
                     html += `<td style="background-color:${rowColor};">${pName}</td>`;
                 }
                 html += `</tr>`;
@@ -786,25 +747,64 @@ function excelIndir() {
     });
     
     html += `</table></body></html>`;
+    return html;
+}
+
+function excelIndir() {
+    const html = excelHtmlOlustur();
+    const hKey = getDateKey(currentMonday);
     const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Vardiya_${hKey}.xls`; a.click();
 }
 
+// 🔥 YENİ: EXCEL MAİL GÖNDERME FONKSİYONU 🔥
+async function excelMailGonder() {
+    if(!isAdmin) return;
+    
+    const alicilar = prompt("Excel'in gönderileceği mail adreslerini girin:\n(Birden fazla ise araya virgül koyun)", "ornek@sirket.com");
+    if(!alicilar) return;
+
+    showLoading();
+    try {
+        const hKey = getDateKey(currentMonday);
+        const htmlData = excelHtmlOlustur(); 
+
+        const response = await fetch("http://localhost:3000/send-excel", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                fileName: `Vardiya_${hKey}.xls`,
+                fileData: htmlData,
+                toEmails: alicilar
+            })
+        });
+
+        const result = await response.json();
+        if(response.ok && result.success) {
+            showToast("📧 Excel başarıyla mail atıldı!", "success");
+            logKoy(`Vardiya Excel'i mail olarak gönderildi: ${alicilar}`);
+        } else {
+            showToast("Mail Hatası: " + (result.message || "Bilinmeyen Hata"), "error");
+        }
+    } catch (e) {
+        console.error(e);
+        showToast("Sunucuya ulaşılamadı. server.js çalışıyor mu?", "error");
+    }
+    hideLoading();
+}
+
 function ulastirmaExcelIndir() {
     const hKey = getDateKey(currentMonday);
-    
-    // ULAŞTIRMA LİSTESİ İÇİN DE AYNI FORMAT (Tutarlılık için)
     let html = `
     <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
     <head>
         <meta charset="UTF-8">
         <style>
             table { border-collapse: collapse; font-family: 'Arial', sans-serif; width: 100%; table-layout: fixed; }
-            /* Ulaştırma listesi biraz daha geniş olabilir */
             col { width: 200px; }
             td, th { 
                 font-family: 'Arial', sans-serif;
-                font-size: 8pt; /* Biraz daha okunaklı olsun */
+                font-size: 8pt; 
                 font-weight: bold;
                 height: 20px;
                 border: 0.5pt solid #000;
@@ -1404,7 +1404,7 @@ function vardiyaAta(pAd, gIdx, vardiya) {
     showToast(`${pAd} vardiyası güncellendi.`, "success");
 }
 
-function toggleTheme() { const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"; document.documentElement.setAttribute("data-theme", t); localStorage.setItem(PREFIX + "theme", t); gorunumAyarlariYukle(); } // Tema değişince ayarları yeniden yükle
+function toggleTheme() { const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"; document.documentElement.setAttribute("data-theme", t); localStorage.setItem(PREFIX + "theme", t); gorunumAyarlariYukle(); }
 function vardiyaSifirla() { if(confirm("Haftayı temizle?")) { saveStateToHistory(); const hKey = getDateKey(currentMonday); Object.keys(state.manuelAtamalar).forEach(k => { if(k.startsWith(hKey)) delete state.manuelAtamalar[k]; }); save(); tabloyuOlustur(); logKoy("Bu haftanın vardiyası sıfırlandı."); showToast("Hafta temizlendi.", "info"); } }
 function tamSifirla() { if(confirm("Sıfırla?")) { localStorage.clear(); location.reload(); } }
 function jsonYedekAl() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "Yedek.json"); dl.click(); showToast("Yedek indirildi.", "success"); }
@@ -1435,7 +1435,7 @@ function anlikSenkronizasyonBaslat() {
             verileriGuvenliHaleGetir(); 
             save(); 
             tabloyuOlustur();
-            gorunumAyarlariYukle(); // Her veri geldiğinde görünümü de tazele
+            gorunumAyarlariYukle();
             if(isAdmin) refreshUI();
             console.log("Sistem: Veriler eşitlendi.");
         }
@@ -1606,9 +1606,6 @@ function exceldenVardiyaYukle() {
     reader.readAsArrayBuffer(file);
 }
 
-// -------------------------------------------------------------
-// 🔥 YENİ: GELİŞMİŞ GÖRÜNÜM AYARLARI FONKSİYONLARI 🔥
-// -------------------------------------------------------------
 function gorunumModalAc() {
     gorunumAyarlariYukleUI();
     document.getElementById('gorunumModal').style.display = 'flex';
@@ -1625,7 +1622,7 @@ function panelRenkSifirla() {
     if(!state.gorunum) state.gorunum = {};
     state.gorunum.panelRenk = null;
     save();
-    gorunumAyarlariYukle(); // Varsayılan temaya döndürür
+    gorunumAyarlariYukle(); 
 }
 
 function panelYaziRenkSec(renk) {
@@ -1664,16 +1661,13 @@ function isimKalinlikDegis(val) {
 }
 
 function gorunumAyarlariYukle() {
-    // 1. Panel Arkaplanı
     if(state.gorunum && state.gorunum.panelRenk) {
         document.documentElement.style.setProperty('--custom-panel-bg', state.gorunum.panelRenk);
     } else {
-        // Varsayılana dön
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         document.documentElement.style.setProperty('--custom-panel-bg', isDark ? '#020617' : '#f1f5f9');
     }
 
-    // 2. Panel Yazı Rengi
     if(state.gorunum && state.gorunum.panelYaziRenk) {
         document.documentElement.style.setProperty('--custom-panel-text', state.gorunum.panelYaziRenk);
     } else {
@@ -1681,7 +1675,6 @@ function gorunumAyarlariYukle() {
         document.documentElement.style.setProperty('--custom-panel-text', isDark ? '#f1f5f9' : '#334155');
     }
 
-    // 3. İsim Rengi
     if(state.gorunum && state.gorunum.isimRenk) {
         document.documentElement.style.setProperty('--name-color', state.gorunum.isimRenk);
     } else {
@@ -1689,7 +1682,6 @@ function gorunumAyarlariYukle() {
         document.documentElement.style.setProperty('--name-color', isDark ? '#ffffff' : '#334155');
     }
 
-    // 4. İsim Kalınlığı
     if(state.gorunum && state.gorunum.isimKalinlik) {
         document.documentElement.style.setProperty('--name-weight', state.gorunum.isimKalinlik);
     } else {
@@ -1698,14 +1690,12 @@ function gorunumAyarlariYukle() {
 }
 
 function gorunumAyarlariYukleUI() {
-    // Modal açıldığında inputların değerlerini güncelle
     if(state.gorunum) {
         if(state.gorunum.isimKalinlik) document.getElementById('isimKalinlikRange').value = state.gorunum.isimKalinlik;
         if(state.gorunum.panelYaziRenk) document.getElementById('panelTextPicker').value = state.gorunum.panelYaziRenk;
         if(state.gorunum.isimRenk) document.getElementById('isimRenkPicker').value = state.gorunum.isimRenk;
     }
 }
-// -------------------------------------------------------------
 
 window.onload = async () => { 
     if(localStorage.getItem(PREFIX + "theme") === "dark") {
@@ -1729,7 +1719,6 @@ window.onload = async () => {
             
             checkUrlActions();
             
-            // AYARLARI YÜKLE
             verileriGuvenliHaleGetir();
             gorunumAyarlariYukle();
             tabloyuOlustur(); 
