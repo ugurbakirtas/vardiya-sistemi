@@ -416,7 +416,7 @@
         
         document.getElementById("tableFooter").innerHTML = `<tr class="row-izin"><td class="saat-col">İZİN / BOŞ</td>${[0,1,2,3,4,5,6].map(g => { let sortedPers = state.personeller.filter(p => [SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(prog[p.ad][g])).sort((a, b) => { let birimA = getGecerliBirim(a, g); let birimB = getGecerliBirim(b, g); return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); }); let cellContent = ""; let lastBirim = ""; sortedPers.forEach(p => { let gecerliBirim = getGecerliBirim(p, g); let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : ""; let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : ""; let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, 'BOŞ')"` : ""; let isYillik = prog[p.ad][g] === SHIFTS.YILLIK; let bgStyle = isYillik ? 'background:var(--yillik-izin)' : (prog[p.ad][g]===SHIFTS.IZIN?'background:var(--danger)':`background:${getBirimColor(gecerliBirim)}`); let countStyle = calis[p.ad] >= 6 ? 'color:red; font-weight:bold; font-size:11px;' : ''; cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(gecerliBirim)};" ${dragAttr} ${clickAttr}><span class="birim-tag" style="${bgStyle}">${prog[p.ad][g] || 'BOŞ'}</span><span class="pers-name">${p.ad} <span style="${countStyle}">(${calis[p.ad]}G)</span></span></div>`; lastBirim = gecerliBirim; }); return `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">${cellContent}</td>`; }).join('')}</tr>`;
         
-        // YENİ: YORGUNLUK KONTROLÜ (6-7 GÜN UYARISI)
+        // YORGUNLUK UYARISI GİZLENDİ (SADECE ADMIN)
         let yorgunlar = [];
         state.personeller.forEach(p => {
             if(calis[p.ad] >= 6) {
@@ -425,7 +425,7 @@
         });
         
         const uyariDiv = document.getElementById('yorgunlukUyari');
-        if(yorgunlar.length > 0) {
+        if(yorgunlar.length > 0 && isAdmin) { // SADECE ADMIN GÖRSÜN
             uyariDiv.innerHTML = "⚠️ DİKKAT (6-7 Gün Çalışanlar): " + yorgunlar.join(", ");
             uyariDiv.style.display = 'block';
         } else {
@@ -536,43 +536,49 @@
             // YENİ ÖZELLİK: AKILLI CUMA UZATMA MANTIĞI (Playout/KJ/Ses)
             // ----------------------------------------------------
             
-            // Adayları Topla
-            let cumaSabahcilar = personelListesi.filter(p => { let v = tempProg[p.ad][4]; return v === SHIFTS.SABAH || v === SHIFTS.GUNDUZ; });
-            let cumaAksamcilar = personelListesi.filter(p => { let v = tempProg[p.ad][4]; return v === SHIFTS.AKSAM; });
+            // 1. Kapasite Hedeflerini Al (Cumartesi - Gün 5)
+            // Not: GUNDUZ (09:00) öncelikli kontrol ediliyor.
+            let targetSatGunduz = (state.kapasite[`${birim}_${SHIFTS.GUNDUZ}`] || [])[5] || 0;
+            let targetSatAksam = (state.kapasite[`${birim}_${SHIFTS.AKSAM}`] || [])[5] || 0;
 
-            seededShuffle(cumaSabahcilar, hKey + "cumaS");
-            seededShuffle(cumaAksamcilar, hKey + "cumaA");
+            // 2. Mevcut Doluluğu Say (Sistem döngüsü veya manuel atamalarla dolmuş olabilir)
+            let currentSatGunduz = personelListesi.filter(p => tempProg[p.ad][5] === SHIFTS.GUNDUZ || tempProg[p.ad][5] === SHIFTS.SABAH).length;
+            let currentSatAksam = personelListesi.filter(p => tempProg[p.ad][5] === SHIFTS.AKSAM).length;
 
-            // 1. CUMA SABAHÇISI -> CUMARTESİ GÜNDÜZ'E UZATMA
-            let cmtGunduzHedef = (state.kapasite[`${birim}_${SHIFTS.GUNDUZ}`] || [])[5] || 0;
-            // Manuel atanmış veya algoritmayla atanmış 'GÜNDÜZ' veya 'SABAH' sayısını bul
-            let mevcutCmtGunduz = personelListesi.filter(p => tempProg[p.ad][5] === SHIFTS.GUNDUZ || tempProg[p.ad][5] === SHIFTS.SABAH).length;
+            // 3. Aday Havuzlarını Oluştur (Sıkı Ayrım: Sabahçı -> Sabah, Akşamcı -> Akşam)
+            let candidatesSabah = personelListesi.filter(p => {
+                let friShift = tempProg[p.ad][4];
+                return friShift === SHIFTS.SABAH || friShift === SHIFTS.GUNDUZ;
+            });
+            let candidatesAksam = personelListesi.filter(p => tempProg[p.ad][4] === SHIFTS.AKSAM);
 
-            if (mevcutCmtGunduz < cmtGunduzHedef) {
-                for(let aday of cumaSabahcilar) {
-                    // KAYNAK KONTROLÜ: Admin bu kişiye Cumartesi (5. gün) için bir şey yazmış mı?
-                    let manuelAtama = state.manuelAtamalar[`${hKey}_${aday.ad}_5`];
+            seededShuffle(candidatesSabah, hKey + "S");
+            seededShuffle(candidatesAksam, hKey + "A");
+
+            // 4. İŞLEM: Eğer Kapasite Eksikse -> Uygun Adayı Bul ve Ata
+            
+            // --- SABAH KANAL ---
+            if (currentSatGunduz < targetSatGunduz) {
+                for (let p of candidatesSabah) {
+                    if (currentSatGunduz >= targetSatGunduz) break;
                     
-                    if (!manuelAtama) { 
-                        // Admin bir şey yazmamış (boş veya sistemin atadığı izin var). 
-                        // Kapasite eksik olduğu için bunu ezip vardiya yazabiliriz.
-                        tempProg[aday.ad][5] = SHIFTS.GUNDUZ; 
-                        break; // Bir kişi yetti
+                    // Hiyerarşi Kontrolü: Admin elle bir şey yazmış mı?
+                    if (!state.manuelAtamalar[`${hKey}_${p.ad}_5`]) {
+                        tempProg[p.ad][5] = SHIFTS.GUNDUZ; // Atama Yap
+                        currentSatGunduz++;
                     }
-                    // Eğer manuelAtama varsa (İzin, Rapor, başka vardiya), bu kişiyi PAS GEÇ, döngü sonrakine baksın.
                 }
             }
 
-            // 2. CUMA AKŞAMCISI -> CUMARTESİ AKŞAM'A UZATMA
-            let cmtAksamHedef = (state.kapasite[`${birim}_${SHIFTS.AKSAM}`] || [])[5] || 0;
-            let mevcutCmtAksam = personelListesi.filter(p => tempProg[p.ad][5] === SHIFTS.AKSAM).length;
-
-            if (mevcutCmtAksam < cmtAksamHedef) {
-                for(let aday of cumaAksamcilar) {
-                    let manuelAtama = state.manuelAtamalar[`${hKey}_${aday.ad}_5`];
-                    if (!manuelAtama) {
-                        tempProg[aday.ad][5] = SHIFTS.AKSAM;
-                        break;
+            // --- AKŞAM KANAL ---
+            if (currentSatAksam < targetSatAksam) {
+                for (let p of candidatesAksam) {
+                    if (currentSatAksam >= targetSatAksam) break;
+                    
+                    // Hiyerarşi Kontrolü
+                    if (!state.manuelAtamalar[`${hKey}_${p.ad}_5`]) {
+                        tempProg[p.ad][5] = SHIFTS.AKSAM; // Atama Yap
+                        currentSatAksam++;
                     }
                 }
             }
