@@ -38,7 +38,7 @@
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
     .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; }
     
-    /* Varsayılan Renkler (Eğer özel renk seçilmezse bunlar çalışır) */
+    /* Varsayılan Renkler */
     .row-saat-0 { background-color: var(--saat1); } 
     .row-saat-1 { background-color: var(--saat2); } 
     .row-saat-2 { background-color: var(--saat3); } 
@@ -450,7 +450,7 @@
         
         verileriGuvenliHaleGetir();
 
-        // 1. Manuel Atamaları Yükle
+        // 1. Manuel Atamaları Yükle (KAYNAK KONTROLÜ - STEP 1)
         state.personeller.forEach(p => {
              tempProg[p.ad] = Array(7).fill(null);
              for(let g=0; g<7; g++) { let mKey = `${hKey}_${p.ad}_${g}`; if(state.manuelAtamalar[mKey]) tempProg[p.ad][g] = state.manuelAtamalar[mKey]; }
@@ -515,61 +515,66 @@
             // GRUP C (Pazartesi İzinliler)
             seededShuffle(grupC, hKey);
             grupC.forEach((p, index) => {
-                // Hafta içi standart (Pzt İzin, Sal-Çar Sabah, Per-Cum Akşam)
                 safeAssign(p, 0, SHIFTS.IZIN);
                 safeAssign(p, 1, SHIFTS.SABAH);
                 safeAssign(p, 2, SHIFTS.SABAH);
                 safeAssign(p, 3, SHIFTS.AKSAM);
                 safeAssign(p, 4, SHIFTS.AKSAM);
 
-                // HAFTA SONU MAKASI + KAPASİTE KONTROLÜ
                 if (index % 2 === 0) {
-                    // 1. TİP (Nöbetçi): Cuma Akşamdan çıktı -> Cmt AKŞAM devam eder -> Pazar İZİN.
                     let cmtAksamCap = (state.kapasite[`${birim}_${SHIFTS.AKSAM}`] || [0,0,0,0,0,0,0])[5];
-                    if(cmtAksamCap > 0) {
-                         safeAssign(p, 5, SHIFTS.AKSAM);
-                    } else {
-                         safeAssign(p, 5, SHIFTS.IZIN);
-                    }
+                    if(cmtAksamCap > 0) { safeAssign(p, 5, SHIFTS.AKSAM); } else { safeAssign(p, 5, SHIFTS.IZIN); }
                     safeAssign(p, 6, SHIFTS.IZIN);
                 } else {
-                    // 2. TİP (Dönüşümcü): Cuma Akşamdan çıktı -> Cmt İZİN -> Pazar SABAH (Pzt sabahına hazırlık).
                     safeAssign(p, 5, SHIFTS.IZIN);
                     let pzSabahCap = (state.kapasite[`${birim}_${SHIFTS.SABAH}`] || [0,0,0,0,0,0,0])[6];
-                    if(pzSabahCap > 0) {
-                        safeAssign(p, 6, SHIFTS.SABAH);
-                    } else {
-                        safeAssign(p, 6, SHIFTS.IZIN);
-                    }
+                    if(pzSabahCap > 0) { safeAssign(p, 6, SHIFTS.SABAH); } else { safeAssign(p, 6, SHIFTS.IZIN); }
                 }
             });
 
             // ----------------------------------------------------
-            // YENİ ÖZELLİK: CUMA UZATMA MANTIĞI (Playout/KJ/Ses)
+            // YENİ ÖZELLİK: AKILLI CUMA UZATMA MANTIĞI (Playout/KJ/Ses)
             // ----------------------------------------------------
-            // 1. Grupları Tespit Et
-            let cumaSabahcilar = personelListesi.filter(p => {
-                let v = tempProg[p.ad][4]; // 4 = Cuma
-                return v === SHIFTS.SABAH || v === SHIFTS.GUNDUZ;
-            });
-            let cumaAksamcilar = personelListesi.filter(p => {
-                let v = tempProg[p.ad][4];
-                return v === SHIFTS.AKSAM; // Sadece Akşam Olanlar
-            });
+            
+            // Adayları Topla
+            let cumaSabahcilar = personelListesi.filter(p => { let v = tempProg[p.ad][4]; return v === SHIFTS.SABAH || v === SHIFTS.GUNDUZ; });
+            let cumaAksamcilar = personelListesi.filter(p => { let v = tempProg[p.ad][4]; return v === SHIFTS.AKSAM; });
 
-            // 2. Karıştır
             seededShuffle(cumaSabahcilar, hKey + "cumaS");
             seededShuffle(cumaAksamcilar, hKey + "cumaA");
 
-            // 3. ZORLA ATA (Force Override)
-            // Önceki atamaları (Makas vb.) silip bizim istediğimizi yazar.
-            if(cumaSabahcilar.length > 0) {
-                // Şanslı Sabahçı -> Cumartesi 09:00
-                tempProg[cumaSabahcilar[0].ad][5] = SHIFTS.GUNDUZ; 
+            // 1. CUMA SABAHÇISI -> CUMARTESİ GÜNDÜZ'E UZATMA
+            let cmtGunduzHedef = (state.kapasite[`${birim}_${SHIFTS.GUNDUZ}`] || [])[5] || 0;
+            // Manuel atanmış veya algoritmayla atanmış 'GÜNDÜZ' veya 'SABAH' sayısını bul
+            let mevcutCmtGunduz = personelListesi.filter(p => tempProg[p.ad][5] === SHIFTS.GUNDUZ || tempProg[p.ad][5] === SHIFTS.SABAH).length;
+
+            if (mevcutCmtGunduz < cmtGunduzHedef) {
+                for(let aday of cumaSabahcilar) {
+                    // KAYNAK KONTROLÜ: Admin bu kişiye Cumartesi (5. gün) için bir şey yazmış mı?
+                    let manuelAtama = state.manuelAtamalar[`${hKey}_${aday.ad}_5`];
+                    
+                    if (!manuelAtama) { 
+                        // Admin bir şey yazmamış (boş veya sistemin atadığı izin var). 
+                        // Kapasite eksik olduğu için bunu ezip vardiya yazabiliriz.
+                        tempProg[aday.ad][5] = SHIFTS.GUNDUZ; 
+                        break; // Bir kişi yetti
+                    }
+                    // Eğer manuelAtama varsa (İzin, Rapor, başka vardiya), bu kişiyi PAS GEÇ, döngü sonrakine baksın.
+                }
             }
-            if(cumaAksamcilar.length > 0) {
-                // Şanslı Akşamcı -> Cumartesi 16:00
-                tempProg[cumaAksamcilar[0].ad][5] = SHIFTS.AKSAM;
+
+            // 2. CUMA AKŞAMCISI -> CUMARTESİ AKŞAM'A UZATMA
+            let cmtAksamHedef = (state.kapasite[`${birim}_${SHIFTS.AKSAM}`] || [])[5] || 0;
+            let mevcutCmtAksam = personelListesi.filter(p => tempProg[p.ad][5] === SHIFTS.AKSAM).length;
+
+            if (mevcutCmtAksam < cmtAksamHedef) {
+                for(let aday of cumaAksamcilar) {
+                    let manuelAtama = state.manuelAtamalar[`${hKey}_${aday.ad}_5`];
+                    if (!manuelAtama) {
+                        tempProg[aday.ad][5] = SHIFTS.AKSAM;
+                        break;
+                    }
+                }
             }
             // ----------------------------------------------------
         });
