@@ -2,7 +2,8 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>TURKMEDYA TEKNiK VARDiYA LiSTESi | Pro_Ugr</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+  <title>TURKMEDYA TEKNiK VARDiYA LiSTESi | Pro_Ugr</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -24,6 +25,7 @@
       --izin-bg: #450a0a; --panel-bg: #1e293b; --input-bg: #334155; --input-border: #475569; --panel-text: #f1f5f9;
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; font-size: 12px; transition: background 0.3s ease; }
+    
     #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
     .login-card { background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; width: 320px; }
     .login-btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 14px; }
@@ -37,10 +39,8 @@
     td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; }
     .saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; }
     
-    .row-saat-0 { background-color: var(--saat1); } 
-    .row-saat-1 { background-color: var(--saat2); } 
-    .row-saat-2 { background-color: var(--saat3); } 
-    .row-saat-3 { background-color: var(--saat4); }
+    .row-saat-0 { background-color: var(--saat1); } .row-saat-1 { background-color: var(--saat2); } 
+    .row-saat-2 { background-color: var(--saat3); } .row-saat-3 { background-color: var(--saat4); }
     .row-izin { background-color: var(--izin-bg) !important; } .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
     .weekend-col { background-color: var(--weekend-overlay) !important; }
     
@@ -66,10 +66,8 @@
     .tab-btn.active { background: var(--blue); color: white; box-shadow: 0 4px 10px -2px rgba(37, 99, 235, 0.4); transform: scale(1.03); }
     
     input, select, textarea { background-color: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); }
-
     .btn-main-action { padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: white; }
     .hidden { display: none; }
-    
     .izin-gun-pill { padding: 4px 6px; background: var(--bg); border-radius: 4px; margin: 2px; font-size: 9px; cursor: pointer; display: inline-block; font-weight: 700; border: 1px solid var(--border); color: var(--text); }
     .izin-gun-pill.active { background: var(--danger); color: white; }
     .mcr-ayarlar { background: var(--bg); border: 1px solid var(--border); padding: 10px; border-radius: 8px; margin-top: 10px; color: var(--text); }
@@ -84,7 +82,6 @@
     .swap-days { display: flex; gap: 10px; margin-top: 10px; justify-content: space-between; }
     .swap-day-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--text); }
     .admin-only { display: none; }
-    
     .duyuru-bar { background: #fffbeb; color: #92400e; padding: 10px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #fcd34d; font-weight: 600; text-align: center; display: none; animation: fadeIn 0.5s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .yorgunluk-bar { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; padding: 10px; margin-bottom: 15px; border-radius: 8px; font-weight: 700; text-align: center; display: none; animation: fadeIn 0.5s; }
     
@@ -119,7 +116,6 @@
 </head>
 <body>
   <div id="loginOverlay"><div class="login-card"><img src="logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'"><h2 style="margin:0 0 20px 0; color:var(--primary)">Sistem Girişi</h2><button onclick="enterSystem('personel')" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button><button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button><p style="font-size: 10px; color: #64748b; margin-top: 20px;">TURKMEDYA TEKNİK V61</p></div></div>
-  
   <div id="talepModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10001; display:none; align-items:center; justify-content:center;">
     <div class="login-card" style="width: 320px; border: 2px solid var(--blue);">
         <h3 style="margin-top:0; color:var(--primary)">Vardiya / İzin Talebi</h3>
@@ -133,13 +129,10 @@
         <button onclick="document.getElementById('talepModal').style.display='none'" style="background:none; border:none; color:var(--danger); margin-top:10px; cursor:pointer; font-weight:bold;">İptal</button>
     </div>
   </div>
-
   <div id="panelOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; display:none;" onclick="toggleAdminPanel()"></div>
-  
   <div class="app-wrapper" id="appMain">
     <div id="duyuruAlani" class="duyuru-bar no-print">📢 <span id="duyuruMetniSpan"></span></div>
     <div id="yorgunlukUyari" class="yorgunluk-bar no-print"></div>
-    
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 10px;"><img src="logo.png" alt="Logo" style="height: 35px;"><div><h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V61</h1><p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p></div></div>
       <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center;">
@@ -200,7 +193,6 @@
         </div>
         
         <div id="tab-personel" class="tab-content"><div style="background:var(--card-bg); padding:15px; border-radius:12px; border:1px solid var(--border); box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:15px;"><input type="text" id="yeniPersInp" placeholder="Ad Soyad Giriniz" style="width:92%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border);"><select id="yeniPersBirimSec" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border);"></select><button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success); padding:12px;">+ YENİ PERSONEL EKLE</button></div><div id="persListesiAdmin"></div></div>
-        
         <div id="tab-birimler" class="tab-content hidden"><div id="birimListesiAdmin"></div></div>
         <div id="tab-saatler" class="tab-content hidden"><div id="saatListesiAdmin"></div></div>
         <div id="tab-sabitle" class="tab-content hidden"><div id="sabitListeAdmin"></div></div>
@@ -211,16 +203,8 @@
         </div>
         <div id="tab-yillik" class="tab-content hidden"><div class="swap-container" style="border-color:#9333ea; background:#f3e8ff;"><div class="swap-header" style="color:#9333ea;">🏖️ TOPLU YILLIK İZİN İŞLEME</div><div class="swap-row"><label class="swap-label">PERSONEL SEÇİN:</label><select id="yillikIzinPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row" style="display:flex; gap:10px;"><div style="flex:1;"><label class="swap-label">BAŞLANGIÇ:</label><input type="date" id="yillikBaslangic" class="swap-select"></div><div style="flex:1;"><label class="swap-label">BİTİŞ (Dahil):</label><input type="date" id="yillikBitis" class="swap-select"></div></div><button onclick="yillikIzinIsle()" class="btn-main-action" style="background:#9333ea; width:100%; padding:12px; margin-top:10px;">İZİNLERİ İŞLE</button><div style="margin-top:10px; font-size:10px; color:#666; text-align:center;">* Seçilen tarih aralığına "YILLIK İZİN" yazılacak ve sistem gerektiğinde yerine başkasını atayacaktır.</div></div></div>
         
-        <div id="tab-loglar" class="tab-content hidden">
-            <h3 style="margin-top:0; font-size:14px; color:var(--panel-text);">Son İşlem Kayıtları</h3>
-            <div id="logListesi" style="max-height:400px; overflow-y:auto; background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid #ccc;"></div>
-            <button onclick="loglariTemizle()" style="margin-top:10px; font-size:10px; color:red; border:none; background:none; cursor:pointer;">Logları Temizle</button>
-        </div>
-        
-        <div id="tab-istatistik" class="tab-content hidden">
-            <h3 style="margin-top:0; font-size:14px; color:var(--panel-text);">Bu Hafta Çalışma Analizi</h3>
-            <div id="istatistikListesi" style="max-height:400px; overflow-y:auto; background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid #ccc;"></div>
-        </div>
+        <div id="tab-loglar" class="tab-content hidden"><h3 style="margin-top:0; font-size:14px; color:var(--panel-text);">Son İşlem Kayıtları</h3><div id="logListesi" style="max-height:400px; overflow-y:auto; background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid #ccc;"></div><button onclick="loglariTemizle()" style="margin-top:10px; font-size:10px; color:red; border:none; background:none; cursor:pointer;">Logları Temizle</button></div>
+        <div id="tab-istatistik" class="tab-content hidden"><h3 style="margin-top:0; font-size:14px; color:var(--panel-text);">Bu Hafta Çalışma Analizi</h3><div id="istatistikListesi" style="max-height:400px; overflow-y:auto; background:var(--card-bg); padding:10px; border-radius:8px; border:1px solid #ccc;"></div></div>
         
         <div id="tab-sistem" class="tab-content hidden">
             <div style="margin-bottom:15px; border:1px solid #fcd34d; padding:10px; border-radius:8px; background:#fffbeb;">
@@ -231,9 +215,7 @@
             
             <div style="margin-bottom:15px; border:1px solid #22c55e; padding:10px; border-radius:8px; background:#f0fdf4;">
                 <strong style="color:#166534;">📊 Dışarıdan Liste Yükle (Ulaştırma Tipi):</strong>
-                <div style="font-size:10px; color:#166534; margin-bottom:5px;">
-                    Format: A Sütunu=Saatler (09:00, İZİN vb.), Hücreler=İsimler
-                </div>
+                <div style="font-size:10px; color:#166534; margin-bottom:5px;">Format: A Sütunu=Saatler (09:00, İZİN vb.), Hücreler=İsimler</div>
                 <input type="file" id="excelUploadInput" accept=".xlsx, .xls" style="width:100%; margin-bottom:5px;">
                 <button onclick="exceldenVardiyaYukle()" class="btn-main-action" style="width:100%; background:#15803d;">LİSTEYİ SİSTEME İŞLE</button>
             </div>
@@ -243,29 +225,9 @@
             <button onclick="arsivleVeTemizle()" class="btn-main-action" style="width:100%; background:#7c3aed; color:white; border:1px solid white;">🗑️ ESKİ VERİLERİ TEMİZLE (ARŞİV)</button>
         </div>
         <div id="tab-talepler" class="tab-content hidden"><div id="gelenTaleplerListesi" style="max-height: 400px; overflow-y: auto;"></div></div>
-  </div>
-  <script>
-    const SHIFTS = {
-        SABAH: "06:30–16:00",
-        GUNDUZ: "09:00–18:00",
-        AKSAM: "16:00–00:00",
-        GECE: "00:00–07:00",
-        IZIN: "İZİNLİ",
-        BOS: "BOŞ",
-        YILLIK: "YILLIK İZİN"
-    };
-
-    const UNITS = {
-        YONETMEN: "TEKNİK YÖNETMEN",
-        SES: "SES OPERATÖRÜ",
-        KJ: "KJ OPERATÖRÜ",
-        PLAYOUT: "PLAYOUT OPERATÖRÜ",
-        REJI: "REJİ",
-        MCR24: "24TV MCR OPERATÖRÜ",
-        MCR360: "360TV MCR OPERATÖRÜ",
-        INGEST: "INGEST OPERATÖRÜ"
-    };
-
+  </div><script>
+    const SHIFTS = { SABAH: "06:30–16:00", GUNDUZ: "09:00–18:00", AKSAM: "16:00–00:00", GECE: "00:00–07:00", IZIN: "İZİNLİ", BOS: "BOŞ", YILLIK: "YILLIK İZİN" };
+    const UNITS = { YONETMEN: "TEKNİK YÖNETMEN", SES: "SES OPERATÖRÜ", KJ: "KJ OPERATÖRÜ", PLAYOUT: "PLAYOUT OPERATÖRÜ", REJI: "REJİ", MCR24: "24TV MCR OPERATÖRÜ", MCR360: "360TV MCR OPERATÖRÜ", INGEST: "INGEST OPERATÖRÜ" };
     let TELEGRAM_API = "8509542541:AAFu-iDK85iELZQmImCWSZRi3_eWzUyyCiM"; 
     let TELEGRAM_ID = "859235247";
     const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
@@ -289,19 +251,10 @@
         saatAyarlari: JSON.parse(localStorage.getItem(PREFIX + "saatAyarlari")) || {}
     };
     
-    // GÜVENLİ VE YEREL TARİH FONKSİYONU
-    function getDateKey(d) {
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }
-    
+    function getDateKey(d) { const year = d.getFullYear(); const month = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0'); return `${year}-${month}-${day}`; }
     let currentMonday = getMonday(new Date());
-
     async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); if(config.telegram_api) TELEGRAM_API = config.telegram_api; if(config.telegram_id) TELEGRAM_ID = config.telegram_id; } } catch (error) { console.error(error); } }
     
-    /* --- GÜVENLİK VE GÖÇ FONKSİYONU --- */
     function verileriGuvenliHaleGetir() {
         if(!state) state = {};
         if(!state.manuelAtamalar) state.manuelAtamalar = {};
@@ -313,7 +266,6 @@
         if(!state.birimler) state.birimler = Object.values(UNITS);
         if(!state.saatler) state.saatler = Object.values(SHIFTS).filter(s => s.includes(":"));
         
-        // YENİ: Otomatik Migration (Eski birimleri tanı)
         if(!state.birimAyarlari || Object.keys(state.birimAyarlari).length === 0) {
             state.birimAyarlari = {};
             state.birimler.forEach(b => {
@@ -321,11 +273,10 @@
                 let renk = BIRIM_RENKLERI[b] || "#64748b";
                 if(b.includes("MCR")) tip = "DONGU8"; 
                 if(b.includes("INGEST")) tip = "DONGU6"; 
-                if(b === UNITS.PLAYOUT || b === UNITS.SES || b === UNITS.KJ) tip = "GRUP_ABC"; // Otomatik Tanıma
+                if(b === UNITS.PLAYOUT || b === UNITS.SES || b === UNITS.KJ) tip = "GRUP_ABC"; 
                 state.birimAyarlari[b] = { tip: tip, renk: renk };
             });
         }
-        
         if(!state.saatAyarlari) state.saatAyarlari = {};
     }
 
@@ -359,7 +310,6 @@
             document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); 
             document.getElementById('persTalepArea').style.display = 'block'; 
         } 
-        
         document.getElementById('loginOverlay').style.opacity = '0'; 
         setTimeout(() => { 
             document.getElementById('loginOverlay').style.display = 'none'; 
@@ -375,10 +325,7 @@
     function talepIslem(id, tip) { database.ref('talepler/' + id).once('value', snap => { if(!snap.exists()) return; const t = snap.val(); if(tip === 'onay') { const mKey = `${t.hKey}_${t.ad}_${t.gunIdx}`; state.manuelAtamalar[mKey] = t.tur; save(); currentMonday = new Date(t.hKey); tabloyuOlustur(); database.ref('talepler/' + id).update({ durum: 'onaylandi' }); alert(`✅ ${t.ad} için talep ONAYLANDI.`); logKoy(`${t.ad} için talep onaylandı: ${t.tur}`); } else { database.ref('talepler/' + id).update({ durum: 'reddedildi' }); alert("Talep reddedildi."); logKoy(`${t.ad} için talep reddedildi.`); } }); }
     function getMonday(d) { d = new Date(d); let day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day == 0 ? -6 : 1))); }
     function save() { Object.keys(state).forEach(k => localStorage.setItem(PREFIX + k, JSON.stringify(state[k]))); }
-    function getBirimColor(birim) { 
-        if(state.birimAyarlari && state.birimAyarlari[birim]) return state.birimAyarlari[birim].renk;
-        return BIRIM_RENKLERI[birim] || "#64748b"; 
-    }
+    function getBirimColor(birim) { if(state.birimAyarlari && state.birimAyarlari[birim]) return state.birimAyarlari[birim].renk; return BIRIM_RENKLERI[birim] || "#64748b"; }
     function getGecerliBirim(p, g) { let d = new Date(currentMonday); d.setDate(d.getDate() + g); const dateKey = getDateKey(d); const key = `${dateKey}_${p.ad}`; return state.geciciGorevler[key] || p.birim; }
     
     function logKoy(mesaj) {
@@ -387,47 +334,23 @@
         const user = firebase.auth().currentUser ? firebase.auth().currentUser.email : "Anonim";
         state.logs.unshift({zaman, user, mesaj});
         if(state.logs.length > 200) state.logs.pop(); 
-        save();
-        refreshUI();
+        save(); refreshUI();
     }
     
     function tabloyuOlustur() { 
-        if(state.duyuruMetni) {
-            document.getElementById('duyuruAlani').style.display = 'block';
-            document.getElementById('duyuruMetniSpan').innerText = state.duyuruMetni;
-        } else {
-            document.getElementById('duyuruAlani').style.display = 'none';
-        }
-
+        if(state.duyuruMetni) { document.getElementById('duyuruAlani').style.display = 'block'; document.getElementById('duyuruMetniSpan').innerText = state.duyuruMetni; } else { document.getElementById('duyuruAlani').style.display = 'none'; }
         const hKey = getDateKey(currentMonday); document.getElementById("tarihAraligi").innerText = `${currentMonday.toLocaleDateString('tr-TR')} Haftası`; document.getElementById("tableHeader").innerHTML = `<tr><th style="width:100px;">SAAT</th>${GUNLER.map((g, i) => { let d = new Date(currentMonday); d.setDate(d.getDate() + i); let dateStr = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }); return `<th class="${i>=5?'weekend-col':''}">${g}<div style="font-size:9px; opacity:0.7; font-weight:normal;">${dateStr}</div></th>`; }).join('')}</tr>`;
         let prog = {}; let calis = {}; state.personeller.forEach(p => { prog[p.ad] = Array(7).fill(null); calis[p.ad] = 0; for(let i=0; i<7; i++) { let mKey = `${hKey}_${p.ad}_${i}`; if(state.manuelAtamalar[mKey]) prog[p.ad][i] = state.manuelAtamalar[mKey]; if(prog[p.ad][i] && ![SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(prog[p.ad][i])) calis[p.ad]++; } });
-        
         document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => { 
             const ozelRenk = (state.saatAyarlari && state.saatAyarlari[s]) ? state.saatAyarlari[s].renk : null;
             const rowStyle = ozelRenk ? `style="background-color:${ozelRenk}"` : ""; 
             let rowHtml = `<tr class="row-saat-${sIdx}" ${rowStyle}><td class="saat-col">${s}</td>`; 
             for(let g=0; g<7; g++) { let sortedPers = state.personeller.filter(p => prog[p.ad][g] === s).sort((a, b) => { let birimA = getGecerliBirim(a, g); let birimB = getGecerliBirim(b, g); return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); }); let cellContent = ""; let lastBirim = ""; sortedPers.forEach((p) => { let gecerliBirim = getGecerliBirim(p, g); let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : ""; let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : ""; let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, '${s}')"` : ""; cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(gecerliBirim)}; background-color:${getBirimColor(gecerliBirim)}15;" ${dragAttr} ${clickAttr}><span class="birim-tag" style="background:${getBirimColor(gecerliBirim)}">${gecerliBirim}</span><span class="pers-name">${p.ad}</span></div>`; lastBirim = gecerliBirim; }); rowHtml += `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, '${s}', ${g})">${cellContent}</td>`; } return rowHtml + "</tr>"; 
         }).join('');
-        
         document.getElementById("tableFooter").innerHTML = `<tr class="row-izin"><td class="saat-col">İZİN / BOŞ</td>${[0,1,2,3,4,5,6].map(g => { let sortedPers = state.personeller.filter(p => [SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(prog[p.ad][g])).sort((a, b) => { let birimA = getGecerliBirim(a, g); let birimB = getGecerliBirim(b, g); return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); }); let cellContent = ""; let lastBirim = ""; sortedPers.forEach(p => { let gecerliBirim = getGecerliBirim(p, g); let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : ""; let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : ""; let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, 'BOŞ')"` : ""; let isYillik = prog[p.ad][g] === SHIFTS.YILLIK; let bgStyle = isYillik ? 'background:var(--yillik-izin)' : (prog[p.ad][g]===SHIFTS.IZIN?'background:var(--danger)':`background:${getBirimColor(gecerliBirim)}`); let countStyle = calis[p.ad] >= 6 ? 'color:red; font-weight:bold; font-size:11px;' : ''; cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(gecerliBirim)};" ${dragAttr} ${clickAttr}><span class="birim-tag" style="${bgStyle}">${prog[p.ad][g] || 'BOŞ'}</span><span class="pers-name">${p.ad} <span style="${countStyle}">(${calis[p.ad]}G)</span></span></div>`; lastBirim = gecerliBirim; }); return `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">${cellContent}</td>`; }).join('')}</tr>`;
-        
-        let yorgunlar = [];
-        state.personeller.forEach(p => {
-            if(calis[p.ad] >= 6) {
-                yorgunlar.push(`<b>${p.ad}</b> (${calis[p.ad]} Gün)`);
-            }
-        });
-        
-        const uyariDiv = document.getElementById('yorgunlukUyari');
-        if(yorgunlar.length > 0) {
-            uyariDiv.innerHTML = "⚠️ DİKKAT (6-7 Gün Çalışanlar): " + yorgunlar.join(", ");
-            uyariDiv.style.display = 'block';
-        } else {
-            uyariDiv.style.display = 'none';
-        }
-
-        istatistikleriHesapla();
-        mobilListeyiGuncelle();
+        let yorgunlar = []; state.personeller.forEach(p => { if(calis[p.ad] >= 6) yorgunlar.push(`<b>${p.ad}</b> (${calis[p.ad]} Gün)`); });
+        const uyariDiv = document.getElementById('yorgunlukUyari'); if(yorgunlar.length > 0) { uyariDiv.innerHTML = "⚠️ DİKKAT (6-7 Gün Çalışanlar): " + yorgunlar.join(", "); uyariDiv.style.display = 'block'; } else { uyariDiv.style.display = 'none'; }
+        istatistikleriHesapla(); mobilListeyiGuncelle();
     }
     
     function cakismaKontrol(personelAd, hedefGun, hedefSaat) { const hKey = getDateKey(currentMonday); if ([SHIFTS.IZIN, SHIFTS.BOS, null, SHIFTS.YILLIK].includes(hedefSaat)) return; if (hedefGun > 0) { let dunKey = `${hKey}_${personelAd}_${hedefGun - 1}`; let dunVardiya = state.manuelAtamalar[dunKey]; let sabahVardiyalari = [SHIFTS.SABAH, SHIFTS.GUNDUZ]; let aksamVardiyalari = [SHIFTS.AKSAM, SHIFTS.GECE]; if (aksamVardiyalari.includes(dunVardiya) && sabahVardiyalari.includes(hedefSaat)) alert(`⚠️ DİKKAT: ${personelAd} dün AKŞAM/GECE vardiyasındaydı. Bugün SABAH vardiyasına yazıyorsunuz. Dinlenme süresi yetersiz olabilir!`); } if (hedefGun < 6) { let yarinKey = `${hKey}_${personelAd}_${hedefGun + 1}`; let yarinVardiya = state.manuelAtamalar[yarinKey]; let sabahVardiyalari = [SHIFTS.SABAH, SHIFTS.GUNDUZ]; let aksamVardiyalari = [SHIFTS.AKSAM, SHIFTS.GECE]; if (aksamVardiyalari.includes(hedefSaat) && sabahVardiyalari.includes(yarinVardiya)) alert(`⚠️ DİKKAT: ${personelAd} yarın SABAH vardiyasında görünüyor. Bugün AKŞAM/GECE vardiyasına yazıyorsunuz. Dinlenme süresi yetersiz olabilir!`); } }
@@ -437,7 +360,6 @@
     
     function vardiyaUretVeKaydet() {
         if(!isAdmin) return;
-        // GÜVENLİK KONTROLÜ
         if (state.personeller.length === 0) { alert("Sistemde kayıtlı personel yok! Lütfen önce personel ekleyin."); return; }
         if (Object.keys(state.kapasite).length === 0) { alert("Kapasite ayarları boş! Lütfen Yönetim Paneli > Kapasite sekmesinden vardiya sayılarını girin."); return; }
 
@@ -461,50 +383,48 @@
             grupC.forEach((p, index) => { safeAssign(p, 0, SHIFTS.IZIN); safeAssign(p, 1, SHIFTS.SABAH); safeAssign(p, 2, SHIFTS.SABAH); safeAssign(p, 3, SHIFTS.AKSAM); safeAssign(p, 4, SHIFTS.AKSAM); if (index % 2 === 0) { let cmtAksamCap = (state.kapasite[`${birim}_${SHIFTS.AKSAM}`] || [0,0,0,0,0,0,0])[5]; if(cmtAksamCap > 0) { safeAssign(p, 5, SHIFTS.AKSAM); } else { safeAssign(p, 5, SHIFTS.IZIN); } safeAssign(p, 6, SHIFTS.IZIN); } else { safeAssign(p, 5, SHIFTS.IZIN); let pzSabahCap = (state.kapasite[`${birim}_${SHIFTS.SABAH}`] || [0,0,0,0,0,0,0])[6]; if(pzSabahCap > 0) { safeAssign(p, 6, SHIFTS.SABAH); } else { safeAssign(p, 6, SHIFTS.IZIN); } } });
         });
 
-        // -------------------- CUMARTESİ KURTARMA (SABİTLER HARİÇ) --------------------
+        // -------------------- CUMARTESİ KURTARMA (AKILLI RESCUE - FİNAL) --------------------
         state.birimler.forEach(birim => {
             const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" }; if (ayar.tip !== "GRUP_ABC") return;
-            // 1. Cmt SABAH Eksikse: SABİT OLMAYAN Cuma Sabahçısını bul
+            
+            // 1. Cmt SABAH/GÜNDÜZ Eksikse
             let cmtSabahHedef = (state.kapasite[`${birim}_${SHIFTS.SABAH}`] || [0,0,0,0,0,0,0])[5];
+            let cmtGunduzHedef = (state.kapasite[`${birim}_${SHIFTS.GUNDUZ}`] || [0,0,0,0,0,0,0])[5];
             let cmtSabahMevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][5] === SHIFTS.SABAH).length;
-            if(cmtSabahMevcut < cmtSabahHedef) {
-                // Aday: Cuma SABAH veya GÜNDÜZ gelmiş, Cumartesi SABAH DEĞİL (yani boş/izinli/başka yerde)
-                // VE EN ÖNEMLİSİ: SABİT DEĞİL (!state.haftaIciSabitler[p.ad])
+            let cmtGunduzMevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][5] === SHIFTS.GUNDUZ).length;
+
+            if(cmtSabahMevcut < cmtSabahHedef || cmtGunduzMevcut < cmtGunduzHedef) {
+                // Aday: Cuma SABAH veya GÜNDÜZ gelmiş, Cumartesi MÜSAİT ve SABİT DEĞİL
                 let adaylar = state.personeller.filter(p => 
                     p.birim === birim && 
                     !state.haftaIciSabitler[p.ad] && 
                     (tempProg[p.ad][4] === SHIFTS.SABAH || tempProg[p.ad][4] === SHIFTS.GUNDUZ) &&
-                    tempProg[p.ad][5] !== SHIFTS.SABAH
+                    (tempProg[p.ad][5] === SHIFTS.IZIN || tempProg[p.ad][5] === null)
                 );
                 seededShuffle(adaylar, hKey + "rescueSabah");
                 for(let p of adaylar) {
                     if(cmtSabahMevcut < cmtSabahHedef) {
-                        tempProg[p.ad][5] = SHIFTS.SABAH; // Cumartesi Sabah'a çek
-                        tempProg[p.ad][6] = SHIFTS.AKSAM; // Pazar Akşam'a döndür
-                        cmtSabahMevcut++;
+                        tempProg[p.ad][5] = SHIFTS.SABAH; tempProg[p.ad][6] = SHIFTS.AKSAM; cmtSabahMevcut++;
+                    } else if (cmtGunduzMevcut < cmtGunduzHedef) {
+                        tempProg[p.ad][5] = SHIFTS.GUNDUZ; tempProg[p.ad][6] = SHIFTS.AKSAM; cmtGunduzMevcut++;
                     }
                 }
             }
 
-            // 2. Cmt AKŞAM Eksikse: SABİT OLMAYAN Cuma Akşamçısını bul
+            // 2. Cmt AKŞAM Eksikse
             let cmtAksamHedef = (state.kapasite[`${birim}_${SHIFTS.AKSAM}`] || [0,0,0,0,0,0,0])[5];
             let cmtAksamMevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][5] === SHIFTS.AKSAM).length;
-            
             if(cmtAksamMevcut < cmtAksamHedef) {
-                // Aday: Cuma AKŞAM gelmiş, Cumartesi AKŞAM DEĞİL
-                // VE SABİT DEĞİL
                 let adaylar = state.personeller.filter(p => 
                     p.birim === birim && 
                     !state.haftaIciSabitler[p.ad] && 
                     tempProg[p.ad][4] === SHIFTS.AKSAM &&
-                    tempProg[p.ad][5] !== SHIFTS.AKSAM
+                    (tempProg[p.ad][5] === SHIFTS.IZIN || tempProg[p.ad][5] === null)
                 );
                 seededShuffle(adaylar, hKey + "rescueAksam");
                 for(let p of adaylar) {
                     if(cmtAksamMevcut < cmtAksamHedef) {
-                        tempProg[p.ad][5] = SHIFTS.AKSAM; // Cumartesi Akşam'a çek
-                        tempProg[p.ad][6] = SHIFTS.IZIN;  // Pazar İzin ver
-                        cmtAksamMevcut++;
+                        tempProg[p.ad][5] = SHIFTS.AKSAM; tempProg[p.ad][6] = SHIFTS.IZIN; cmtAksamMevcut++;
                     }
                 }
             }
@@ -512,98 +432,33 @@
         // ----------------------------------------------------------------------------------
 
         state.personeller.forEach(p => { calis[p.ad] = 0; for(let g=0; g<7; g++) { if(tempProg[p.ad][g] && ![SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(tempProg[p.ad][g])) calis[p.ad]++; } });
-
+        
         // EKSİK KAPASİTE TAMAMLAMA (SABİTLER HARİÇ)
         state.birimler.forEach(birim => {
             const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" }; if (ayar.tip !== "GRUP_ABC") return;
-
-            for (let gun = 0; gun < 7; gun++) {
-                state.saatler.forEach(saat => {
-                    if(saat === SHIFTS.IZIN) return;
-
-                    const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
-                    let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length;
-
-                    if (mevcut < hedef) {
-                        let yedekAdaylar = state.personeller.filter(p => {
-                            let birimUygun = getGecerliBirim(p, gun) === birim;
-                            // İzinli/Boş olanları al ama KURALLARA UY
-                            let musait = (tempProg[p.ad][gun] === null || tempProg[p.ad][gun] === SHIFTS.IZIN); 
-                            let yorgunDegil = calis[p.ad] < 6;
-                            let manuelVar = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`];
-                            let sabitDegil = !state.haftaIciSabitler[p.ad]; // KORUMA: Sabitleri alma
-                            
-                            // Dinlenme Kuralı: Dün Akşam/Gece -> Bugün Sabah/Gündüz OLMAZ
-                            let dinlenmeUygun = true;
-                            if(gun > 0) {
-                                let dun = tempProg[p.ad][gun-1];
-                                if((dun === SHIFTS.AKSAM || dun === SHIFTS.GECE) && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) {
-                                    dinlenmeUygun = false;
-                                }
-                            }
-                            return birimUygun && musait && yorgunDegil && !manuelVar && dinlenmeUygun && sabitDegil;
-                        });
-
-                        seededShuffle(yedekAdaylar, hKey + "yedek");
-
-                        for (let p of yedekAdaylar) {
-                            if (mevcut < hedef) {
-                                tempProg[p.ad][gun] = saat;
-                                calis[p.ad]++;
-                                mevcut++;
-                            }
+            for (let gun = 0; gun < 7; gun++) { state.saatler.forEach(saat => { if(saat === SHIFTS.IZIN) return; const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun]; let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length; if (mevcut < hedef) { 
+                let yedekAdaylar = state.personeller.filter(p => { 
+                    let birimUygun = getGecerliBirim(p, gun) === birim; 
+                    let musait = (tempProg[p.ad][gun] === null || tempProg[p.ad][gun] === SHIFTS.IZIN); 
+                    let yorgunDegil = calis[p.ad] < 6; 
+                    let manuelVar = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`]; 
+                    let sabitDegil = !state.haftaIciSabitler[p.ad]; // KORUMA: Sabitleri alma
+                    
+                    // Dinlenme Kuralı: Dün Akşam/Gece -> Bugün Sabah/Gündüz OLMAZ
+                    let dinlenmeUygun = true;
+                    if(gun > 0) {
+                        let dun = tempProg[p.ad][gun-1];
+                        if((dun === SHIFTS.AKSAM || dun === SHIFTS.GECE) && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) {
+                            dinlenmeUygun = false;
                         }
                     }
-                });
-            }
+                    return birimUygun && musait && yorgunDegil && !manuelVar && dinlenmeUygun && sabitDegil; 
+                }); 
+                seededShuffle(yedekAdaylar, hKey + "yedek"); for (let p of yedekAdaylar) { if (mevcut < hedef) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; } } } }); }
         });
-        
         state.birimler.forEach(birim => {
-            const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
-            if (ayar.tip !== "AKILLI_HAFTASONU") return;
-            
-            for (let gun = 0; gun < 7; gun++) {
-                let siralama = [...state.saatler]; 
-                if (gun === 5) {
-                    siralama = siralama.filter(s => s !== SHIFTS.SABAH && s !== SHIFTS.GUNDUZ);
-                    siralama.unshift(SHIFTS.SABAH); 
-                    siralama.unshift(SHIFTS.GUNDUZ); 
-                }
-
-                siralama.forEach(saat => {
-                    if (saat === SHIFTS.IZIN) return;
-                    
-                    const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun];
-                    let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length;
-                    
-                    if (mevcut < hedef) {
-                        let adaylar = state.personeller.filter(p => {
-                            if (getGecerliBirim(p, gun) !== birim) return false;
-                            if (tempProg[p.ad][gun] !== null) return false;
-                            if (calis[p.ad] >= 6) return false;
-                            if (state.haftaIciSabitler[p.ad]) return false; // KORUMA
-
-                            // SIKI DİNLENME KURALI (AKILLI_HAFTASONU İÇİN DE GEÇERLİ)
-                            if (gun > 0) {
-                                let dun = tempProg[p.ad][gun-1];
-                                if ((dun === SHIFTS.AKSAM || dun === SHIFTS.GECE) && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) return false;
-                            }
-                            return true;
-                        });
-                        
-                        seededShuffle(adaylar, hKey + gun + saat);
-                        adaylar.sort((a,b) => calis[a.ad] - calis[b.ad]);
-
-                        for (let p of adaylar) {
-                            if (mevcut < hedef) {
-                                tempProg[p.ad][gun] = saat;
-                                calis[p.ad]++;
-                                mevcut++;
-                            }
-                        }
-                    }
-                });
-            }
+            const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" }; if (ayar.tip !== "AKILLI_HAFTASONU") return;
+            for (let gun = 0; gun < 7; gun++) { let siralama = [...state.saatler]; if (gun === 5) { siralama = siralama.filter(s => s !== SHIFTS.SABAH && s !== SHIFTS.GUNDUZ); siralama.unshift(SHIFTS.SABAH); siralama.unshift(SHIFTS.GUNDUZ); } siralama.forEach(saat => { if (saat === SHIFTS.IZIN) return; const hedef = (state.kapasite[`${birim}_${saat}`] || [0,0,0,0,0,0,0])[gun]; let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length; if (mevcut < hedef) { let adaylar = state.personeller.filter(p => { if (getGecerliBirim(p, gun) !== birim) return false; if (tempProg[p.ad][gun] !== null) return false; if (calis[p.ad] >= 6) return false; if (state.haftaIciSabitler[p.ad]) return false; if (gun === 5 && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) { let cumaVardiya = tempProg[p.ad][4]; if (cumaVardiya === SHIFTS.AKSAM || cumaVardiya === SHIFTS.GECE) return false; } if (gun > 0) { let dun = tempProg[p.ad][gun-1]; if ((dun === SHIFTS.AKSAM || dun === SHIFTS.GECE) && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) return false; } return true; }); seededShuffle(adaylar, hKey + gun + saat); adaylar.sort((a,b) => calis[a.ad] - calis[b.ad]); for (let p of adaylar) { if (mevcut < hedef) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mevcut++; } } } }); }
         });
 
         for (let gun = 0; gun < 7; gun++) {
