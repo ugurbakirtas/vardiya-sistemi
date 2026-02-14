@@ -46,9 +46,8 @@
     
     .row-izin { background-color: var(--izin-bg) !important; } .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
     
-    /* GÜNCELLEME: Haftasonu renk opaklığı düzenlendi, vardiya renkleri artık net görünecek */
     th.weekend-col { background-color: var(--weekend-bg); }
-    td.weekend-col { background-color: rgba(0,0,0,0.02); } /* Hücre içi çok hafif ton */
+    td.weekend-col { background-color: rgba(0,0,0,0.02); }
     
     .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: opacity 0.3s; }
     .birim-ayirici { border-top: 5px solid #1e293b !important; margin-top: 8px !important; padding-top: 8px !important; }
@@ -86,7 +85,6 @@
     .admin-only { display: none; }
     
     .duyuru-bar { background: #fffbeb; color: #92400e; padding: 10px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #fcd34d; font-weight: 600; text-align: center; display: none; animation: fadeIn 0.5s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    /* YORGUNLUK UYARI BARI */
     .yorgunluk-bar { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; padding: 10px; margin-bottom: 15px; border-radius: 8px; font-weight: 700; text-align: center; display: none; animation: fadeIn 0.5s; }
     
     .log-item { font-size: 10px; padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
@@ -549,31 +547,30 @@
             // ----------------------------------------------------
             // YENİ ÖZELLİK: CUMA UZATMA MANTIĞI (Playout/KJ/Ses)
             // ----------------------------------------------------
-            // Cuma Sabahçısı (Grup A) -> Cumartesi 09:00 veya 06:30'a 1 kişiyi uzat
+            // 1. Grupları Tespit Et
             let cumaSabahcilar = personelListesi.filter(p => {
                 let v = tempProg[p.ad][4]; // 4 = Cuma
                 return v === SHIFTS.SABAH || v === SHIFTS.GUNDUZ;
             });
-            // Cuma Akşamcısı (Grup B) -> Cumartesi Akşam'a 1 kişiyi uzat
             let cumaAksamcilar = personelListesi.filter(p => {
                 let v = tempProg[p.ad][4];
-                return v === SHIFTS.AKSAM;
+                return v === SHIFTS.AKSAM; // Sadece Akşam Olanlar
             });
 
+            // 2. Karıştır
             seededShuffle(cumaSabahcilar, hKey + "cumaS");
             seededShuffle(cumaAksamcilar, hKey + "cumaA");
 
+            // 3. ZORLA ATA (Force Override)
+            // Önceki atamaları (Makas vb.) silip bizim istediğimizi yazar.
             if(cumaSabahcilar.length > 0) {
-                // Şanslı kişiyi seç ve Cumartesi gününe (5. gün) ata
-                let sansliSabah = cumaSabahcilar[0];
-                let cumaVardiya = tempProg[sansliSabah.ad][4];
-                safeAssign(sansliSabah, 5, cumaVardiya); 
+                // Şanslı Sabahçı -> Cumartesi 09:00
+                tempProg[cumaSabahcilar[0].ad][5] = SHIFTS.GUNDUZ; 
             }
             if(cumaAksamcilar.length > 0) {
-                let sansliAksam = cumaAksamcilar[0];
-                safeAssign(sansliAksam, 5, SHIFTS.AKSAM);
+                // Şanslı Akşamcı -> Cumartesi 16:00
+                tempProg[cumaAksamcilar[0].ad][5] = SHIFTS.AKSAM;
             }
-            // Pazar günü (6. gün) zaten dokunmuyoruz, yukarıdaki standart makas döngüsü devrede kalıyor.
             // ----------------------------------------------------
         });
 
