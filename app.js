@@ -1,5 +1,5 @@
 // 🌍 SUNUCU AYARLARI (İleride Render/Vercel'e yükleyince bu adresi değiştireceksin)
-const BACKEND_URL = "http://localhost:3000"; 
+const BACKEND_URL = "https://vardiya-sistemi.onrender.com"; 
 // 🔒 GÜVENLİK ZIRHI (server.js ile aynı olmak zorunda)
 const API_SECRET = "TURKMEDYA_GIZLI_SIFRE_2026"; 
 
