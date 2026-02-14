@@ -41,7 +41,6 @@
     .row-saat-1 { background-color: var(--saat2); } 
     .row-saat-2 { background-color: var(--saat3); } 
     .row-saat-3 { background-color: var(--saat4); }
-    
     .row-izin { background-color: var(--izin-bg) !important; } .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
     .weekend-col { background-color: var(--weekend-overlay) !important; }
     
@@ -438,101 +437,36 @@
     
     function vardiyaUretVeKaydet() {
         if(!isAdmin) return;
-        
         // GÜVENLİK KONTROLÜ
         if (state.personeller.length === 0) { alert("Sistemde kayıtlı personel yok! Lütfen önce personel ekleyin."); return; }
         if (Object.keys(state.kapasite).length === 0) { alert("Kapasite ayarları boş! Lütfen Yönetim Paneli > Kapasite sekmesinden vardiya sayılarını girin."); return; }
 
-        const hKey = getDateKey(currentMonday);
-        const prevMonday = new Date(currentMonday); prevMonday.setDate(prevMonday.getDate() - 7);
-        const prevHKey = getDateKey(prevMonday);
-        let tempProg = {}; let calis = {};
-        
+        const hKey = getDateKey(currentMonday); const prevMonday = new Date(currentMonday); prevMonday.setDate(prevMonday.getDate() - 7); const prevHKey = getDateKey(prevMonday); let tempProg = {}; let calis = {};
         verileriGuvenliHaleGetir();
-
-        state.personeller.forEach(p => {
-             tempProg[p.ad] = Array(7).fill(null);
-             for(let g=0; g<7; g++) { let mKey = `${hKey}_${p.ad}_${g}`; if(state.manuelAtamalar[mKey]) tempProg[p.ad][g] = state.manuelAtamalar[mKey]; }
-             if (state.haftaIciSabitler[p.ad]) { for(let i=0; i<5; i++) { if(!tempProg[p.ad][i]) tempProg[p.ad][i] = state.haftaIciSabitler[p.ad]; } if(!tempProg[p.ad][5]) tempProg[p.ad][5] = SHIFTS.IZIN; if(!tempProg[p.ad][6]) tempProg[p.ad][6] = SHIFTS.IZIN; }
-             if(p.izinGunleri) { p.izinGunleri.forEach(gi => { if(!tempProg[p.ad][gi]) tempProg[p.ad][gi] = SHIFTS.IZIN; }); }
-        });
-
-        const safeAssign = (p, day, shift) => {
-             if (tempProg[p.ad][day] !== null) return;
-             if (shift === SHIFTS.IZIN) { tempProg[p.ad][day] = shift; return; }
-             const cap = (state.kapasite[`${p.birim}_${shift}`] || [0,0,0,0,0,0,0])[day];
-             let currentCount = 0;
-             state.personeller.filter(x => x.birim === p.birim).forEach(x => { if(tempProg[x.ad][day] === shift) currentCount++; });
-             if (currentCount < cap) tempProg[p.ad][day] = shift;
-        };
-
-        const mcrDongu = [SHIFTS.SABAH, SHIFTS.SABAH, SHIFTS.AKSAM, SHIFTS.AKSAM, SHIFTS.GECE, SHIFTS.GECE, SHIFTS.IZIN, SHIFTS.IZIN];
-        const ingestDongu = [SHIFTS.SABAH, SHIFTS.SABAH, SHIFTS.AKSAM, SHIFTS.AKSAM, SHIFTS.IZIN, SHIFTS.IZIN];
-        const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
-
-        state.personeller.forEach(p => { 
-            const birimAyar = state.birimAyarlari[p.birim] || { tip: "HAVUZ" };
-            if (birimAyar.tip === "DONGU8" || birimAyar.tip === "DONGU6") {
-                const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
-                const loopArr = (birimAyar.tip === "DONGU8") ? mcrDongu : ingestDongu;
-                const modVal = loopArr.length;
-                for(let g=0; g<7; g++) {
-                    if(tempProg[p.ad][g] !== null) continue; 
-                    let d = new Date(currentMonday); d.setDate(d.getDate() + g);
-                    const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24));
-                    tempProg[p.ad][g] = loopArr[((diffDays + persOfset) % modVal + modVal) % modVal];
-                }
-            }
-        });
-
+        
+        state.personeller.forEach(p => { tempProg[p.ad] = Array(7).fill(null); for(let g=0; g<7; g++) { let mKey = `${hKey}_${p.ad}_${g}`; if(state.manuelAtamalar[mKey]) tempProg[p.ad][g] = state.manuelAtamalar[mKey]; } if (state.haftaIciSabitler[p.ad]) { for(let i=0; i<5; i++) { if(!tempProg[p.ad][i]) tempProg[p.ad][i] = state.haftaIciSabitler[p.ad]; } if(!tempProg[p.ad][5]) tempProg[p.ad][5] = SHIFTS.IZIN; if(!tempProg[p.ad][6]) tempProg[p.ad][6] = SHIFTS.IZIN; } if(p.izinGunleri) { p.izinGunleri.forEach(gi => { if(!tempProg[p.ad][gi]) tempProg[p.ad][gi] = SHIFTS.IZIN; }); } });
+        const safeAssign = (p, day, shift) => { if (tempProg[p.ad][day] !== null) return; if (shift === SHIFTS.IZIN) { tempProg[p.ad][day] = shift; return; } const cap = (state.kapasite[`${p.birim}_${shift}`] || [0,0,0,0,0,0,0])[day]; let currentCount = state.personeller.filter(x => x.birim === p.birim).forEach(x => { if(tempProg[x.ad][day] === shift) currentCount++; }); if (currentCount < cap) tempProg[p.ad][day] = shift; };
+        
+        const mcrDongu = [SHIFTS.SABAH, SHIFTS.SABAH, SHIFTS.AKSAM, SHIFTS.AKSAM, SHIFTS.GECE, SHIFTS.GECE, SHIFTS.IZIN, SHIFTS.IZIN]; const ingestDongu = [SHIFTS.SABAH, SHIFTS.SABAH, SHIFTS.AKSAM, SHIFTS.AKSAM, SHIFTS.IZIN, SHIFTS.IZIN]; const baseDate = new Date(state.mcrAyarlari.baslangicTarihi);
+        state.personeller.forEach(p => { const birimAyar = state.birimAyarlari[p.birim] || { tip: "HAVUZ" }; if (birimAyar.tip === "DONGU8" || birimAyar.tip === "DONGU6") { const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0); const loopArr = (birimAyar.tip === "DONGU8") ? mcrDongu : ingestDongu; const modVal = loopArr.length; for(let g=0; g<7; g++) { if(tempProg[p.ad][g] !== null) continue; let d = new Date(currentMonday); d.setDate(d.getDate() + g); const diffDays = Math.floor((d - baseDate) / (1000 * 60 * 60 * 24)); tempProg[p.ad][g] = loopArr[((diffDays + persOfset) % modVal + modVal) % modVal]; } } });
         state.birimler.forEach(birim => {
-            const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
-            if (ayar.tip !== "GRUP_ABC") return;
-
-            let personelListesi = state.personeller.filter(p => p.birim === birim);
-            if (personelListesi.length === 0) return;
-             
+            const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" }; if (ayar.tip !== "GRUP_ABC") return;
+            let personelListesi = state.personeller.filter(p => p.birim === birim); if (personelListesi.length === 0) return;
              let grupA = []; let grupB = []; let grupC = [];
-             personelListesi.forEach((p, index) => {
-                let gecenPzt = state.manuelAtamalar[`${prevHKey}_${p.ad}_0`];
-                if (gecenPzt === SHIFTS.IZIN || gecenPzt === SHIFTS.BOS || !gecenPzt || gecenPzt === SHIFTS.YILLIK) { grupA.push(p); } 
-                else if (gecenPzt === SHIFTS.SABAH || gecenPzt === SHIFTS.GUNDUZ) { grupB.push(p); } 
-                else { grupC.push(p); }
-            });
-            if (grupA.length === 0 && grupB.length === 0 && grupC.length === 0) {
-                personelListesi.forEach((p, i) => { if (i % 3 === 0) grupA.push(p); else if (i % 3 === 1) grupB.push(p); else grupC.push(p); });
-            }
+             personelListesi.forEach((p, index) => { let gecenPzt = state.manuelAtamalar[`${prevHKey}_${p.ad}_0`]; if (gecenPzt === SHIFTS.IZIN || gecenPzt === SHIFTS.BOS || !gecenPzt || gecenPzt === SHIFTS.YILLIK) { grupA.push(p); } else if (gecenPzt === SHIFTS.SABAH || gecenPzt === SHIFTS.GUNDUZ) { grupB.push(p); } else { grupC.push(p); } });
+            if (grupA.length === 0 && grupB.length === 0 && grupC.length === 0) { personelListesi.forEach((p, i) => { if (i % 3 === 0) grupA.push(p); else if (i % 3 === 1) grupB.push(p); else grupC.push(p); }); }
             grupA.forEach(p => { safeAssign(p, 0, SHIFTS.SABAH); safeAssign(p, 1, SHIFTS.AKSAM); safeAssign(p, 2, SHIFTS.AKSAM); safeAssign(p, 3, SHIFTS.IZIN); safeAssign(p, 4, SHIFTS.IZIN); safeAssign(p, 5, SHIFTS.SABAH); safeAssign(p, 6, SHIFTS.SABAH); });
             grupB.forEach(p => { safeAssign(p, 0, SHIFTS.AKSAM); safeAssign(p, 1, SHIFTS.IZIN); safeAssign(p, 2, SHIFTS.IZIN); safeAssign(p, 3, SHIFTS.SABAH); safeAssign(p, 4, SHIFTS.SABAH); safeAssign(p, 5, SHIFTS.AKSAM); safeAssign(p, 6, SHIFTS.AKSAM); });
-            
             seededShuffle(grupC, hKey);
-            grupC.forEach((p, index) => {
-                safeAssign(p, 0, SHIFTS.IZIN);
-                safeAssign(p, 1, SHIFTS.SABAH);
-                safeAssign(p, 2, SHIFTS.SABAH);
-                safeAssign(p, 3, SHIFTS.AKSAM);
-                safeAssign(p, 4, SHIFTS.AKSAM);
-                if (index % 2 === 0) {
-                    let cmtAksamCap = (state.kapasite[`${birim}_${SHIFTS.AKSAM}`] || [0,0,0,0,0,0,0])[5];
-                    if(cmtAksamCap > 0) { safeAssign(p, 5, SHIFTS.AKSAM); } else { safeAssign(p, 5, SHIFTS.IZIN); }
-                    safeAssign(p, 6, SHIFTS.IZIN);
-                } else {
-                    safeAssign(p, 5, SHIFTS.IZIN);
-                    let pzSabahCap = (state.kapasite[`${birim}_${SHIFTS.SABAH}`] || [0,0,0,0,0,0,0])[6];
-                    if(pzSabahCap > 0) { safeAssign(p, 6, SHIFTS.SABAH); } else { safeAssign(p, 6, SHIFTS.IZIN); }
-                }
-            });
+            grupC.forEach((p, index) => { safeAssign(p, 0, SHIFTS.IZIN); safeAssign(p, 1, SHIFTS.SABAH); safeAssign(p, 2, SHIFTS.SABAH); safeAssign(p, 3, SHIFTS.AKSAM); safeAssign(p, 4, SHIFTS.AKSAM); if (index % 2 === 0) { let cmtAksamCap = (state.kapasite[`${birim}_${SHIFTS.AKSAM}`] || [0,0,0,0,0,0,0])[5]; if(cmtAksamCap > 0) { safeAssign(p, 5, SHIFTS.AKSAM); } else { safeAssign(p, 5, SHIFTS.IZIN); } safeAssign(p, 6, SHIFTS.IZIN); } else { safeAssign(p, 5, SHIFTS.IZIN); let pzSabahCap = (state.kapasite[`${birim}_${SHIFTS.SABAH}`] || [0,0,0,0,0,0,0])[6]; if(pzSabahCap > 0) { safeAssign(p, 6, SHIFTS.SABAH); } else { safeAssign(p, 6, SHIFTS.IZIN); } } });
         });
 
         // -------------------- CUMARTESİ KURTARMA (SABİTLER HARİÇ) --------------------
         state.birimler.forEach(birim => {
-            const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
-            if (ayar.tip !== "GRUP_ABC") return;
-
-            // 1. Cmt SABAH Eksikse: Cuma Sabahçısını -> Cmt Sabah + Pazar Akşam yap.
+            const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" }; if (ayar.tip !== "GRUP_ABC") return;
+            // 1. Cmt SABAH Eksikse: SABİT OLMAYAN Cuma Sabahçısını bul
             let cmtSabahHedef = (state.kapasite[`${birim}_${SHIFTS.SABAH}`] || [0,0,0,0,0,0,0])[5];
             let cmtSabahMevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][5] === SHIFTS.SABAH).length;
-            
             if(cmtSabahMevcut < cmtSabahHedef) {
                 // Aday: Cuma SABAH veya GÜNDÜZ gelmiş, Cumartesi SABAH DEĞİL (yani boş/izinli/başka yerde)
                 // VE EN ÖNEMLİSİ: SABİT DEĞİL (!state.haftaIciSabitler[p.ad])
@@ -552,7 +486,7 @@
                 }
             }
 
-            // 2. Cmt AKŞAM Eksikse: Cuma Akşamçısını -> Cmt Akşam + Pazar İzin yap.
+            // 2. Cmt AKŞAM Eksikse: SABİT OLMAYAN Cuma Akşamçısını bul
             let cmtAksamHedef = (state.kapasite[`${birim}_${SHIFTS.AKSAM}`] || [0,0,0,0,0,0,0])[5];
             let cmtAksamMevcut = state.personeller.filter(p => p.birim === birim && tempProg[p.ad][5] === SHIFTS.AKSAM).length;
             
@@ -581,8 +515,7 @@
 
         // EKSİK KAPASİTE TAMAMLAMA (SABİTLER HARİÇ)
         state.birimler.forEach(birim => {
-            const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
-            if (ayar.tip !== "GRUP_ABC") return;
+            const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" }; if (ayar.tip !== "GRUP_ABC") return;
 
             for (let gun = 0; gun < 7; gun++) {
                 state.saatler.forEach(saat => {
@@ -673,11 +606,6 @@
             }
         });
 
-        for (let gun = 7; gun < 7; gun++) {
-             // ... (Diğer genel havuz kodları aynı şekilde sabit kontrolü içeriyor) ...
-        }
-        
-        // GENEL HAVUZ (SABİTLER HARİÇ) - DÜZELTME: Döngü şartını ve içeriği kontrol et
         for (let gun = 0; gun < 7; gun++) {
             state.birimler.forEach(birim => {
                 const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
