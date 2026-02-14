@@ -45,7 +45,11 @@
     .row-saat-3 { background-color: var(--saat4); }
     
     .row-izin { background-color: var(--izin-bg) !important; } .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
-    .weekend-col { background-color: var(--weekend-bg) !important; }
+    
+    /* GÜNCELLEME: Haftasonu renk opaklığı düzenlendi, vardiya renkleri artık net görünecek */
+    th.weekend-col { background-color: var(--weekend-bg); }
+    td.weekend-col { background-color: rgba(0,0,0,0.02); } /* Hücre içi çok hafif ton */
+    
     .birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: opacity 0.3s; }
     .birim-ayirici { border-top: 5px solid #1e293b !important; margin-top: 8px !important; padding-top: 8px !important; }
     .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
@@ -523,7 +527,6 @@
                 // HAFTA SONU MAKASI + KAPASİTE KONTROLÜ
                 if (index % 2 === 0) {
                     // 1. TİP (Nöbetçi): Cuma Akşamdan çıktı -> Cmt AKŞAM devam eder -> Pazar İZİN.
-                    // Ama önce Cmt Akşam kapasitesi var mı bak?
                     let cmtAksamCap = (state.kapasite[`${birim}_${SHIFTS.AKSAM}`] || [0,0,0,0,0,0,0])[5];
                     if(cmtAksamCap > 0) {
                          safeAssign(p, 5, SHIFTS.AKSAM);
@@ -534,7 +537,6 @@
                 } else {
                     // 2. TİP (Dönüşümcü): Cuma Akşamdan çıktı -> Cmt İZİN -> Pazar SABAH (Pzt sabahına hazırlık).
                     safeAssign(p, 5, SHIFTS.IZIN);
-                    // Pazar Sabah kapasitesi var mı bak?
                     let pzSabahCap = (state.kapasite[`${birim}_${SHIFTS.SABAH}`] || [0,0,0,0,0,0,0])[6];
                     if(pzSabahCap > 0) {
                         safeAssign(p, 6, SHIFTS.SABAH);
@@ -543,6 +545,36 @@
                     }
                 }
             });
+
+            // ----------------------------------------------------
+            // YENİ ÖZELLİK: CUMA UZATMA MANTIĞI (Playout/KJ/Ses)
+            // ----------------------------------------------------
+            // Cuma Sabahçısı (Grup A) -> Cumartesi 09:00 veya 06:30'a 1 kişiyi uzat
+            let cumaSabahcilar = personelListesi.filter(p => {
+                let v = tempProg[p.ad][4]; // 4 = Cuma
+                return v === SHIFTS.SABAH || v === SHIFTS.GUNDUZ;
+            });
+            // Cuma Akşamcısı (Grup B) -> Cumartesi Akşam'a 1 kişiyi uzat
+            let cumaAksamcilar = personelListesi.filter(p => {
+                let v = tempProg[p.ad][4];
+                return v === SHIFTS.AKSAM;
+            });
+
+            seededShuffle(cumaSabahcilar, hKey + "cumaS");
+            seededShuffle(cumaAksamcilar, hKey + "cumaA");
+
+            if(cumaSabahcilar.length > 0) {
+                // Şanslı kişiyi seç ve Cumartesi gününe (5. gün) ata
+                let sansliSabah = cumaSabahcilar[0];
+                let cumaVardiya = tempProg[sansliSabah.ad][4];
+                safeAssign(sansliSabah, 5, cumaVardiya); 
+            }
+            if(cumaAksamcilar.length > 0) {
+                let sansliAksam = cumaAksamcilar[0];
+                safeAssign(sansliAksam, 5, SHIFTS.AKSAM);
+            }
+            // Pazar günü (6. gün) zaten dokunmuyoruz, yukarıdaki standart makas döngüsü devrede kalıyor.
+            // ----------------------------------------------------
         });
 
         // Çalışma günlerini say
@@ -562,17 +594,12 @@
                     let mevcut = state.personeller.filter(p => getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === saat).length;
 
                     if (mevcut < hedef) {
-                        // Eksik var! Dışarıdan (diğer gruplardan o gün boşta olanlardan) adam topla.
-                        // Ama dikkat: 'tempProg[p.ad][gun] === null' olanları al.
-                        // Yukarıda Makas ile 'SHIFTS.IZIN' atadıklarımızı alma (Onlar dinlenmeli).
                         let yedekAdaylar = state.personeller.filter(p => {
                             let birimUygun = getGecerliBirim(p, gun) === birim;
-                            // SADECE NULL OLANLARI AL (Zorla izin verilenleri alma)
                             let bosta = (tempProg[p.ad][gun] === null); 
                             let yorgunDegil = calis[p.ad] < 6;
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
                             let manuelVar = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`];
-                            
                             return birimUygun && bosta && yorgunDegil && !dunGece && !manuelVar;
                         });
 
@@ -735,20 +762,21 @@
 
     function excelIndir() {
         const hKey = getDateKey(currentMonday);
+        // EXCEL STİL GÜNCELLEMESİ: Web renkleri ile uyumlu hale getirildi
         let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>
-            table { border-collapse: collapse; font-family: Arial; } td { border: 1px solid #000; text-align: center; padding: 4px; font-size: 8pt; }
-            .title { background: #312e81; color: white; font-weight: bold; font-size: 12pt; }
-            .header { background: #1e1b4b; color: white; font-weight: bold; }
-            .saat-0630 { background: #ffff00; font-weight: bold; }
-            .saat-0900 { background: #00b0f0; color: white; font-weight: bold; }
-            .saat-1600 { background: #7030a0; color: white; font-weight: bold; }
-            .saat-0000 { background: #ed7d31; color: white; font-weight: bold; }
-            .saat-izin { background: #ff0000; color: white; font-weight: bold; }
+            table { border-collapse: collapse; font-family: Arial; } td { border: 1px solid #ccc; text-align: center; padding: 6px; font-size: 9pt; white-space: nowrap; overflow: hidden; }
+            .title { background: #1e293b; color: white; font-weight: bold; font-size: 12pt; padding:10px; }
+            .header { background: #f8fafc; color: #1e293b; font-weight: bold; padding:8px; }
+            .saat-0630 { background: #e0f2fe; color: black; } /* Sabah Rengi */
+            .saat-0900 { background: #f0fdf4; color: black; } /* Gunduz Rengi */
+            .saat-1600 { background: #faf5ff; color: black; } /* Aksam Rengi */
+            .saat-0000 { background: #fff7ed; color: black; } /* Gece Rengi */
+            .saat-izin { background: #fef2f2; color: #ef4444; font-weight: bold; }
         </style></head><body><table><tr><th colspan="8" class="title">TEKNİK PERSONEL ÇALIŞMA LİSTESİ</th></tr>
         <tr><th class="header">SAAT</th>${GUNLER.map(g => `<th class="header">${g.toUpperCase()}</th>`).join('')}</tr>`;
         
         state.birimler.forEach(birim => {
-            html += `<tr><td colspan="8" style="background:${getBirimColor(birim)}; color:white; font-weight:bold;">${birim}</td></tr>`;
+            html += `<tr><td colspan="8" style="background:${getBirimColor(birim)}; color:white; font-weight:bold; padding:5px;">${birim}</td></tr>`;
             [...state.saatler, "İZİN"].forEach(s => {
                 let pByDay = []; let maxRow = 1;
                 for(let i=0; i<7; i++) {
@@ -761,7 +789,7 @@
                 }
                 let cls = s.includes("06:30") ? "saat-0630" : s.includes("09:00") ? "saat-0900" : s.includes("16:00") ? "saat-1600" : s.includes("00:00") ? "saat-0000" : s === "İZİN" ? "saat-izin" : "";
                 for(let r=0; r<maxRow; r++) {
-                    html += `<tr>${r===0 ? `<td rowspan="${maxRow}" class="${cls}">${s}</td>`:""}${pByDay.map(d => `<td>${d[r]?d[r].ad:""}</td>`).join('')}</tr>`;
+                    html += `<tr>${r===0 ? `<td rowspan="${maxRow}" class="${cls}" style="font-weight:bold;">${s}</td>`:""}${pByDay.map(d => `<td class="${cls}">${d[r]?d[r].ad:""}</td>`).join('')}</tr>`;
                 }
             });
         });
@@ -1019,7 +1047,20 @@
 
         document.getElementById('adminDuyuruInp').value = state.duyuruMetni || "";
 
-        let capHtml = ""; state.birimler.forEach(b => { capHtml += `<div style="margin-bottom:15px; background:white; padding:10px; border-radius:8px; border:1px solid var(--border);"><strong>${b}</strong>`; state.saatler.forEach(s => { const v = state.kapasite[`${b}_${s}`] || [0,0,0,0,0,0,0]; capHtml += `<div style="font-size:9px; margin-top:5px; color:#64748b;">${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">${GUNLER.map((g, gi) => `<input type="number" value="${v[gi]}" style="width:100%; text-align:center; padding:4px; border:1px solid #e2e8f0; border-radius:4px;" onchange="capUp('${b}_${s}',${gi},this.value)">`).join('')}</div>`; }); capHtml += `</div>`; });
+        let capHtml = ""; state.birimler.forEach(b => { 
+            capHtml += `<div style="margin-bottom:15px; background:white; padding:10px; border-radius:8px; border:1px solid var(--border);"><strong>${b}</strong>`; 
+            state.saatler.forEach(s => { 
+                const v = state.kapasite[`${b}_${s}`] || [0,0,0,0,0,0,0]; 
+                capHtml += `<div style="font-size:9px; margin-top:5px; color:#64748b;">${s}</div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">
+                ${GUNLER.map((g, gi) => {
+                    let d = new Date(currentMonday); d.setDate(d.getDate() + gi);
+                    let dateStr = d.toLocaleDateString('tr-TR', {day:'numeric', month:'numeric'});
+                    return `<div style="text-align:center;"><small style="font-size:8px;">${g} <br>${dateStr}</small><input type="number" value="${v[gi]}" style="width:100%; text-align:center; padding:4px; border:1px solid #e2e8f0; border-radius:4px;" onchange="capUp('${b}_${s}',${gi},this.value)"></div>`;
+                }).join('')}
+                </div>`; 
+            }); 
+            capHtml += `</div>`; 
+        });
         document.getElementById("kapasiteTable").innerHTML = capHtml;
         
         let mcrSistemHtml = `<div style="background:#e0f2fe; padding:10px; border-radius:8px; margin-bottom:10px;">
