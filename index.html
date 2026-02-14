@@ -416,7 +416,7 @@
         
         document.getElementById("tableFooter").innerHTML = `<tr class="row-izin"><td class="saat-col">İZİN / BOŞ</td>${[0,1,2,3,4,5,6].map(g => { let sortedPers = state.personeller.filter(p => [SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(prog[p.ad][g])).sort((a, b) => { let birimA = getGecerliBirim(a, g); let birimB = getGecerliBirim(b, g); return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); }); let cellContent = ""; let lastBirim = ""; sortedPers.forEach(p => { let gecerliBirim = getGecerliBirim(p, g); let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : ""; let clickAttr = isAdmin ? `onclick="vardiyaDegistir('${p.ad}',${g})"` : ""; let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, 'BOŞ')"` : ""; let isYillik = prog[p.ad][g] === SHIFTS.YILLIK; let bgStyle = isYillik ? 'background:var(--yillik-izin)' : (prog[p.ad][g]===SHIFTS.IZIN?'background:var(--danger)':`background:${getBirimColor(gecerliBirim)}`); let countStyle = calis[p.ad] >= 6 ? 'color:red; font-weight:bold; font-size:11px;' : ''; cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(gecerliBirim)};" ${dragAttr} ${clickAttr}><span class="birim-tag" style="${bgStyle}">${prog[p.ad][g] || 'BOŞ'}</span><span class="pers-name">${p.ad} <span style="${countStyle}">(${calis[p.ad]}G)</span></span></div>`; lastBirim = gecerliBirim; }); return `<td class="${g>=5?'weekend-col':''}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">${cellContent}</td>`; }).join('')}</tr>`;
         
-        // YORGUNLUK UYARISI GİZLENDİ (SADECE ADMIN)
+        // YENİ: YORGUNLUK KONTROLÜ (6-7 GÜN UYARISI)
         let yorgunlar = [];
         state.personeller.forEach(p => {
             if(calis[p.ad] >= 6) {
@@ -425,7 +425,7 @@
         });
         
         const uyariDiv = document.getElementById('yorgunlukUyari');
-        if(yorgunlar.length > 0 && isAdmin) { // SADECE ADMIN GÖRSÜN
+        if(yorgunlar.length > 0) {
             uyariDiv.innerHTML = "⚠️ DİKKAT (6-7 Gün Çalışanlar): " + yorgunlar.join(", ");
             uyariDiv.style.display = 'block';
         } else {
@@ -602,6 +602,16 @@
                             let yorgunDegil = calis[p.ad] < 6;
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
                             let manuelVar = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`];
+                            
+                            // YENİ EKLENEN YORGUNLUK KALKANI (AKŞAM -> SABAH KORUMASI)
+                            // Eğer bir önceki gün AKŞAM veya GECE çalıştıysa, bugün SABAH veya GÜNDÜZ yazılamaz.
+                            if (gun > 0) {
+                                let dunVardiya = tempProg[p.ad][gun-1];
+                                if ((dunVardiya === SHIFTS.AKSAM || dunVardiya === SHIFTS.GECE) && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) {
+                                    return false; // ADAY OLAMAZ
+                                }
+                            }
+
                             return birimUygun && bosta && yorgunDegil && !dunGece && !manuelVar;
                         });
 
