@@ -268,11 +268,11 @@
         INGEST: "INGEST OPERATÖRÜ"
     };
 
-    let TELEGRAM_API = "8509542541:AAFu-iDK85iELZQmImCWSZRi3_eWzUyyCiM"; 
-    let TELEGRAM_ID = "859235247";
+    let TELEGRAM_API = ""; // GÜVENLİK GÜNCELLEMESİ: Token artık Firebase'den çekiliyor.
+    let TELEGRAM_ID = "";  // GÜVENLİK GÜNCELLEMESİ: ID artık Firebase'den çekiliyor.
     const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
     firebase.initializeApp(firebaseConfig); const database = firebase.database();
-    const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = ""; const PANEL_SIFRE = "6161"; 
+    const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = ""; 
     const BIRIM_RENKLERI = { [UNITS.YONETMEN]: "#2563eb", [UNITS.SES]: "#7c3aed", [UNITS.KJ]: "#db2777", [UNITS.PLAYOUT]: "#059669", [UNITS.REJI]: "#d97706", [UNITS.MCR24]: "#9333ea", [UNITS.MCR360]: "#9333ea", [UNITS.INGEST]: "#06b6d4" };
     let isAdmin = false;
     
@@ -372,7 +372,29 @@
     
     function checkUrlActions() { const urlParams = new URLSearchParams(window.location.search); const action = urlParams.get('action'); const talepId = urlParams.get('id'); if((action === 'onay' || action === 'red') && talepId) { talepIslem(talepId, action); window.history.replaceState({}, document.title, window.location.pathname); } }
     function talepModalAc() { const sel = document.getElementById('talepPersonel'); sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); document.getElementById('talepModal').style.display = 'flex'; }
-    function talepGonder() { const ad = document.getElementById('talepPersonel').value; const tarih = document.getElementById('talepTarih').value; const tur = document.getElementById('talepTuru').value; if(!tarih) { alert("Lütfen tarih seçin!"); return; } const secilenTarih = new Date(tarih); const pzt = getMonday(secilenTarih); const hKey = getDateKey(pzt); const gunIdx = (secilenTarih.getDay() + 6) % 7; const talepId = Date.now().toString(); database.ref('talepler/' + talepId).set({ id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor" }); const appUrl = window.location.href.split('?')[0]; fetch(`https://api.telegram.org/bot${TELEGRAM_API}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: TELEGRAM_ID, text: `🔔 *YENİ VARDİYA TALEBİ*\n\n👤 *Personel:* ${ad}\n📅 *Tarih:* ${tarih}\n📝 *Vardiya:* ${tur}`, parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "✅ SİTEYE GİT VE ONAYLA", url: `${appUrl}?action=onay&id=${talepId}` }, { text: "❌ SİTEYE GİT VE REDDET", url: `${appUrl}?action=red&id=${talepId}` }]] } }) }); alert("Talebiniz yöneticiye iletildi."); document.getElementById('talepModal').style.display = 'none'; }
+    
+    // GÜVENLİK GÜNCELLEMESİ: Telegram API kontrolü eklendi.
+    function talepGonder() { 
+        const ad = document.getElementById('talepPersonel').value; 
+        const tarih = document.getElementById('talepTarih').value; 
+        const tur = document.getElementById('talepTuru').value; 
+        if(!tarih) { alert("Lütfen tarih seçin!"); return; } 
+        const secilenTarih = new Date(tarih); const pzt = getMonday(secilenTarih); 
+        const hKey = getDateKey(pzt); const gunIdx = (secilenTarih.getDay() + 6) % 7; 
+        const talepId = Date.now().toString(); 
+        database.ref('talepler/' + talepId).set({ id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor" }); 
+        const appUrl = window.location.href.split('?')[0]; 
+        
+        if (TELEGRAM_API && TELEGRAM_ID) {
+            fetch(`https://api.telegram.org/bot${TELEGRAM_API}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: TELEGRAM_ID, text: `🔔 *YENİ VARDİYA TALEBİ*\n\n👤 *Personel:* ${ad}\n📅 *Tarih:* ${tarih}\n📝 *Vardiya:* ${tur}`, parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "✅ SİTEYE GİT VE ONAYLA", url: `${appUrl}?action=onay&id=${talepId}` }, { text: "❌ SİTEYE GİT VE REDDET", url: `${appUrl}?action=red&id=${talepId}` }]] } }) }); 
+        } else {
+            console.warn("Telegram API Key Firebase'de bulunamadı. Bildirim gönderilmedi ancak talep sisteme kaydedildi.");
+        }
+        
+        alert("Talebiniz yöneticiye iletildi."); 
+        document.getElementById('talepModal').style.display = 'none'; 
+    }
+    
     function talepleriYukle() { database.ref('talepler').orderByChild('durum').equalTo('bekliyor').on('value', snap => { const liste = document.getElementById('gelenTaleplerListesi'); if(!snap.exists()) { liste.innerHTML = "<p style='text-align:center; padding:20px; opacity:0.5;'>Bekleyen talep bulunmuyor.</p>"; return; } let html = ""; snap.forEach(item => { const t = item.val(); html += `<div style="background:var(--card-bg); border:1px solid var(--border); border-left:5px solid var(--warning); padding:12px; border-radius:8px; margin-bottom:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05);"><div style="font-weight:800; color:var(--primary); font-size:12px; margin-bottom:4px;">${t.ad}</div><div style="font-size:11px; margin-bottom:8px;">📅 ${t.tarih} (Hafta: ${t.hKey})<br>📝 İstek: <b>${t.tur}</b></div><div style="display:flex; gap:8px;"><button onclick="talepIslem('${t.id}', 'onay')" style="flex:1; background:var(--success); color:white; border:none; border-radius:6px; padding:8px; cursor:pointer; font-weight:700; font-size:10px;">ONAYLA</button><button onclick="talepIslem('${t.id}', 'red')" style="flex:1; background:var(--danger); color:white; border:none; border-radius:6px; padding:8px; cursor:pointer; font-weight:700; font-size:10px;">REDDET</button></div></div>`; }); liste.innerHTML = html; }); }
     function talepIslem(id, tip) { database.ref('talepler/' + id).once('value', snap => { if(!snap.exists()) return; const t = snap.val(); if(tip === 'onay') { const mKey = `${t.hKey}_${t.ad}_${t.gunIdx}`; state.manuelAtamalar[mKey] = t.tur; save(); currentMonday = new Date(t.hKey); tabloyuOlustur(); database.ref('talepler/' + id).update({ durum: 'onaylandi' }); alert(`✅ ${t.ad} için ${t.tarih} talebi ONAYLANDI.\n\nTakvim ilgili haftaya (${t.hKey}) kaydırıldı.`); logKoy(`${t.ad} için talep onaylandı: ${t.tur}`); } else { database.ref('talepler/' + id).update({ durum: 'reddedildi' }); alert("Talep reddedildi."); logKoy(`${t.ad} için talep reddedildi.`); } }); }
     function getMonday(d) { d = new Date(d); let day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day == 0 ? -6 : 1))); }
@@ -920,14 +942,13 @@
     
     function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); refreshUI(); }
     
-    /* FIX: Sayfayı yenilemek yerine State'i güncelleyen yeni versiyon */
     function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => alert("Kaydedildi!")).catch(e => alert(e.message)); }
     function buluttanYukle() { 
         if(!isAdmin) return;
         database.ref('vardiya_data').once('value').then(snap => { 
             if(snap.exists()){ 
                 state = snap.val(); 
-                verileriGuvenliHaleGetir(); // GÜVENLİK KONTROLÜ
+                verileriGuvenliHaleGetir(); 
                 save(); 
                 tabloyuOlustur(); 
                 refreshUI();
@@ -1125,14 +1146,12 @@
                 </div>`;
             }).join('')}`;
 
-        // SAAT LİSTESİ ADMIN KISMI - RENK SEÇİCİ EKLENDİ
         document.getElementById("saatListesiAdmin").innerHTML = `
             <div style="margin-bottom:10px; display:flex; gap:5px;">
                 <input type="text" id="yeniSaatInp" placeholder="Örn: 10:00–19:00" style="flex:1; padding:8px; border-radius:4px; border:1px solid #ccc;">
                 <button onclick="saatEkle()" class="btn-main-action" style="background:var(--success); padding:5px 10px;">EKLE</button>
             </div>
             ${state.saatler.map((s, i) => {
-                // Mevcut rengi al veya varsayılan beyaz yap
                 let mevcutRenk = (state.saatAyarlari && state.saatAyarlari[s]) ? state.saatAyarlari[s].renk : "#ffffff";
                 return `
                 <div style="padding:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:white;">
@@ -1145,15 +1164,14 @@
             `}).join('')}`;
     }
     
-    // YENİ EKLENEN SAAT RENGİ GÜNCELLEME FONKSİYONU
     function saatRenkGuncelle(saat, renk) {
         if(!state.saatAyarlari) state.saatAyarlari = {};
         if(!state.saatAyarlari[saat]) state.saatAyarlari[saat] = {};
         
         state.saatAyarlari[saat].renk = renk;
         save();
-        refreshUI(); // Admin panelini yenile
-        tabloyuOlustur(); // Ana tabloyu hemen boya
+        refreshUI(); 
+        tabloyuOlustur(); 
     }
     
     function vardiyaBul(pAd, gIdx) {
@@ -1168,7 +1186,6 @@
         let d = new Date(currentMonday);
         d.setDate(d.getDate() + gIdx);
         
-        // DİNAMİK KONTROL
         const birimAyar = state.birimAyarlari[p.birim];
         if (birimAyar && (birimAyar.tip === "DONGU8" || birimAyar.tip === "DONGU6")) {
             const persOfset = parseInt(state.mcrAyarlari.ofsetler[p.ad] || 0);
@@ -1400,7 +1417,7 @@ function anlikSenkronizasyonBaslat() {
             const data = snap.val();
             if(data.vardiya_data) {
                 state = data.vardiya_data;
-                verileriGuvenliHaleGetir(); // GÜVENLİK KONTROLÜ
+                verileriGuvenliHaleGetir(); 
                 save();
                 tabloyuOlustur();
                 if(isAdmin) refreshUI();
@@ -1434,7 +1451,7 @@ function anlikSenkronizasyonBaslat() {
             const snap = await database.ref('vardiya_data').once('value');
             if (snap.exists()) {
                 state = snap.val();
-                verileriGuvenliHaleGetir(); // GÜVENLİK KONTROLÜ
+                verileriGuvenliHaleGetir(); 
                 save();
                 tabloyuOlustur(); 
                 alert("Veriler güncellendi, listenizi kontrol edebilirsiniz.");
@@ -1459,7 +1476,6 @@ function anlikSenkronizasyonBaslat() {
             d.setDate(d.getDate() + index);
             let tarihStr = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
 
-            // vardiyaBul fonksiyonunu kullanarak MCR, Ingest ve Manuel atamaların hepsini doğru çekeriz
             let vardiya = vardiyaBul(isim, index);
             
             if(!vardiya || vardiya === "BOŞ") vardiya = "İZİNLİ";
@@ -1489,7 +1505,6 @@ function anlikSenkronizasyonBaslat() {
         alan.innerHTML = html;
     }
 
-    /* --- YENİ EKLENEN EXCEL OKUMA FONKSİYONU (TERSTEN OKUMA - DÜZELTİLDİ) --- */
     function exceldenVardiyaYukle() {
         const fileInput = document.getElementById('excelUploadInput');
         if (!fileInput.files.length) { alert("Lütfen bir Excel dosyası seçin!"); return; }
@@ -1508,16 +1523,13 @@ function anlikSenkronizasyonBaslat() {
                 let islenenSayisi = 0;
                 let taninmayanSayisi = 0;
 
-                // Satır Satır İlerle
                 jsonData.forEach(row => {
                     if (!row || row.length < 2) return; 
 
-                    // A Sütunu (row[0]) = Saat veya Durum
                     let satirBasligi = row[0];
                     if(!satirBasligi || typeof satirBasligi !== 'string') return;
                     satirBasligi = satirBasligi.toUpperCase().trim();
 
-                    // 1. ADIM: SATIRDAKİ VARDİYAYI BELİRLE (YENİ SIRALAMA)
                     let atanacakVardiya = null;
 
                     if (satirBasligi.includes("İZİN") || satirBasligi.includes("OFF")) {
@@ -1525,57 +1537,42 @@ function anlikSenkronizasyonBaslat() {
                     } else if (satirBasligi.includes("YILLIK")) {
                         atanacakVardiya = SHIFTS.YILLIK;
                     } else {
-                        // ÖNCE TAM EŞLEŞME ARA (Saat listesinde varsa)
                         atanacakVardiya = state.saatler.find(s => s.includes(satirBasligi) || s.replace(/[:\-\s]/g, "").includes(satirBasligi.replace(/[:\-\s]/g, "")));
                         
-                        // BULAMAZSA MANTIK YÜRÜT (BURASI KRİTİK NOKTA - DÜZELTİLDİ)
                         if(!atanacakVardiya) {
-                            // 1. ÖNCELİK: GECE (00 ile BAŞLAMALI veya 24 veya GECE içermeli)
-                            // "16:00 - 00:00" içinde 00 var ama başta değil, o yüzden buraya girmez.
                             if(satirBasligi.startsWith("00") || satirBasligi.startsWith("24") || satirBasligi.includes("GECE")) {
                                 atanacakVardiya = SHIFTS.GECE;
                             }
-                            // 2. ÖNCELİK: SABAH (06 veya 07 içermeli)
-                            // "00:00 - 07:00" buraya düşmez çünkü 1. adımda yakalandı.
-                            // "06:30 - 16:00" buraya girer (16'dan önce kontrol edilmeli!)
                             else if(satirBasligi.includes("06") || satirBasligi.includes("07")) {
                                 atanacakVardiya = SHIFTS.SABAH;
                             }
-                            // 3. ÖNCELİK: GÜNDÜZ (09 veya 10 içermeli)
                             else if(satirBasligi.includes("09") || satirBasligi.includes("10")) {
                                 atanacakVardiya = SHIFTS.GUNDUZ;
                             }
-                            // 4. ÖNCELİK: AKŞAM (16, 15, 14 içermeli)
-                            // "16:00 - 00:00" buraya girer.
                             else if(satirBasligi.includes("16") || satirBasligi.includes("15") || satirBasligi.includes("14")) {
                                 atanacakVardiya = SHIFTS.AKSAM;
                             }
                         }
                     }
 
-                    if (!atanacakVardiya) return; // Bu satırda vardiya bulamadık, geç.
+                    if (!atanacakVardiya) return; 
 
-                    // 2. ADIM: SÜTUNLARDAKİ İSİMLERİ BUL (B=Pzt -> H=Paz)
                     for (let i = 1; i <= 7; i++) {
                         let hucreVerisi = row[i];
                         if (hucreVerisi && typeof hucreVerisi === 'string') {
-                            // İSMİ TEMİZLE
                             let temizIsim = hucreVerisi
-                                .split('*')[0] // Yıldızdan sonrasını at
-                                .split('-')[0] // Tireden sonrasını at (varsa)
-                                .replace(/[\d\(\)\.]/g, '') // Sayıları ve parantezleri sil
+                                .split('*')[0] 
+                                .split('-')[0] 
+                                .replace(/[\d\(\)\.]/g, '') 
                                 .trim().toUpperCase();
 
-                            // 3. ADIM: PERSONELİ BUL VE ATAMA YAP
                             let personel = state.personeller.find(p => p.ad === temizIsim);
                             
                             if (personel) {
-                                // Gün İndeksi: Excelde 1. Sütun (B) -> Pzt (Index 0)
                                 let gunIdx = i - 1;
                                 state.manuelAtamalar[`${hKey}_${personel.ad}_${gunIdx}`] = atanacakVardiya;
                                 islenenSayisi++;
                             } else if (temizIsim.length > 3) {
-                                // İsim dolu ama sistemde yok
                                 console.log(`Bilinmeyen Personel: ${temizIsim}`);
                             }
                         }
