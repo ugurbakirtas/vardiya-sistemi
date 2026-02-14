@@ -74,7 +74,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .login-btn:hover { transform: scale(1.02); }
 .btn-user { background: var(--blue); color: white; } .btn-admin { background: #475569; color: white; }
 
-/* 🌟 DÜZELTME: LOGO TAŞMA SORUNU ÇÖZÜLDÜ 🌟 */
 .login-logo { 
     max-height: 70px; 
     height: auto; 
@@ -85,7 +84,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 
 .app-wrapper { padding: 10px; display: none; } 
 
-/* 🌟 DÜZELTME: HEADER DÜZENİ VE BUTON SIKIŞMASI ÇÖZÜLDÜ 🌟 */
 .main-header { 
     display: flex; 
     flex-wrap: wrap; 
@@ -119,10 +117,23 @@ th.today-col { border-top: 3px solid var(--warning) !important; background-color
 .row-izin { background-color: var(--izin-bg) !important; } .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
 th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { background-color: rgba(0,0,0,0.02); }
 
-.birim-card { border-left: 4px solid var(--blue); padding: 6px 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+/* 🌟 DÜZELTME: BİRİM KARTI SOL KALIN RENKLİ ÇİZGİSİ SABİTLENDİ 🌟 */
+.birim-card { 
+    padding: 6px 8px; 
+    margin-bottom: 5px; 
+    background: var(--card-bg); 
+    border-radius: 6px; 
+    border: 1px solid var(--border); 
+    border-left-width: 5px !important; /* İnce kenarlığın bunu ezmesi engellendi */
+    border-left-style: solid !important;
+    cursor: pointer; 
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
+}
 .birim-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); filter: brightness(1.05); }
 .birim-ayirici { border-top: 5px solid #1e293b !important; margin-top: 8px !important; padding-top: 8px !important; }
 .birim-tag { font-size: 7px; font-weight: 800; color: white; display: inline-block; padding: 1px 4px; border-radius: 3px; margin-bottom: 2px; text-transform: uppercase; }
+
 
 /* ------------------------------------------------------------- */
 /* İSİM GÖRÜNÜRLÜĞÜ AYARLARI */
@@ -136,14 +147,14 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
 }
 
 [data-theme="dark"] .birim-card {
-    background-color: rgba(0, 0, 0, 0.4) !important; 
+    /* Background important kaldirildi ki arkaplandaki hafif birim renkleri gorunsun */
     border-top-color: #1e293b !important;
     border-right-color: #1e293b !important;
     border-bottom-color: #1e293b !important;
     box-shadow: inset 0 0 10px rgba(0,0,0,0.5); 
 }
 [data-theme="dark"] .birim-card:hover {
-    background-color: rgba(0, 0, 0, 0.6) !important; 
+    filter: brightness(1.2); 
 }
 [data-theme="dark"] .pers-name { 
     text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
@@ -212,7 +223,6 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
 .tab-btn:hover { background: rgba(128,128,128,0.2); }
 .tab-btn.active { background: var(--blue); color: white !important; box-shadow: 0 4px 10px -2px rgba(37, 99, 235, 0.4); transform: scale(1.03); }
 
-/* Buton Padding ayarı daraltıldı ki hepsi rahat sığsın */
 .btn-main-action { padding: 8px 12px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; color: white; transition: filter 0.2s, transform 0.1s; }
 .btn-main-action:hover { filter: brightness(1.1); transform: translateY(-1px); }
 .btn-main-action:active { transform: translateY(1px); }
