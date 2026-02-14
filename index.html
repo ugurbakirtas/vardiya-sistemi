@@ -36,6 +36,16 @@
     </div>
   </div>
 
+  <div id="adminLoginModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10001; display:none; align-items:center; justify-content:center;">
+      <div class="login-card" style="width: 320px; border: 2px solid var(--primary);">
+          <h3 style="margin-top:0; color:var(--primary)">Yönetici Girişi</h3>
+          <input type="email" id="adminEmail" placeholder="E-posta Adresi" style="width:100%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid var(--border); background:var(--card-bg); color:var(--text);">
+          <input type="password" id="adminPassword" placeholder="Şifre (****)" style="width:100%; padding:10px; margin-bottom:15px; border-radius:8px; border:1px solid var(--border); background:var(--card-bg); color:var(--text);">
+          <button onclick="adminGirisYap()" class="btn-main-action" style="background:var(--blue); width:100%; padding:12px;">GİRİŞ YAP</button>
+          <button onclick="document.getElementById('adminLoginModal').style.display='none'" style="background:none; border:none; color:var(--danger); margin-top:10px; cursor:pointer; font-weight:bold;">İptal</button>
+      </div>
+  </div>
+
   <div id="panelOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; display:none;" onclick="toggleAdminPanel()"></div>
   
   <div class="app-wrapper" id="appMain">
@@ -208,15 +218,6 @@
         </div>
 
         <button onclick="document.getElementById('gorunumModal').style.display='none'" style="background:var(--primary); color:#fff; border:none; margin-top:10px; cursor:pointer; font-weight:bold; font-size:12px; width:100%; padding:10px; border-radius:8px;">KAPAT VE KAYDET</button>
-    </div>
-  </div>
-
-  <div id="vardiyaDegistirModal" class="modal-overlay">
-    <div class="login-card modal-content-anim" style="width: 320px; padding: 25px;">
-        <h3 id="modalPersAd" style="margin-top:0; color:var(--primary); font-size:16px; margin-bottom:5px;">Personel Adı</h3>
-        <p id="modalGunTarih" style="font-size:11px; color:var(--text); opacity:0.8; margin-top:0; margin-bottom:20px;">Gün ve Tarih</p>
-        <div id="modalVardiyaButonlari" style="display: flex; flex-direction: column; gap: 8px;"></div>
-        <button onclick="closeModal()" style="background:none; border:none; color:var(--danger); margin-top:15px; cursor:pointer; font-weight:bold; font-size:12px; width:100%; padding:10px;">İptal</button>
     </div>
   </div>
 

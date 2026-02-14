@@ -1,3 +1,8 @@
+// 🌍 SUNUCU AYARLARI (İleride Render/Vercel'e yükleyince bu adresi değiştireceksin)
+const BACKEND_URL = "http://localhost:3000"; 
+// 🔒 GÜVENLİK ZIRHI (server.js ile aynı olmak zorunda)
+const API_SECRET = "TURKMEDYA_GIZLI_SIFRE_2026"; 
+
 const SHIFTS = {
     SABAH: "06:30–16:00",
     GUNDUZ: "09:00–18:00",
@@ -26,8 +31,6 @@ const DEFAULT_SHIFT_COLORS = [
     "#fff7ed"  
 ];
 
-let TELEGRAM_API = ""; 
-let TELEGRAM_ID = "";  
 const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
 firebase.initializeApp(firebaseConfig); const database = firebase.database();
 const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = ""; 
@@ -91,23 +94,16 @@ function hideLoading() { document.getElementById('loadingOverlay').style.display
 function showToast(message, type = "info") {
     const container = document.getElementById('toastContainer');
     if (!container) return; 
-    
     const toast = document.createElement('div');
     toast.className = `toast-msg toast-${type}`;
-    
     let icon = "ℹ️";
     if(type === "success") icon = "✅";
     if(type === "error") icon = "❌";
     if(type === "warning") icon = "⚠️";
-    
     toast.innerHTML = `<span>${icon}</span> <div>${message}</div><div class="toast-progress"></div>`;
     container.appendChild(toast);
-    
     setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 500); 
-    }, 3000);
+    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 500); }, 3000);
 }
 
 function getDateKey(d) {
@@ -118,8 +114,6 @@ function getDateKey(d) {
 }
 
 let currentMonday = getMonday(new Date());
-
-async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); if(config.telegram_api) TELEGRAM_API = config.telegram_api; if(config.telegram_id) TELEGRAM_ID = config.telegram_id; } } catch (error) { console.error(error); } }
 
 function verileriGuvenliHaleGetir() {
     if(!state) state = {};
@@ -147,49 +141,72 @@ function verileriGuvenliHaleGetir() {
     if(!state.gorunum) state.gorunum = { panelRenk: null, panelYaziRenk: null, isimRenk: null, isimKalinlik: 700 };
 }
 
-async function enterSystem(role) { 
+// 🌟 YENİ: GÜVENLİ GİRİŞ SİSTEMİ 🌟
+function enterSystem(role) { 
     if (role === 'admin') { 
-        const email = prompt("Yönetici E-posta:"); const password = prompt("Yönetici Şifresi:"); 
-        if (!email || !password) return; 
-        showLoading(); 
-        try { 
-            await firebase.auth().signInWithEmailAndPassword(email, password); 
-            isAdmin = true; 
-            await hassasAyarlariYukle(); 
-            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); 
-            document.getElementById('persTalepArea').style.display = 'none'; 
-            checkUrlActions(); 
-            gorunumAyarlariYukle(); 
-            showToast("Yönetici girişi başarılı!", "success"); 
-        } catch (error) { 
-            hideLoading();
-            showToast("Hatalı giriş: " + error.message, "error"); 
-            return; 
-        } 
+        // Artık çirkin "prompt" yok, şık HTML Modal açılacak
+        document.getElementById('adminLoginModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('adminLoginModal').classList.add('show'), 10);
     } else { 
         isAdmin = false; 
         showLoading(); 
-        try {
-             const snap = await database.ref('vardiya_data').once('value');
-             if(snap.exists()) { 
+        database.ref('vardiya_data').once('value').then(snap => {
+            if(snap.exists()) { 
                  state = snap.val(); 
                  verileriGuvenliHaleGetir(); 
                  save(); 
-             }
-        } catch(e) { console.log("Veri çekilemedi: " + e.message); }
-
-        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); 
-        document.getElementById('persTalepArea').style.display = 'block'; 
-        showToast("Sisteme hoş geldiniz.", "info");
+            }
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); 
+            document.getElementById('persTalepArea').style.display = 'block'; 
+            showToast("Sisteme hoş geldiniz.", "info");
+            document.getElementById('loginOverlay').style.opacity = '0'; 
+            setTimeout(() => { 
+                document.getElementById('loginOverlay').style.display = 'none'; 
+                document.getElementById('appMain').style.display = 'block'; 
+                tabloyuOlustur(); 
+                hideLoading(); 
+            }, 500); 
+        }).catch(e => {
+            hideLoading();
+            console.log("Veri çekilemedi: " + e.message); 
+        });
     } 
+}
+
+// Admin şifre kutusunda "Giriş Yap"a basılınca burası çalışır
+async function adminGirisYap() {
+    const email = document.getElementById('adminEmail').value;
+    const password = document.getElementById('adminPassword').value;
     
-    document.getElementById('loginOverlay').style.opacity = '0'; 
-    setTimeout(() => { 
-        document.getElementById('loginOverlay').style.display = 'none'; 
-        document.getElementById('appMain').style.display = 'block'; 
-        tabloyuOlustur(); 
-        hideLoading(); 
-    }, 500); 
+    if(!email || !password) {
+        showToast("Lütfen e-posta ve şifrenizi girin.", "warning");
+        return;
+    }
+
+    showLoading(); 
+    try { 
+        await firebase.auth().signInWithEmailAndPassword(email, password); 
+        isAdmin = true; 
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); 
+        document.getElementById('persTalepArea').style.display = 'none'; 
+        checkUrlActions(); 
+        gorunumAyarlariYukle(); 
+        
+        // Modalları kapat ve ana sistemi aç
+        document.getElementById('adminLoginModal').style.display = 'none';
+        document.getElementById('loginOverlay').style.opacity = '0'; 
+        setTimeout(() => { 
+            document.getElementById('loginOverlay').style.display = 'none'; 
+            document.getElementById('appMain').style.display = 'block'; 
+            tabloyuOlustur(); 
+            hideLoading(); 
+            showToast("Yönetici girişi başarılı!", "success"); 
+        }, 500); 
+
+    } catch (error) { 
+        hideLoading();
+        showToast("Hatalı giriş: Şifre veya E-posta yanlış.", "error"); 
+    } 
 }
 
 function checkUrlActions() { const urlParams = new URLSearchParams(window.location.search); const action = urlParams.get('action'); const talepId = urlParams.get('id'); if((action === 'onay' || action === 'red') && talepId) { talepIslem(talepId, action); window.history.replaceState({}, document.title, window.location.pathname); } }
@@ -206,11 +223,21 @@ function talepGonder() {
     database.ref('talepler/' + talepId).set({ id: talepId, ad, tarih, gunIdx, tur, hKey, durum: "bekliyor" }); 
     const appUrl = window.location.href.split('?')[0]; 
     
-    if (TELEGRAM_API && TELEGRAM_ID) {
-        fetch(`https://api.telegram.org/bot${TELEGRAM_API}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: TELEGRAM_ID, text: `🔔 *YENİ VARDİYA TALEBİ*\n\n👤 *Personel:* ${ad}\n📅 *Tarih:* ${tarih}\n📝 *Vardiya:* ${tur}`, parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "✅ SİTEYE GİT VE ONAYLA", url: `${appUrl}?action=onay&id=${talepId}` }, { text: "❌ SİTEYE GİT VE REDDET", url: `${appUrl}?action=red&id=${talepId}` }]] } }) }); 
-    } else {
-        console.warn("Telegram API Key Firebase'de bulunamadı. Bildirim gönderilmedi ancak talep sisteme kaydedildi.");
-    }
+    // 🌟 YENİ: TELEGRAM MESAJLARI ARTIK GÜVENLİ SUNUCUYA (server.js) GİDİYOR 🌟
+    fetch(`${BACKEND_URL}/send-telegram`, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ 
+            secret: API_SECRET, // Güvenlik Şifresi
+            text: `🔔 *YENİ VARDİYA TALEBİ*\n\n👤 *Personel:* ${ad}\n📅 *Tarih:* ${tarih}\n📝 *Vardiya:* ${tur}`, 
+            reply_markup: { 
+                inline_keyboard: [[
+                    { text: "✅ SİTEYE GİT VE ONAYLA", url: `${appUrl}?action=onay&id=${talepId}` }, 
+                    { text: "❌ SİTEYE GİT VE REDDET", url: `${appUrl}?action=red&id=${talepId}` }
+                ]] 
+            } 
+        }) 
+    }).catch(e => console.log("Telegram API Sunucuya Ulaşılamadı."));
     
     showToast("Talebiniz yöneticiye iletildi.", "success"); 
     document.getElementById('talepModal').style.display = 'none'; 
@@ -361,14 +388,12 @@ function yillikIzinIsle() {
 function vardiyaUretVeKaydet() {
     if(!isAdmin) return;
     saveStateToHistory(); 
-    
     const hKey = getDateKey(currentMonday);
     const prevMonday = new Date(currentMonday); prevMonday.setDate(prevMonday.getDate() - 7);
     const prevHKey = getDateKey(prevMonday);
     
     let tempProg = {}; 
     let calis = {};
-    
     verileriGuvenliHaleGetir();
 
     const safeAssign = (p, day, shift) => {
@@ -757,7 +782,6 @@ function excelIndir() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Vardiya_${hKey}.xls`; a.click();
 }
 
-// 🔥 YENİ: EXCEL MAİL GÖNDERME FONKSİYONU 🔥
 async function excelMailGonder() {
     if(!isAdmin) return;
     
@@ -768,11 +792,13 @@ async function excelMailGonder() {
     try {
         const hKey = getDateKey(currentMonday);
         const htmlData = excelHtmlOlustur(); 
-
-        const response = await fetch("http://localhost:3000/send-excel", {
+        
+        // 🌟 YENİ: ARTIK GÜVENLİK ŞİFRESİ İLE İSTEK ATIYORUZ 🌟
+        const response = await fetch(`${BACKEND_URL}/send-excel`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+                secret: API_SECRET, // Güvenlik Şifresi
                 fileName: `Vardiya_${hKey}.xls`,
                 fileData: htmlData,
                 toEmails: alicilar
@@ -1704,7 +1730,8 @@ window.onload = async () => {
     
     showLoading(); 
 
-    await hassasAyarlariYukle(); 
+    // Artık bu gereksiz (Şifreler server'da saklanıyor)
+    // await hassasAyarlariYukle(); 
     
     firebase.auth().onAuthStateChanged(function(user) {
         if (user) {
