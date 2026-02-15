@@ -17,18 +17,10 @@
   
   <div id="loadingOverlay">
       <div class="spinner"></div>
-      <div style="margin-top:15px; font-weight:800; color:white; font-size: 16px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">SİSTEM HAZIRLANIYOR...</div>
+      <div style="margin-top:15px; font-weight:700; color:var(--primary); font-size: 14px;">Sistem Hazırlanıyor...</div>
   </div>
 
-  <div id="loginOverlay">
-      <div class="login-card">
-          <img src="logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'">
-          <h2 style="margin:0 0 10px 0; color:var(--primary); font-size: 22px;">Sistem Girişi</h2>
-          <p style="font-size: 11px; color: var(--text); opacity: 0.7; margin-bottom: 25px;">TURKMEDYA TEKNİK VARDİYA SİSTEMİ V64</p>
-          <button onclick="enterSystem('personel')" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button>
-          <button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button>
-      </div>
-  </div>
+  <div id="loginOverlay"><div class="login-card"><img src="logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'"><h2 style="margin:0 0 20px 0; color:var(--primary)">Sistem Girişi</h2><button onclick="enterSystem('personel')" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button><button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button><p style="font-size: 10px; color: var(--text); opacity: 0.7; margin-top: 20px;">TURKMEDYA TEKNİK V63</p></div></div>
   
   <div id="talepModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10001; display:none; align-items:center; justify-content:center;">
     <div class="login-card" style="width: 320px; border: 2px solid var(--blue);">
@@ -44,6 +36,16 @@
     </div>
   </div>
 
+  <div id="adminLoginModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10001; display:none; align-items:center; justify-content:center;">
+      <div class="login-card" style="width: 320px; border: 2px solid var(--primary);">
+          <h3 style="margin-top:0; color:var(--primary)">Yönetici Girişi</h3>
+          <input type="email" id="adminEmail" placeholder="E-posta Adresi" style="width:100%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid var(--border); background:var(--card-bg); color:var(--text);">
+          <input type="password" id="adminPassword" placeholder="Şifre (****)" style="width:100%; padding:10px; margin-bottom:15px; border-radius:8px; border:1px solid var(--border); background:var(--card-bg); color:var(--text);">
+          <button onclick="adminGirisYap()" class="btn-main-action" style="background:var(--blue); width:100%; padding:12px;">GİRİŞ YAP</button>
+          <button onclick="document.getElementById('adminLoginModal').style.display='none'" style="background:none; border:none; color:var(--danger); margin-top:10px; cursor:pointer; font-weight:bold;">İptal</button>
+      </div>
+  </div>
+
   <div id="panelOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; display:none;" onclick="toggleAdminPanel()"></div>
   
   <div class="app-wrapper" id="appMain">
@@ -51,14 +53,15 @@
     <div id="yorgunlukUyari" class="yorgunluk-bar no-print"></div>
     
     <header class="main-header no-print">
-      <div style="display: flex; align-items: center; gap: 10px;">
-          <img src="logo.png" alt="Logo" style="height: 35px;">
+      <div style="display: flex; align-items: center; gap: 15px;">
+          <img src="logo.png" alt="Logo" style="max-height: 40px; max-width: 160px; object-fit: contain;">
           <div>
-              <h1 style="margin:0; font-size:16px;">TEKNiK EKİP ÇALIŞMA LİSTESİ V64</h1>
+              <h1 style="margin:0; font-size:16px; white-space: nowrap;">TEKNiK EKİP ÇALIŞMA LİSTESİ V63</h1>
               <p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p>
           </div>
       </div>
-      <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: center; align-items: center;">
+      
+      <div style="display:flex; gap:5px; flex-wrap: wrap; justify-content: flex-end; align-items: center; flex: 1; padding-left: 10px;">
           <input type="text" id="tabloArama" onkeyup="tabloFiltrele()" placeholder="🔍 Listede Ara (Örn: Ahmet)..." class="search-input no-print">
           <button onclick="geriAl()" class="btn-main-action admin-only" id="btnUndo" style="background:var(--warning); color:#000; display:none; font-weight:800; border:2px solid #000;">🔙 GERİ AL</button>
           
@@ -66,6 +69,7 @@
           <button onclick="buluttanYukle()" class="btn-main-action admin-only" style="background:#4285f4">🔄 BULUTTAN YÜKLE</button>
           <button onclick="toggleTheme()" class="btn-main-action" style="background:#64748b" id="themeBtn">🌙</button>
           <button onclick="excelIndir()" class="btn-main-action admin-only" style="background:#16a34a">EXCEL</button>
+          
           <button onclick="ulastirmaExcelIndir()" class="btn-main-action admin-only" style="background:#881337; border:1px solid #fff;">🚌 ULAŞTIRMA LİSTESİ</button>
           <button onclick="window.print()" class="btn-main-action" style="background:var(--blue)" id="btnPdf">PDF / YAZDIR</button>
           <button onclick="haftaDegistir(7)" class="btn-main-action" style="background:#475569">İleri »</button>
@@ -108,11 +112,12 @@
         <div class="admin-tabs">
             <button id="btn-tab-personel" class="tab-btn active" onclick="tabDegistir('personel')"><i>👥</i>Personel</button>
             <button id="btn-tab-talepler" class="tab-btn" onclick="tabDegistir('talepler')"><i>📩</i>Talepler</button>
-            <button id="btn-tab-degisim" class="tab-btn" onclick="tabDegistir('degisim')"><i>⚡</i>Değişim</button>
             
+            <button id="btn-tab-transfer" class="tab-btn" onclick="tabDegistir('transfer')"><i>🔄</i>Birim Değişimi</button>
+            
+            <button id="btn-tab-degisim" class="tab-btn" onclick="tabDegistir('degisim')"><i>⚡</i>Günlük Swap</button>
             <button id="btn-tab-yillik" class="tab-btn" onclick="tabDegistir('yillik')"><i>🏖️</i>Yıllık</button>
             <button id="btn-tab-istatistik" class="tab-btn" onclick="tabDegistir('istatistik')"><i>📊</i>Analiz</button>
-            <button id="btn-tab-loglar" class="tab-btn" onclick="tabDegistir('loglar')"><i>🕵️</i>Loglar</button>
             
             <button id="btn-tab-birimler" class="tab-btn" onclick="tabDegistir('birimler')"><i>🏢</i>Birimler</button>
             <button id="btn-tab-saatler" class="tab-btn" onclick="tabDegistir('saatler')"><i>⏰</i>Saatler</button>
@@ -120,17 +125,50 @@
             
             <button id="btn-tab-kapasite" class="tab-btn" onclick="tabDegistir('kapasite')"><i>🔢</i>Kapasite</button>
             <button id="btn-tab-sistem" class="tab-btn" onclick="tabDegistir('sistem')"><i>⚙️</i>Sistem</button>
+            <button id="btn-tab-loglar" class="tab-btn" onclick="tabDegistir('loglar')"><i>🕵️</i>Loglar</button>
         </div>
         
         <div id="tab-personel" class="tab-content"><div style="background:var(--card-bg); padding:15px; border-radius:12px; border:1px solid var(--border); box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:15px;"><input type="text" id="yeniPersInp" placeholder="Ad Soyad Giriniz" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);"><select id="yeniPersBirimSec" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);"></select><button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success); padding:12px;">+ YENİ PERSONEL EKLE</button></div><div id="persListesiAdmin"></div></div>
+        
+        <div id="tab-transfer" class="tab-content hidden">
+            <div class="swap-container" style="border-color:var(--warning); margin-bottom: 20px;">
+                <div class="swap-header" style="color:var(--warning);">🔀 İKİ PERSONELİ KARŞILIKLI TAKAS ET</div>
+                <div style="font-size:10px; color:var(--text); opacity:0.8; margin-bottom:15px; text-align:center;">İki personelin BİRİMLERİ ve O HAFTAKİ VARDİYALARI yer değiştirir. (Süresizdir, eski haline getirene kadar kalıcıdır).</div>
+                <div class="swap-row">
+                    <label class="swap-label">1. PERSONEL (Örn: KJ'deki Ahmet):</label>
+                    <select id="takasPers1" class="swap-select"><option value="">Seçiniz...</option></select>
+                </div>
+                <div class="swap-row">
+                    <label class="swap-label">2. PERSONEL (Örn: Playout'taki Mehmet):</label>
+                    <select id="takasPers2" class="swap-select"><option value="">Seçiniz...</option></select>
+                </div>
+                <button onclick="karsilikliTakasYap()" class="btn-main-action" style="background:var(--warning); color:black; width:100%; padding:12px; margin-top:10px;">BİRİMLERİ VE GRUPLARI TAKAS ET</button>
+            </div>
+
+            <div class="swap-container" style="border-color:var(--blue);">
+                <div class="swap-header" style="color:var(--blue);">🔄 TEKLİ KALICI TRANSFER</div>
+                <div class="swap-row">
+                    <label class="swap-label">PERSONEL SEÇİN:</label>
+                    <select id="transferPersSecim" class="swap-select"><option value="">Seçiniz...</option></select>
+                </div>
+                <div class="swap-row">
+                    <label class="swap-label">GİDECEĞİ YENİ BİRİM:</label>
+                    <select id="transferBirimSecim" class="swap-select"><option value="">Birim Seçiniz...</option></select>
+                </div>
+                <button onclick="kaliciTransferYap()" class="btn-main-action" style="background:var(--blue); width:100%; padding:12px; margin-top:10px;">BİRİMİNİ KALICI OLARAK DEĞİŞTİR</button>
+            </div>
+        </div>
+
+        <div id="tab-degisim" class="tab-content hidden">
+            <div class="swap-container"><div class="swap-header">⚡ GÜNLÜK PERSONEL DEĞİŞİMİ / SWAP</div><div class="swap-row"><label class="swap-label">MEVCUT BİRİMİ KULLANILACAK OLAN (AYRILAN):</label><select id="swapKaynakPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row"><label class="swap-label">⬇️ YERİNE GEÇECEK (İZİNCİ KİŞİ) ⬇️</label><select id="swapHedefPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row"><label class="swap-label">HANGİ GÜNLER?</label><div class="swap-days"><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="0"> Pzt</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="1"> Sal</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="2"> Çar</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="3"> Per</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="4"> Cum</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="5"> Cmt</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="6"> Paz</label></div></div><button onclick="degisimiUygula()" class="btn-main-action" style="background:var(--blue); width:100%; padding:12px; margin-top:10px;">DEĞİŞİMİ UYGULA</button></div>
+            <div id="aktifDegisimlerListesi" style="margin-top:20px;"></div><button onclick="tumDegisimleriTemizle()" class="btn-main-action" style="background:var(--danger); width:100%; margin-top:20px;">🗑️ TÜM DEĞİŞİMLERİ SİL</button>
+        </div>
+
         <div id="tab-birimler" class="tab-content hidden"><div id="birimListesiAdmin"></div></div>
         <div id="tab-saatler" class="tab-content hidden"><div id="saatListesiAdmin"></div></div>
         <div id="tab-sabitle" class="tab-content hidden"><div id="sabitListeAdmin"></div></div>
         <div id="tab-kapasite" class="tab-content hidden"><div id="kapasiteTable"></div></div>
-        <div id="tab-degisim" class="tab-content hidden">
-            <div class="swap-container"><div class="swap-header">⚡ PERSONEL DEĞİŞİMİ / SWAP</div><div class="swap-row"><label class="swap-label">MEVCUT BİRİMİ KULLANILACAK OLAN (AYRILAN):</label><select id="swapKaynakPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row"><label class="swap-label">⬇️ YERİNE GEÇECEK (İZİNCİ KİŞİ) ⬇️</label><select id="swapHedefPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row"><label class="swap-label">HANGİ GÜNLER?</label><div class="swap-days"><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="0"> Pzt</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="1"> Sal</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="2"> Çar</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="3"> Per</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="4"> Cum</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="5"> Cmt</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="6"> Paz</label></div></div><button onclick="degisimiUygula()" class="btn-main-action" style="background:var(--blue); width:100%; padding:12px; margin-top:10px;">DEĞİŞİMİ UYGULA</button></div>
-            <div id="aktifDegisimlerListesi" style="margin-top:20px;"></div><button onclick="tumDegisimleriTemizle()" class="btn-main-action" style="background:var(--danger); width:100%; margin-top:20px;">🗑️ TÜM DEĞİŞİMLERİ SİL</button>
-        </div>
+        
         <div id="tab-yillik" class="tab-content hidden"><div class="swap-container" style="border-color:var(--yillik-izin); background:var(--card-bg);"><div class="swap-header" style="color:var(--yillik-izin);">🏖️ TOPLU YILLIK İZİN İŞLEME</div><div class="swap-row"><label class="swap-label">PERSONEL SEÇİN:</label><select id="yillikIzinPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row"><div style="flex:1;"><label class="swap-label">BAŞLANGIÇ:</label><input type="date" id="yillikBaslangic" class="swap-select"></div><div style="flex:1;"><label class="swap-label">BİTİŞ (Dahil):</label><input type="date" id="yillikBitis" class="swap-select"></div></div><button onclick="yillikIzinIsle()" class="btn-main-action" style="background:var(--yillik-izin); width:100%; padding:12px; margin-top:10px;">İZİNLERİ İŞLE</button><div style="margin-top:10px; font-size:10px; color:var(--text); opacity:0.7; text-align:center;">* Seçilen tarih aralığına "YILLIK İZİN" yazılacak ve sistem gerektiğinde yerine başkasını atayacaktır.</div></div></div>
         
         <div id="tab-loglar" class="tab-content hidden">
