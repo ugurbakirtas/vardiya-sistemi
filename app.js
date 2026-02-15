@@ -818,7 +818,6 @@ function ulastirmaExcelIndir() {
             .time-col { background-color: #881337; color: #ffffff; width: 80px; font-size: 12pt; border: 2pt solid #000; }
             .shift-off { background-color: #fca5a5; color: #000000; }
             .name-box { margin-bottom: 2px; font-size: 10pt; display: block; }
-            .unit-label { font-size: 7pt; opacity: 0.8; display: block; margin-bottom: 2px; font-style: italic; }
         </style>
     </head>
     <body>
@@ -855,8 +854,8 @@ function ulastirmaExcelIndir() {
             });
 
             let cellContent = calisanlar.map(p => {
-                let birim = getGecerliBirim(p, i);
-                return `<span class="name-box">${p.ad} <span class="unit-label">(${birim})</span></span>`;
+                // 🌟 DÜZELTME: Birim bilgisi kaldırıldı, sadece isim basılıyor
+                return `<span class="name-box">${p.ad}</span>`;
             }).join('<br>');
 
             html += `<td style="background-color:${bgColor}; color:${textColor};">${cellContent}</td>`;
@@ -1516,7 +1515,6 @@ function kisiselProgramiGoster() {
     alan.innerHTML = html;
 }
 
-// 🌟 EXCEL YÜKLEME (TÜRKÇE KARAKTER VE İZİN/IZIN/İzin SORUNU ÇÖZÜLDÜ) 🌟
 function exceldenVardiyaYukle() {
     const fileInput = document.getElementById('excelUploadInput');
     if (!fileInput.files.length) { showToast("Lütfen bir Excel dosyası seçin!", "warning"); return; }
@@ -1541,53 +1539,70 @@ function exceldenVardiyaYukle() {
                 let satirBasligi = row[0];
                 if(!satirBasligi || typeof satirBasligi !== 'string') return;
                 
-                let gercekTurkceBaslik = satirBasligi.toLocaleUpperCase('tr-TR').trim();
-                let standartBaslik = satirBasligi.toUpperCase().trim(); 
+                let bosluksuzBaslikTR = satirBasligi.replace(/\s+/g, '').toLocaleUpperCase('tr-TR');
+                let bosluksuzBaslikEN = satirBasligi.replace(/\s+/g, '').toUpperCase(); 
                 
                 let atanacakVardiya = null;
 
-                if (gercekTurkceBaslik.includes("İZİN") || standartBaslik.includes("IZIN") || standartBaslik.includes("OFF")) {
+                if (bosluksuzBaslikTR.includes("İZİN") || bosluksuzBaslikEN.includes("IZIN") || bosluksuzBaslikEN.includes("OFF")) {
                     atanacakVardiya = SHIFTS.IZIN;
-                } else if (gercekTurkceBaslik.includes("YILLIK") || standartBaslik.includes("YILLIK")) {
+                } else if (bosluksuzBaslikTR.includes("YILLIK") || bosluksuzBaslikEN.includes("YILLIK")) {
                     atanacakVardiya = SHIFTS.YILLIK;
                 } else {
-                    atanacakVardiya = state.saatler.find(s => s.includes(gercekTurkceBaslik) || s.replace(/[:\-\s]/g, "").includes(gercekTurkceBaslik.replace(/[:\-\s]/g, "")));
+                    let checkStr = satirBasligi.replace(/[:\-\s]/g, "");
+                    atanacakVardiya = state.saatler.find(s => s.replace(/[:\-\s]/g, "").includes(checkStr));
                     
                     if(!atanacakVardiya) {
-                        if(gercekTurkceBaslik.startsWith("00") || gercekTurkceBaslik.startsWith("24") || gercekTurkceBaslik.includes("GECE")) {
+                        if(bosluksuzBaslikTR.startsWith("00") || bosluksuzBaslikTR.startsWith("24") || bosluksuzBaslikTR.includes("GECE")) {
                             atanacakVardiya = SHIFTS.GECE;
                         }
-                        else if(gercekTurkceBaslik.includes("06") || gercekTurkceBaslik.includes("07")) {
+                        else if(bosluksuzBaslikTR.includes("06") || bosluksuzBaslikTR.includes("07")) {
                             atanacakVardiya = SHIFTS.SABAH;
                         }
-                        else if(gercekTurkceBaslik.includes("09") || gercekTurkceBaslik.includes("10")) {
+                        else if(bosluksuzBaslikTR.includes("09") || bosluksuzBaslikTR.includes("10")) {
                             atanacakVardiya = SHIFTS.GUNDUZ;
                         }
-                        else if(gercekTurkceBaslik.includes("16") || gercekTurkceBaslik.includes("15") || gercekTurkceBaslik.includes("14")) {
+                        else if(bosluksuzBaslikTR.includes("16") || bosluksuzBaslikTR.includes("15") || bosluksuzBaslikTR.includes("14")) {
                             atanacakVardiya = SHIFTS.AKSAM;
                         }
                     }
                 }
 
-                if (!atanacakVardiya) return; 
-
                 for (let i = 1; i <= 7; i++) {
                     let hucreVerisi = row[i];
                     if (hucreVerisi && typeof hucreVerisi === 'string') {
-                        let temizIsim = hucreVerisi
+                        
+                        let upCell = hucreVerisi.toLocaleUpperCase('tr-TR');
+                        let cellVardiya = atanacakVardiya;
+                        
+                        let bosluksuzHucre = upCell.replace(/\s+/g, '');
+                        if (bosluksuzHucre.includes("YILLIK")) cellVardiya = SHIFTS.YILLIK;
+                        else if (bosluksuzHucre.includes("İZİN") || bosluksuzHucre.includes("IZIN") || bosluksuzHucre.includes("OFF") || bosluksuzHucre.includes("RAPOR")) cellVardiya = SHIFTS.IZIN;
+                        
+                        if (!cellVardiya) continue;
+
+                        let temizIsim = upCell
+                            .replace(/İ\s*Z\s*İ\s*N\s*L\s*İ/g, '')
+                            .replace(/İ\s*Z\s*İ\s*N/g, '')
+                            .replace(/I\s*Z\s*I\s*N/g, '')
+                            .replace(/Y\s*I\s*L\s*L\s*I\s*K/g, '')
+                            .replace(/R\s*A\s*P\s*O\s*R\s*L\s*U/g, '')
+                            .replace(/R\s*A\s*P\s*O\s*R/g, '')
+                            .replace(/O\s*F\s*F/g, '')
                             .split('*')[0] 
                             .split('-')[0] 
                             .replace(/[\d\(\)\.]/g, '') 
                             .trim();
-                            
-                        let temizIsimTR = temizIsim.toLocaleUpperCase('tr-TR');
-                        let temizIsimEN = temizIsim.toUpperCase();
 
-                        let personel = state.personeller.find(p => p.ad === temizIsimTR || p.ad === temizIsimEN);
+                        let personel = state.personeller.find(p => p.ad === temizIsim);
+                        
+                        if (!personel && temizIsim.length > 2) {
+                            personel = state.personeller.find(p => p.ad.replace(/\s/g,'').includes(temizIsim.replace(/\s/g,'')) || temizIsim.replace(/\s/g,'').includes(p.ad.replace(/\s/g,'')));
+                        }
                         
                         if (personel) {
                             let gunIdx = i - 1;
-                            state.manuelAtamalar[`${hKey}_${personel.ad}_${gunIdx}`] = atanacakVardiya;
+                            state.manuelAtamalar[`${hKey}_${personel.ad}_${gunIdx}`] = cellVardiya;
                             islenenSayisi++;
                         }
                     }
@@ -1700,6 +1715,104 @@ function gorunumAyarlariYukleUI() {
         if(state.gorunum.panelYaziRenk) document.getElementById('panelTextPicker').value = state.gorunum.panelYaziRenk;
         if(state.gorunum.isimRenk) document.getElementById('isimRenkPicker').value = state.gorunum.isimRenk;
     }
+}
+
+// 🌟 ULAŞTIRMA LİSTESİ İNDİRME (Birim Bilgileri Kaldırıldı, Tasarım Aynen Korundu) 🌟
+function ulastirmaExcelIndir() {
+    const hKey = getDateKey(currentMonday);
+    let html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            table { border-collapse: collapse; font-family: 'Arial', sans-serif; width: 100%; table-layout: fixed; }
+            col { width: 200px; }
+            td, th { 
+                font-family: 'Arial', sans-serif;
+                font-size: 8pt; 
+                font-weight: bold;
+                height: 20px;
+                border: 0.5pt solid #000;
+                text-align: center; 
+                vertical-align: middle; 
+                padding: 5px;
+                white-space: normal;
+                word-wrap: break-word;
+            }
+            .header-main { background-color: #881337; color: #ffffff; font-size: 14pt; height: 40px; border: 2pt solid #000; }
+            .header-day { background-color: #881337; color: #ffffff; font-size: 11pt; height: 30px; border: 1pt solid #000; }
+            .time-col { background-color: #881337; color: #ffffff; width: 80px; font-size: 12pt; border: 2pt solid #000; }
+            .shift-off { background-color: #fca5a5; color: #000000; }
+            .name-box { margin-bottom: 2px; font-size: 10pt; display: block; }
+        </style>
+    </head>
+    <body>
+        <table>
+            <colgroup><col span="8" width="200"></colgroup>
+            <tr>
+                <th class="header-main">SAAT</th>
+                ${GUNLER.map((g, i) => {
+                    let d = new Date(currentMonday);
+                    d.setDate(d.getDate() + i);
+                    let dateStr = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    return `<th class="header-day">${dateStr}<br>${g.toUpperCase()}</th>`;
+                }).join('')}
+            </tr>`;
+
+    state.saatler.forEach((s, index) => {
+        let bgColor = (state.saatAyarlari && state.saatAyarlari[s]) ? state.saatAyarlari[s].renk : (DEFAULT_SHIFT_COLORS[index] || '#dbeafe');
+        let textColor = "#000000";
+
+        html += `<tr>`;
+        html += `<td class="time-col">${s.split('–')[0]}<br><span style="font-size:8pt;">${s.split('–')[1]}</span></td>`;
+
+        for(let i=0; i<7; i++) {
+            let calisanlar = state.personeller.filter(p => {
+                let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
+                if (v === SHIFTS.IZIN || v === SHIFTS.BOS || v === SHIFTS.YILLIK || !v) return false;
+                return v === s;
+            });
+
+            calisanlar.sort((a, b) => {
+                let birimA = getGecerliBirim(a, i);
+                let birimB = getGecerliBirim(b, i);
+                return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB);
+            });
+
+            let cellContent = calisanlar.map(p => {
+                // 🌟 BİRİM BİLGİSİ KALDIRILDI
+                return `<span class="name-box">${p.ad}</span>`;
+            }).join('<br>');
+
+            html += `<td style="background-color:${bgColor}; color:${textColor};">${cellContent}</td>`;
+        }
+        html += `</tr>`;
+    });
+
+    html += `<tr><td class="time-col" style="background-color:#991b1b;">İZİN</td>`;
+    for(let i=0; i<7; i++) {
+        let izinliler = state.personeller.filter(p => {
+            let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
+            return (v === SHIFTS.IZIN || v === SHIFTS.BOS || !v || v === SHIFTS.YILLIK);
+        });
+        
+        let cellContent = izinliler.map(p => {
+            let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
+            let ek = v === SHIFTS.YILLIK ? " (YILLIK)" : "";
+            return `<span class="name-box">${p.ad}${ek}</span>`;
+        }).join('<br>');
+        
+        html += `<td class="shift-off">${cellContent}</td>`;
+    }
+    html += `</tr>`;
+
+    html += `</table></body></html>`;
+    
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `Ulastirma_Listesi_${hKey}.xls`;
+    a.click();
 }
 
 window.onload = async () => { 
