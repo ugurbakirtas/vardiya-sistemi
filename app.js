@@ -854,7 +854,6 @@ function ulastirmaExcelIndir() {
             });
 
             let cellContent = calisanlar.map(p => {
-                // 🌟 DÜZELTME: Birim bilgisi kaldırıldı, sadece isim basılıyor
                 return `<span class="name-box">${p.ad}</span>`;
             }).join('<br>');
 
@@ -1025,14 +1024,26 @@ function refreshUI() {
         </div>`;
     }).join('');
     
+    // 🌟 YENİ: SÜRESİZ TRANSFER VE TAKAS ALANLARI GÜNCELLENİYOR
+    const optionsHtml = "<option value=''>Seçiniz...</option>" + state.personeller.sort((a,b) => a.ad.localeCompare(b.ad)).map(p => `<option value="${p.ad}">${p.ad} (${p.birim})</option>`).join('');
+    
     const swapKaynak = document.getElementById('swapKaynakPersonel');
     const swapHedef = document.getElementById('swapHedefPersonel');
-    const optionsHtml = "<option value=''>Seçiniz...</option>" + state.personeller.sort((a,b) => a.ad.localeCompare(b.ad)).map(p => `<option value="${p.ad}">${p.ad} (${p.birim})</option>`).join('');
     if(swapKaynak) swapKaynak.innerHTML = optionsHtml;
     if(swapHedef) swapHedef.innerHTML = optionsHtml;
     
     const yillikSel = document.getElementById('yillikIzinPersonel');
     if(yillikSel) yillikSel.innerHTML = optionsHtml;
+
+    const transferPers = document.getElementById('transferPersSecim');
+    const transferBirim = document.getElementById('transferBirimSecim');
+    const takas1 = document.getElementById('takasPers1');
+    const takas2 = document.getElementById('takasPers2');
+    
+    if(transferPers) transferPers.innerHTML = optionsHtml;
+    if(takas1) takas1.innerHTML = optionsHtml;
+    if(takas2) takas2.innerHTML = optionsHtml;
+    if(transferBirim) transferBirim.innerHTML = "<option value=''>Birim Seçiniz...</option>" + state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
 
     if(!state.geciciGorevler) state.geciciGorevler = {};
     let degisimHtml = "<strong style='color:var(--text);'>Aktif Değişimler (Bu Hafta):</strong><br>";
@@ -1048,7 +1059,7 @@ function refreshUI() {
             hasDegisim = true;
         }
     });
-    document.getElementById("aktifDegisimlerListesi").innerHTML = hasDegisim ? degisimHtml : `<div style='font-size:10px; color:var(--text); opacity:0.6;'>Bu hafta için aktif değişim yok.</div>`;
+    document.getElementById("aktifDegisimlerListesi").innerHTML = hasDegisim ? degisimHtml : `<div style='font-size:10px; color:var(--text); opacity:0.6;'>Bu hafta için günlük aktif değişim yok.</div>`;
 
     if(state.logs) {
         document.getElementById('logListesi').innerHTML = state.logs.map(l => 
@@ -1170,6 +1181,57 @@ function vardiyaBul(pAd, gIdx) {
     return null;
 }
 
+// 🌟 YENİ: SÜRESİZ KALICI TRANSFER FONKSİYONU 🌟
+function kaliciTransferYap() {
+    const pAd = document.getElementById('transferPersSecim').value;
+    const yBirim = document.getElementById('transferBirimSecim').value;
+    if(!pAd || !yBirim) { showToast("Lütfen personel ve birim seçin.", "warning"); return; }
+    
+    const p = state.personeller.find(x => x.ad === pAd);
+    if(p) {
+        saveStateToHistory();
+        p.birim = yBirim;
+        save(); bulutaKaydet(); tabloyuOlustur(); refreshUI();
+        showToast(`${pAd} personeli kalıcı olarak ${yBirim} birimine transfer edildi!`, "success");
+        logKoy(`${pAd} -> ${yBirim} kalıcı transfer.`);
+    }
+}
+
+// 🌟 YENİ: KARŞILIKLI BİRİM VE VARDİYA TAKASI (SÜRESİZ) 🌟
+function karsilikliTakasYap() {
+    const p1Ad = document.getElementById('takasPers1').value;
+    const p2Ad = document.getElementById('takasPers2').value;
+    if(!p1Ad || !p2Ad || p1Ad === p2Ad) { showToast("Farklı iki personel seçin.", "warning"); return; }
+    
+    const p1 = state.personeller.find(x => x.ad === p1Ad);
+    const p2 = state.personeller.find(x => x.ad === p2Ad);
+    
+    if(p1 && p2) {
+        saveStateToHistory();
+        
+        // 1. Adım: Birimleri Süresiz Takas Et (Kart rengi değişmesi için)
+        let tempBirim = p1.birim;
+        p1.birim = p2.birim;
+        p2.birim = tempBirim;
+        
+        // 2. Adım: Bu haftaki vardiyaları da kendi aralarında yer değiştir
+        const hKey = getDateKey(currentMonday);
+        for(let i=0; i<7; i++) {
+            let k1 = `${hKey}_${p1.ad}_${i}`;
+            let k2 = `${hKey}_${p2.ad}_${i}`;
+            let v1 = state.manuelAtamalar[k1];
+            let v2 = state.manuelAtamalar[k2];
+            
+            if(v2) state.manuelAtamalar[k1] = v2; else delete state.manuelAtamalar[k1];
+            if(v1) state.manuelAtamalar[k2] = v1; else delete state.manuelAtamalar[k2];
+        }
+        
+        save(); bulutaKaydet(); tabloyuOlustur(); refreshUI();
+        showToast(`${p1Ad} ve ${p2Ad} başarıyla takas edildi!`, "success");
+        logKoy(`${p1Ad} ile ${p2Ad} karşılıklı takas edildi.`);
+    }
+}
+
 function degisimiUygula() {
     saveStateToHistory(); 
     const pKaynakAd = document.getElementById('swapKaynakPersonel').value; 
@@ -1220,7 +1282,7 @@ function degisimiUygula() {
     state.manuelAtamalar[returnKey] = SHIFTS.IZIN;
     save();
     showToast("✅ Değişim başarıyla uygulandı.", "success");
-    logKoy(`${pKaynakAd} <-> ${pHedefAd} SWAP işlemi yapıldı.`);
+    logKoy(`${pKaynakAd} <-> ${pHedefAd} Günlük SWAP işlemi yapıldı.`);
     refreshUI();
     tabloyuOlustur();
     document.querySelectorAll('.swap-day-cb').forEach(cb => cb.checked = false);
@@ -1441,15 +1503,24 @@ function anlikSenkronizasyonBaslat() {
     });
 }
 
+// 🌟 YENİ: MOBİLDE HAFIZA ÖZELLİĞİ
 function mobilListeyiGuncelle() {
     const select = document.getElementById('mobilPersonelSecim');
-    const mevcutSecim = select.value;
+    let mevcutSecim = select.value;
+    
+    // Eğer o an seçim yoksa (sayfa yeni açılmışsa) cihazın hafızasına bak
+    if(!mevcutSecim) {
+        mevcutSecim = localStorage.getItem(PREFIX + 'mobilSecim') || "";
+    }
+    
     const siraliPersonel = [...state.personeller].sort((a,b) => a.ad.localeCompare(b.ad));
     let html = '<option value="">Personel Seçiniz...</option>';
     siraliPersonel.forEach(p => {
         html += `<option value="${p.ad}" ${p.ad === mevcutSecim ? 'selected' : ''}>${p.ad}</option>`;
     });
     select.innerHTML = html;
+    
+    // Hafızada varsa listeyi otomatik göster
     if(mevcutSecim) kisiselProgramiGoster();
 }
 
@@ -1470,16 +1541,22 @@ async function mobilVerileriYenile() {
     btn.innerHTML = oldText;
 }
 
+// 🌟 YENİ: HOŞGELDİN MESAJI VE HAFIZAYA KAYDETME
 function kisiselProgramiGoster() {
     const isim = document.getElementById('mobilPersonelSecim').value;
     const alan = document.getElementById('kisiselListeSonuc');
     
     if(!isim) {
         alan.innerHTML = "<div style='text-align:center; padding:30px; color:var(--text); opacity:0.6;'>Lütfen isminizi seçiniz.</div>";
+        localStorage.removeItem(PREFIX + 'mobilSecim'); // Seçim temizlendiyse hafızayı sil
         return;
     }
 
-    let html = "";
+    // Seçilen ismi cihazın hafızasına kaydet
+    localStorage.setItem(PREFIX + 'mobilSecim', isim);
+
+    // Hoş geldin mesajı eklendi
+    let html = `<div style="text-align:center; margin-bottom:15px;"><span style="font-size:24px;">👋</span><br><strong style="color:var(--primary); font-size:14px;">Hoş geldin, ${isim}</strong></div>`;
 
     GUNLER.forEach((gunAdi, index) => {
         let d = new Date(currentMonday);
@@ -1717,7 +1794,6 @@ function gorunumAyarlariYukleUI() {
     }
 }
 
-// 🌟 ULAŞTIRMA LİSTESİ İNDİRME (Birim Bilgileri Kaldırıldı, Tasarım Aynen Korundu) 🌟
 function ulastirmaExcelIndir() {
     const hKey = getDateKey(currentMonday);
     let html = `
@@ -1780,7 +1856,6 @@ function ulastirmaExcelIndir() {
             });
 
             let cellContent = calisanlar.map(p => {
-                // 🌟 BİRİM BİLGİSİ KALDIRILDI
                 return `<span class="name-box">${p.ad}</span>`;
             }).join('<br>');
 
