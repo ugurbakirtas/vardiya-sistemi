@@ -91,16 +91,23 @@ function hideLoading() { document.getElementById('loadingOverlay').style.display
 function showToast(message, type = "info") {
     const container = document.getElementById('toastContainer');
     if (!container) return; 
+    
     const toast = document.createElement('div');
     toast.className = `toast-msg toast-${type}`;
+    
     let icon = "ℹ️";
     if(type === "success") icon = "✅";
     if(type === "error") icon = "❌";
     if(type === "warning") icon = "⚠️";
+    
     toast.innerHTML = `<span>${icon}</span> <div>${message}</div><div class="toast-progress"></div>`;
     container.appendChild(toast);
+    
     setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 500); }, 3000);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 500); 
+    }, 3000);
 }
 
 function getDateKey(d) {
@@ -112,18 +119,7 @@ function getDateKey(d) {
 
 let currentMonday = getMonday(new Date());
 
-async function hassasAyarlariYukle() { 
-    try { 
-        const snap = await database.ref('config').once('value'); 
-        if (snap.exists()) { 
-            const config = snap.val(); 
-            if(config.telegram_api) TELEGRAM_API = config.telegram_api; 
-            if(config.telegram_id) TELEGRAM_ID = config.telegram_id; 
-        } 
-    } catch (error) { 
-        console.error(error); 
-    } 
-}
+async function hassasAyarlariYukle() { try { const snap = await database.ref('config').once('value'); if (snap.exists()) { const config = snap.val(); if(config.telegram_api) TELEGRAM_API = config.telegram_api; if(config.telegram_id) TELEGRAM_ID = config.telegram_id; } } catch (error) { console.error(error); } }
 
 function verileriGuvenliHaleGetir() {
     if(!state) state = {};
@@ -151,68 +147,49 @@ function verileriGuvenliHaleGetir() {
     if(!state.gorunum) state.gorunum = { panelRenk: null, panelYaziRenk: null, isimRenk: null, isimKalinlik: 700 };
 }
 
-function enterSystem(role) { 
+async function enterSystem(role) { 
     if (role === 'admin') { 
-        document.getElementById('adminLoginModal').style.display = 'flex';
-        setTimeout(() => document.getElementById('adminLoginModal').classList.add('show'), 10);
+        const email = prompt("Yönetici E-posta:"); const password = prompt("Yönetici Şifresi:"); 
+        if (!email || !password) return; 
+        showLoading(); 
+        try { 
+            await firebase.auth().signInWithEmailAndPassword(email, password); 
+            isAdmin = true; 
+            await hassasAyarlariYukle(); 
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); 
+            document.getElementById('persTalepArea').style.display = 'none'; 
+            checkUrlActions(); 
+            gorunumAyarlariYukle(); 
+            showToast("Yönetici girişi başarılı!", "success"); 
+        } catch (error) { 
+            hideLoading();
+            showToast("Hatalı giriş: " + error.message, "error"); 
+            return; 
+        } 
     } else { 
         isAdmin = false; 
         showLoading(); 
-        database.ref('vardiya_data').once('value').then(snap => {
-            if(snap.exists()) { 
+        try {
+             const snap = await database.ref('vardiya_data').once('value');
+             if(snap.exists()) { 
                  state = snap.val(); 
                  verileriGuvenliHaleGetir(); 
                  save(); 
-            }
-            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); 
-            document.getElementById('persTalepArea').style.display = 'block'; 
-            showToast("Sisteme hoş geldiniz.", "info");
-            document.getElementById('loginOverlay').style.opacity = '0'; 
-            setTimeout(() => { 
-                document.getElementById('loginOverlay').style.display = 'none'; 
-                document.getElementById('appMain').style.display = 'block'; 
-                tabloyuOlustur(); 
-                hideLoading(); 
-            }, 500); 
-        }).catch(e => {
-            hideLoading();
-            console.log("Veri çekilemedi: " + e.message); 
-        });
-    } 
-}
+             }
+        } catch(e) { console.log("Veri çekilemedi: " + e.message); }
 
-async function adminGirisYap() {
-    const email = document.getElementById('adminEmail').value;
-    const password = document.getElementById('adminPassword').value;
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); 
+        document.getElementById('persTalepArea').style.display = 'block'; 
+        showToast("Sisteme hoş geldiniz.", "info");
+    } 
     
-    if(!email || !password) {
-        showToast("Lütfen e-posta ve şifrenizi girin.", "warning");
-        return;
-    }
-
-    showLoading(); 
-    try { 
-        await firebase.auth().signInWithEmailAndPassword(email, password); 
-        isAdmin = true; 
-        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); 
-        document.getElementById('persTalepArea').style.display = 'none'; 
-        checkUrlActions(); 
-        gorunumAyarlariYukle(); 
-        
-        document.getElementById('adminLoginModal').style.display = 'none';
-        document.getElementById('loginOverlay').style.opacity = '0'; 
-        setTimeout(() => { 
-            document.getElementById('loginOverlay').style.display = 'none'; 
-            document.getElementById('appMain').style.display = 'block'; 
-            tabloyuOlustur(); 
-            hideLoading(); 
-            showToast("Yönetici girişi başarılı!", "success"); 
-        }, 500); 
-
-    } catch (error) { 
-        hideLoading();
-        showToast("Hatalı giriş: Şifre veya E-posta yanlış.", "error"); 
-    } 
+    document.getElementById('loginOverlay').style.opacity = '0'; 
+    setTimeout(() => { 
+        document.getElementById('loginOverlay').style.display = 'none'; 
+        document.getElementById('appMain').style.display = 'block'; 
+        tabloyuOlustur(); 
+        hideLoading(); 
+    }, 500); 
 }
 
 function checkUrlActions() { const urlParams = new URLSearchParams(window.location.search); const action = urlParams.get('action'); const talepId = urlParams.get('id'); if((action === 'onay' || action === 'red') && talepId) { talepIslem(talepId, action); window.history.replaceState({}, document.title, window.location.pathname); } }
@@ -230,23 +207,9 @@ function talepGonder() {
     const appUrl = window.location.href.split('?')[0]; 
     
     if (TELEGRAM_API && TELEGRAM_ID) {
-        fetch(`https://api.telegram.org/bot${TELEGRAM_API}/sendMessage`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ 
-                chat_id: TELEGRAM_ID, 
-                text: `🔔 *YENİ VARDİYA TALEBİ*\n\n👤 *Personel:* ${ad}\n📅 *Tarih:* ${tarih}\n📝 *Vardiya:* ${tur}`, 
-                parse_mode: 'Markdown', 
-                reply_markup: { 
-                    inline_keyboard: [[
-                        { text: "✅ SİTEYE GİT VE ONAYLA", url: `${appUrl}?action=onay&id=${talepId}` }, 
-                        { text: "❌ SİTEYE GİT VE REDDET", url: `${appUrl}?action=red&id=${talepId}` }
-                    ]] 
-                } 
-            }) 
-        }).catch(e => console.log("Telegram Bildirimi Gönderilemedi."));
+        fetch(`https://api.telegram.org/bot${TELEGRAM_API}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: TELEGRAM_ID, text: `🔔 *YENİ VARDİYA TALEBİ*\n\n👤 *Personel:* ${ad}\n📅 *Tarih:* ${tarih}\n📝 *Vardiya:* ${tur}`, parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "✅ SİTEYE GİT VE ONAYLA", url: `${appUrl}?action=onay&id=${talepId}` }, { text: "❌ SİTEYE GİT VE REDDET", url: `${appUrl}?action=red&id=${talepId}` }]] } }) }); 
     } else {
-        console.warn("Telegram API bilgileri eksik. Sistem kaydedildi ama bildirim gitmedi.");
+        console.warn("Telegram API Key Firebase'de bulunamadı. Bildirim gönderilmedi ancak talep sisteme kaydedildi.");
     }
     
     showToast("Talebiniz yöneticiye iletildi.", "success"); 
@@ -398,12 +361,14 @@ function yillikIzinIsle() {
 function vardiyaUretVeKaydet() {
     if(!isAdmin) return;
     saveStateToHistory(); 
+    
     const hKey = getDateKey(currentMonday);
     const prevMonday = new Date(currentMonday); prevMonday.setDate(prevMonday.getDate() - 7);
     const prevHKey = getDateKey(prevMonday);
     
     let tempProg = {}; 
     let calis = {};
+    
     verileriGuvenliHaleGetir();
 
     const safeAssign = (p, day, shift) => {
@@ -709,49 +674,80 @@ function vardiyaUretVeKaydet() {
     adim6_EksikleriKapatVeKaydet();
 }
 
-function excelHtmlOlustur() {
+
+function excelIndir() {
     const hKey = getDateKey(currentMonday);
+    
+    // EXCEL ÖZELLEŞTİRMELERİ
+    // Arial font, 7pt boyut, Kalın (Bold), Özel Kenarlıklar
+    // Sütun genişliği Excel'de 24.76 yaklaşık 180-190px'e denk gelir.
+    // Satır yüksekliği 14 yaklaşık 19px'e denk gelir.
+    
     let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
     <head>
         <meta charset="UTF-8">
         <style>
             @page { mso-page-orientation: landscape; }
             table { border-collapse: collapse; font-family: 'Arial', sans-serif; width: 100%; table-layout: fixed; }
+            
+            /* SÜTUN GENİŞLİĞİ: Excel'de 24.76 birim ~ 190px */
             col { width: 190px; }
+            
             td, th { 
+                /* HÜCRE STİLİ: Arial, 7pt, Kalın */
                 font-family: 'Arial', sans-serif;
                 font-size: 7pt;
                 font-weight: bold;
+                
+                /* SATIR YÜKSEKLİĞİ: 14 birim ~ 19px */
                 height: 19px; 
                 line-height: 14px;
+                
                 text-align: center; 
                 vertical-align: middle;
+                
+                /* BİRİM İÇİ İNCE KENARLIK */
                 border: 0.5pt solid #000000;
+                
+                /* TAŞMAYI ENGELLE (Word Wrap) */
                 white-space: normal; 
                 word-wrap: break-word; 
             }
+            
             .title { background: #1e293b; color: white; font-size: 12pt; padding:10px; border: 2pt solid #000; }
             .header { background: #f8fafc; color: #1e293b; font-size: 10pt; padding:8px; border: 1pt solid #000; }
+            
+            /* BİRİM BAŞLIKLARI: Arial, 12pt, Kalın, KALIN KENARLIK */
             .unit-header {
                 font-family: 'Arial', sans-serif;
                 font-size: 12pt;
                 font-weight: bold;
                 color: white;
+                
+                /* KALIN KENARLIK (Birimler arası ayrım) */
                 border-top: 2.0pt solid #000000;
                 border-bottom: 2.0pt solid #000000;
                 border-left: 2.0pt solid #000000;
                 border-right: 2.0pt solid #000000;
             }
-            .first-col { border-right: 1.0pt solid #000000; }
+            
+            /* Saatin olduğu ilk sütun için ekstra kalın kenarlık opsiyonel */
+            .first-col {
+                border-right: 1.0pt solid #000000;
+            }
         </style>
     </head>
     <body>
         <table>
-            <colgroup><col span="8" width="190"></colgroup>
+            <colgroup>
+                <col span="8" width="190">
+            </colgroup>
+            
             <tr><th colspan="8" class="title">TEKNİK PERSONEL ÇALIŞMA LİSTESİ</th></tr>
             <tr><th class="header">SAAT</th>${GUNLER.map(g => `<th class="header">${g.toUpperCase()}</th>`).join('')}</tr>`;
     
     state.birimler.forEach(birim => {
+        // BİRİM BAŞLIĞI (KALIN KENARLIKLI)
         html += `<tr><td colspan="8" class="unit-header" style="background:${getBirimColor(birim)};">${birim}</td></tr>`;
         
         [...state.saatler, "İZİN"].forEach((s, index) => {
@@ -766,14 +762,21 @@ function excelHtmlOlustur() {
                 pByDay[i] = list; if(list.length > maxRow) maxRow = list.length;
             }
 
+            // RENKLER (Tablo ve Ayarlar ile senkronize)
             let rowColor = (state.saatAyarlari && state.saatAyarlari[s]) ? state.saatAyarlari[s].renk : (DEFAULT_SHIFT_COLORS[index] || '#ffffff');
             if(s === "İZİN") rowColor = "#fef2f2"; 
 
             for(let r=0; r<maxRow; r++) {
                 html += `<tr>`;
-                if(r === 0) html += `<td rowspan="${maxRow}" class="first-col" style="background-color:${rowColor};">${s}</td>`;
+                
+                if(r === 0) {
+                    // Saat hücresi
+                    html += `<td rowspan="${maxRow}" class="first-col" style="background-color:${rowColor};">${s}</td>`;
+                }
+
                 for(let i=0; i<7; i++) {
                     let pName = pByDay[i][r] ? pByDay[i][r].ad : "";
+                    // Hücreler (İnce kenarlık stili CSS'den geliyor)
                     html += `<td style="background-color:${rowColor};">${pName}</td>`;
                 }
                 html += `</tr>`;
@@ -782,28 +785,25 @@ function excelHtmlOlustur() {
     });
     
     html += `</table></body></html>`;
-    return html;
-}
-
-function excelIndir() {
-    const html = excelHtmlOlustur();
-    const hKey = getDateKey(currentMonday);
     const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Vardiya_${hKey}.xls`; a.click();
 }
 
 function ulastirmaExcelIndir() {
     const hKey = getDateKey(currentMonday);
+    
+    // ULAŞTIRMA LİSTESİ İÇİN DE AYNI FORMAT (Tutarlılık için)
     let html = `
     <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
     <head>
         <meta charset="UTF-8">
         <style>
             table { border-collapse: collapse; font-family: 'Arial', sans-serif; width: 100%; table-layout: fixed; }
+            /* Ulaştırma listesi biraz daha geniş olabilir */
             col { width: 200px; }
             td, th { 
                 font-family: 'Arial', sans-serif;
-                font-size: 8pt; 
+                font-size: 8pt; /* Biraz daha okunaklı olsun */
                 font-weight: bold;
                 height: 20px;
                 border: 0.5pt solid #000;
@@ -818,6 +818,7 @@ function ulastirmaExcelIndir() {
             .time-col { background-color: #881337; color: #ffffff; width: 80px; font-size: 12pt; border: 2pt solid #000; }
             .shift-off { background-color: #fca5a5; color: #000000; }
             .name-box { margin-bottom: 2px; font-size: 10pt; display: block; }
+            .unit-label { font-size: 7pt; opacity: 0.8; display: block; margin-bottom: 2px; font-style: italic; }
         </style>
     </head>
     <body>
@@ -854,7 +855,8 @@ function ulastirmaExcelIndir() {
             });
 
             let cellContent = calisanlar.map(p => {
-                return `<span class="name-box">${p.ad}</span>`;
+                let birim = getGecerliBirim(p, i);
+                return `<span class="name-box">${p.ad} <span class="unit-label">(${birim})</span></span>`;
             }).join('<br>');
 
             html += `<td style="background-color:${bgColor}; color:${textColor};">${cellContent}</td>`;
@@ -1024,26 +1026,14 @@ function refreshUI() {
         </div>`;
     }).join('');
     
-    // 🌟 YENİ: SÜRESİZ TRANSFER VE TAKAS ALANLARI GÜNCELLENİYOR
-    const optionsHtml = "<option value=''>Seçiniz...</option>" + state.personeller.sort((a,b) => a.ad.localeCompare(b.ad)).map(p => `<option value="${p.ad}">${p.ad} (${p.birim})</option>`).join('');
-    
     const swapKaynak = document.getElementById('swapKaynakPersonel');
     const swapHedef = document.getElementById('swapHedefPersonel');
+    const optionsHtml = "<option value=''>Seçiniz...</option>" + state.personeller.sort((a,b) => a.ad.localeCompare(b.ad)).map(p => `<option value="${p.ad}">${p.ad} (${p.birim})</option>`).join('');
     if(swapKaynak) swapKaynak.innerHTML = optionsHtml;
     if(swapHedef) swapHedef.innerHTML = optionsHtml;
     
     const yillikSel = document.getElementById('yillikIzinPersonel');
     if(yillikSel) yillikSel.innerHTML = optionsHtml;
-
-    const transferPers = document.getElementById('transferPersSecim');
-    const transferBirim = document.getElementById('transferBirimSecim');
-    const takas1 = document.getElementById('takasPers1');
-    const takas2 = document.getElementById('takasPers2');
-    
-    if(transferPers) transferPers.innerHTML = optionsHtml;
-    if(takas1) takas1.innerHTML = optionsHtml;
-    if(takas2) takas2.innerHTML = optionsHtml;
-    if(transferBirim) transferBirim.innerHTML = "<option value=''>Birim Seçiniz...</option>" + state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
 
     if(!state.geciciGorevler) state.geciciGorevler = {};
     let degisimHtml = "<strong style='color:var(--text);'>Aktif Değişimler (Bu Hafta):</strong><br>";
@@ -1059,7 +1049,7 @@ function refreshUI() {
             hasDegisim = true;
         }
     });
-    document.getElementById("aktifDegisimlerListesi").innerHTML = hasDegisim ? degisimHtml : `<div style='font-size:10px; color:var(--text); opacity:0.6;'>Bu hafta için günlük aktif değişim yok.</div>`;
+    document.getElementById("aktifDegisimlerListesi").innerHTML = hasDegisim ? degisimHtml : `<div style='font-size:10px; color:var(--text); opacity:0.6;'>Bu hafta için aktif değişim yok.</div>`;
 
     if(state.logs) {
         document.getElementById('logListesi').innerHTML = state.logs.map(l => 
@@ -1181,57 +1171,6 @@ function vardiyaBul(pAd, gIdx) {
     return null;
 }
 
-// 🌟 YENİ: SÜRESİZ KALICI TRANSFER FONKSİYONU 🌟
-function kaliciTransferYap() {
-    const pAd = document.getElementById('transferPersSecim').value;
-    const yBirim = document.getElementById('transferBirimSecim').value;
-    if(!pAd || !yBirim) { showToast("Lütfen personel ve birim seçin.", "warning"); return; }
-    
-    const p = state.personeller.find(x => x.ad === pAd);
-    if(p) {
-        saveStateToHistory();
-        p.birim = yBirim;
-        save(); bulutaKaydet(); tabloyuOlustur(); refreshUI();
-        showToast(`${pAd} personeli kalıcı olarak ${yBirim} birimine transfer edildi!`, "success");
-        logKoy(`${pAd} -> ${yBirim} kalıcı transfer.`);
-    }
-}
-
-// 🌟 YENİ: KARŞILIKLI BİRİM VE VARDİYA TAKASI (SÜRESİZ) 🌟
-function karsilikliTakasYap() {
-    const p1Ad = document.getElementById('takasPers1').value;
-    const p2Ad = document.getElementById('takasPers2').value;
-    if(!p1Ad || !p2Ad || p1Ad === p2Ad) { showToast("Farklı iki personel seçin.", "warning"); return; }
-    
-    const p1 = state.personeller.find(x => x.ad === p1Ad);
-    const p2 = state.personeller.find(x => x.ad === p2Ad);
-    
-    if(p1 && p2) {
-        saveStateToHistory();
-        
-        // 1. Adım: Birimleri Süresiz Takas Et (Kart rengi değişmesi için)
-        let tempBirim = p1.birim;
-        p1.birim = p2.birim;
-        p2.birim = tempBirim;
-        
-        // 2. Adım: Bu haftaki vardiyaları da kendi aralarında yer değiştir
-        const hKey = getDateKey(currentMonday);
-        for(let i=0; i<7; i++) {
-            let k1 = `${hKey}_${p1.ad}_${i}`;
-            let k2 = `${hKey}_${p2.ad}_${i}`;
-            let v1 = state.manuelAtamalar[k1];
-            let v2 = state.manuelAtamalar[k2];
-            
-            if(v2) state.manuelAtamalar[k1] = v2; else delete state.manuelAtamalar[k1];
-            if(v1) state.manuelAtamalar[k2] = v1; else delete state.manuelAtamalar[k2];
-        }
-        
-        save(); bulutaKaydet(); tabloyuOlustur(); refreshUI();
-        showToast(`${p1Ad} ve ${p2Ad} başarıyla takas edildi!`, "success");
-        logKoy(`${p1Ad} ile ${p2Ad} karşılıklı takas edildi.`);
-    }
-}
-
 function degisimiUygula() {
     saveStateToHistory(); 
     const pKaynakAd = document.getElementById('swapKaynakPersonel').value; 
@@ -1282,7 +1221,7 @@ function degisimiUygula() {
     state.manuelAtamalar[returnKey] = SHIFTS.IZIN;
     save();
     showToast("✅ Değişim başarıyla uygulandı.", "success");
-    logKoy(`${pKaynakAd} <-> ${pHedefAd} Günlük SWAP işlemi yapıldı.`);
+    logKoy(`${pKaynakAd} <-> ${pHedefAd} SWAP işlemi yapıldı.`);
     refreshUI();
     tabloyuOlustur();
     document.querySelectorAll('.swap-day-cb').forEach(cb => cb.checked = false);
@@ -1464,7 +1403,7 @@ function vardiyaAta(pAd, gIdx, vardiya) {
     showToast(`${pAd} vardiyası güncellendi.`, "success");
 }
 
-function toggleTheme() { const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"; document.documentElement.setAttribute("data-theme", t); localStorage.setItem(PREFIX + "theme", t); gorunumAyarlariYukle(); }
+function toggleTheme() { const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"; document.documentElement.setAttribute("data-theme", t); localStorage.setItem(PREFIX + "theme", t); gorunumAyarlariYukle(); } // Tema değişince ayarları yeniden yükle
 function vardiyaSifirla() { if(confirm("Haftayı temizle?")) { saveStateToHistory(); const hKey = getDateKey(currentMonday); Object.keys(state.manuelAtamalar).forEach(k => { if(k.startsWith(hKey)) delete state.manuelAtamalar[k]; }); save(); tabloyuOlustur(); logKoy("Bu haftanın vardiyası sıfırlandı."); showToast("Hafta temizlendi.", "info"); } }
 function tamSifirla() { if(confirm("Sıfırla?")) { localStorage.clear(); location.reload(); } }
 function jsonYedekAl() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "Yedek.json"); dl.click(); showToast("Yedek indirildi.", "success"); }
@@ -1495,7 +1434,7 @@ function anlikSenkronizasyonBaslat() {
             verileriGuvenliHaleGetir(); 
             save(); 
             tabloyuOlustur();
-            gorunumAyarlariYukle();
+            gorunumAyarlariYukle(); // Her veri geldiğinde görünümü de tazele
             if(isAdmin) refreshUI();
             console.log("Sistem: Veriler eşitlendi.");
         }
@@ -1503,24 +1442,15 @@ function anlikSenkronizasyonBaslat() {
     });
 }
 
-// 🌟 YENİ: MOBİLDE HAFIZA ÖZELLİĞİ
 function mobilListeyiGuncelle() {
     const select = document.getElementById('mobilPersonelSecim');
-    let mevcutSecim = select.value;
-    
-    // Eğer o an seçim yoksa (sayfa yeni açılmışsa) cihazın hafızasına bak
-    if(!mevcutSecim) {
-        mevcutSecim = localStorage.getItem(PREFIX + 'mobilSecim') || "";
-    }
-    
+    const mevcutSecim = select.value;
     const siraliPersonel = [...state.personeller].sort((a,b) => a.ad.localeCompare(b.ad));
     let html = '<option value="">Personel Seçiniz...</option>';
     siraliPersonel.forEach(p => {
         html += `<option value="${p.ad}" ${p.ad === mevcutSecim ? 'selected' : ''}>${p.ad}</option>`;
     });
     select.innerHTML = html;
-    
-    // Hafızada varsa listeyi otomatik göster
     if(mevcutSecim) kisiselProgramiGoster();
 }
 
@@ -1541,22 +1471,16 @@ async function mobilVerileriYenile() {
     btn.innerHTML = oldText;
 }
 
-// 🌟 YENİ: HOŞGELDİN MESAJI VE HAFIZAYA KAYDETME
 function kisiselProgramiGoster() {
     const isim = document.getElementById('mobilPersonelSecim').value;
     const alan = document.getElementById('kisiselListeSonuc');
     
     if(!isim) {
         alan.innerHTML = "<div style='text-align:center; padding:30px; color:var(--text); opacity:0.6;'>Lütfen isminizi seçiniz.</div>";
-        localStorage.removeItem(PREFIX + 'mobilSecim'); // Seçim temizlendiyse hafızayı sil
         return;
     }
 
-    // Seçilen ismi cihazın hafızasına kaydet
-    localStorage.setItem(PREFIX + 'mobilSecim', isim);
-
-    // Hoş geldin mesajı eklendi
-    let html = `<div style="text-align:center; margin-bottom:15px;"><span style="font-size:24px;">👋</span><br><strong style="color:var(--primary); font-size:14px;">Hoş geldin, ${isim}</strong></div>`;
+    let html = "";
 
     GUNLER.forEach((gunAdi, index) => {
         let d = new Date(currentMonday);
@@ -1615,71 +1539,49 @@ function exceldenVardiyaYukle() {
 
                 let satirBasligi = row[0];
                 if(!satirBasligi || typeof satirBasligi !== 'string') return;
-                
-                let bosluksuzBaslikTR = satirBasligi.replace(/\s+/g, '').toLocaleUpperCase('tr-TR');
-                let bosluksuzBaslikEN = satirBasligi.replace(/\s+/g, '').toUpperCase(); 
-                
+                satirBasligi = satirBasligi.toUpperCase().trim();
+
                 let atanacakVardiya = null;
 
-                if (bosluksuzBaslikTR.includes("İZİN") || bosluksuzBaslikEN.includes("IZIN") || bosluksuzBaslikEN.includes("OFF")) {
+                if (satirBasligi.includes("İZİN") || satirBasligi.includes("OFF")) {
                     atanacakVardiya = SHIFTS.IZIN;
-                } else if (bosluksuzBaslikTR.includes("YILLIK") || bosluksuzBaslikEN.includes("YILLIK")) {
+                } else if (satirBasligi.includes("YILLIK")) {
                     atanacakVardiya = SHIFTS.YILLIK;
                 } else {
-                    let checkStr = satirBasligi.replace(/[:\-\s]/g, "");
-                    atanacakVardiya = state.saatler.find(s => s.replace(/[:\-\s]/g, "").includes(checkStr));
+                    atanacakVardiya = state.saatler.find(s => s.includes(satirBasligi) || s.replace(/[:\-\s]/g, "").includes(satirBasligi.replace(/[:\-\s]/g, "")));
                     
                     if(!atanacakVardiya) {
-                        if(bosluksuzBaslikTR.startsWith("00") || bosluksuzBaslikTR.startsWith("24") || bosluksuzBaslikTR.includes("GECE")) {
+                        if(satirBasligi.startsWith("00") || satirBasligi.startsWith("24") || satirBasligi.includes("GECE")) {
                             atanacakVardiya = SHIFTS.GECE;
                         }
-                        else if(bosluksuzBaslikTR.includes("06") || bosluksuzBaslikTR.includes("07")) {
+                        else if(satirBasligi.includes("06") || satirBasligi.includes("07")) {
                             atanacakVardiya = SHIFTS.SABAH;
                         }
-                        else if(bosluksuzBaslikTR.includes("09") || bosluksuzBaslikTR.includes("10")) {
+                        else if(satirBasligi.includes("09") || satirBasligi.includes("10")) {
                             atanacakVardiya = SHIFTS.GUNDUZ;
                         }
-                        else if(bosluksuzBaslikTR.includes("16") || bosluksuzBaslikTR.includes("15") || bosluksuzBaslikTR.includes("14")) {
+                        else if(satirBasligi.includes("16") || satirBasligi.includes("15") || satirBasligi.includes("14")) {
                             atanacakVardiya = SHIFTS.AKSAM;
                         }
                     }
                 }
 
+                if (!atanacakVardiya) return; 
+
                 for (let i = 1; i <= 7; i++) {
                     let hucreVerisi = row[i];
                     if (hucreVerisi && typeof hucreVerisi === 'string') {
-                        
-                        let upCell = hucreVerisi.toLocaleUpperCase('tr-TR');
-                        let cellVardiya = atanacakVardiya;
-                        
-                        let bosluksuzHucre = upCell.replace(/\s+/g, '');
-                        if (bosluksuzHucre.includes("YILLIK")) cellVardiya = SHIFTS.YILLIK;
-                        else if (bosluksuzHucre.includes("İZİN") || bosluksuzHucre.includes("IZIN") || bosluksuzHucre.includes("OFF") || bosluksuzHucre.includes("RAPOR")) cellVardiya = SHIFTS.IZIN;
-                        
-                        if (!cellVardiya) continue;
-
-                        let temizIsim = upCell
-                            .replace(/İ\s*Z\s*İ\s*N\s*L\s*İ/g, '')
-                            .replace(/İ\s*Z\s*İ\s*N/g, '')
-                            .replace(/I\s*Z\s*I\s*N/g, '')
-                            .replace(/Y\s*I\s*L\s*L\s*I\s*K/g, '')
-                            .replace(/R\s*A\s*P\s*O\s*R\s*L\s*U/g, '')
-                            .replace(/R\s*A\s*P\s*O\s*R/g, '')
-                            .replace(/O\s*F\s*F/g, '')
+                        let temizIsim = hucreVerisi
                             .split('*')[0] 
                             .split('-')[0] 
                             .replace(/[\d\(\)\.]/g, '') 
-                            .trim();
+                            .trim().toUpperCase();
 
                         let personel = state.personeller.find(p => p.ad === temizIsim);
                         
-                        if (!personel && temizIsim.length > 2) {
-                            personel = state.personeller.find(p => p.ad.replace(/\s/g,'').includes(temizIsim.replace(/\s/g,'')) || temizIsim.replace(/\s/g,'').includes(p.ad.replace(/\s/g,'')));
-                        }
-                        
                         if (personel) {
                             let gunIdx = i - 1;
-                            state.manuelAtamalar[`${hKey}_${personel.ad}_${gunIdx}`] = cellVardiya;
+                            state.manuelAtamalar[`${hKey}_${personel.ad}_${gunIdx}`] = atanacakVardiya;
                             islenenSayisi++;
                         }
                     }
@@ -1692,7 +1594,7 @@ function exceldenVardiyaYukle() {
                 alert(`✅ Excel Başarıyla İşlendi!\n\nToplam ${islenenSayisi} hücre sisteme aktarıldı.`);
                 logKoy(`Excel yüklendi (${islenenSayisi} atama)`);
             } else {
-                showToast("⚠️ Excel okundu ancak eşleşen veri bulunamadı. Formatı veya isimleri kontrol edin.", "warning");
+                showToast("⚠️ Excel okundu ancak eşleşen veri bulunamadı.", "warning");
             }
 
         } catch (err) {
@@ -1703,6 +1605,9 @@ function exceldenVardiyaYukle() {
     reader.readAsArrayBuffer(file);
 }
 
+// -------------------------------------------------------------
+// 🔥 YENİ: GELİŞMİŞ GÖRÜNÜM AYARLARI FONKSİYONLARI 🔥
+// -------------------------------------------------------------
 function gorunumModalAc() {
     gorunumAyarlariYukleUI();
     document.getElementById('gorunumModal').style.display = 'flex';
@@ -1719,7 +1624,7 @@ function panelRenkSifirla() {
     if(!state.gorunum) state.gorunum = {};
     state.gorunum.panelRenk = null;
     save();
-    gorunumAyarlariYukle(); 
+    gorunumAyarlariYukle(); // Varsayılan temaya döndürür
 }
 
 function panelYaziRenkSec(renk) {
@@ -1758,13 +1663,16 @@ function isimKalinlikDegis(val) {
 }
 
 function gorunumAyarlariYukle() {
+    // 1. Panel Arkaplanı
     if(state.gorunum && state.gorunum.panelRenk) {
         document.documentElement.style.setProperty('--custom-panel-bg', state.gorunum.panelRenk);
     } else {
+        // Varsayılana dön
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         document.documentElement.style.setProperty('--custom-panel-bg', isDark ? '#020617' : '#f1f5f9');
     }
 
+    // 2. Panel Yazı Rengi
     if(state.gorunum && state.gorunum.panelYaziRenk) {
         document.documentElement.style.setProperty('--custom-panel-text', state.gorunum.panelYaziRenk);
     } else {
@@ -1772,6 +1680,7 @@ function gorunumAyarlariYukle() {
         document.documentElement.style.setProperty('--custom-panel-text', isDark ? '#f1f5f9' : '#334155');
     }
 
+    // 3. İsim Rengi
     if(state.gorunum && state.gorunum.isimRenk) {
         document.documentElement.style.setProperty('--name-color', state.gorunum.isimRenk);
     } else {
@@ -1779,6 +1688,7 @@ function gorunumAyarlariYukle() {
         document.documentElement.style.setProperty('--name-color', isDark ? '#ffffff' : '#334155');
     }
 
+    // 4. İsim Kalınlığı
     if(state.gorunum && state.gorunum.isimKalinlik) {
         document.documentElement.style.setProperty('--name-weight', state.gorunum.isimKalinlik);
     } else {
@@ -1787,108 +1697,14 @@ function gorunumAyarlariYukle() {
 }
 
 function gorunumAyarlariYukleUI() {
+    // Modal açıldığında inputların değerlerini güncelle
     if(state.gorunum) {
         if(state.gorunum.isimKalinlik) document.getElementById('isimKalinlikRange').value = state.gorunum.isimKalinlik;
         if(state.gorunum.panelYaziRenk) document.getElementById('panelTextPicker').value = state.gorunum.panelYaziRenk;
         if(state.gorunum.isimRenk) document.getElementById('isimRenkPicker').value = state.gorunum.isimRenk;
     }
 }
-
-function ulastirmaExcelIndir() {
-    const hKey = getDateKey(currentMonday);
-    let html = `
-    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            table { border-collapse: collapse; font-family: 'Arial', sans-serif; width: 100%; table-layout: fixed; }
-            col { width: 200px; }
-            td, th { 
-                font-family: 'Arial', sans-serif;
-                font-size: 8pt; 
-                font-weight: bold;
-                height: 20px;
-                border: 0.5pt solid #000;
-                text-align: center; 
-                vertical-align: middle; 
-                padding: 5px;
-                white-space: normal;
-                word-wrap: break-word;
-            }
-            .header-main { background-color: #881337; color: #ffffff; font-size: 14pt; height: 40px; border: 2pt solid #000; }
-            .header-day { background-color: #881337; color: #ffffff; font-size: 11pt; height: 30px; border: 1pt solid #000; }
-            .time-col { background-color: #881337; color: #ffffff; width: 80px; font-size: 12pt; border: 2pt solid #000; }
-            .shift-off { background-color: #fca5a5; color: #000000; }
-            .name-box { margin-bottom: 2px; font-size: 10pt; display: block; }
-        </style>
-    </head>
-    <body>
-        <table>
-            <colgroup><col span="8" width="200"></colgroup>
-            <tr>
-                <th class="header-main">SAAT</th>
-                ${GUNLER.map((g, i) => {
-                    let d = new Date(currentMonday);
-                    d.setDate(d.getDate() + i);
-                    let dateStr = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                    return `<th class="header-day">${dateStr}<br>${g.toUpperCase()}</th>`;
-                }).join('')}
-            </tr>`;
-
-    state.saatler.forEach((s, index) => {
-        let bgColor = (state.saatAyarlari && state.saatAyarlari[s]) ? state.saatAyarlari[s].renk : (DEFAULT_SHIFT_COLORS[index] || '#dbeafe');
-        let textColor = "#000000";
-
-        html += `<tr>`;
-        html += `<td class="time-col">${s.split('–')[0]}<br><span style="font-size:8pt;">${s.split('–')[1]}</span></td>`;
-
-        for(let i=0; i<7; i++) {
-            let calisanlar = state.personeller.filter(p => {
-                let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
-                if (v === SHIFTS.IZIN || v === SHIFTS.BOS || v === SHIFTS.YILLIK || !v) return false;
-                return v === s;
-            });
-
-            calisanlar.sort((a, b) => {
-                let birimA = getGecerliBirim(a, i);
-                let birimB = getGecerliBirim(b, i);
-                return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB);
-            });
-
-            let cellContent = calisanlar.map(p => {
-                return `<span class="name-box">${p.ad}</span>`;
-            }).join('<br>');
-
-            html += `<td style="background-color:${bgColor}; color:${textColor};">${cellContent}</td>`;
-        }
-        html += `</tr>`;
-    });
-
-    html += `<tr><td class="time-col" style="background-color:#991b1b;">İZİN</td>`;
-    for(let i=0; i<7; i++) {
-        let izinliler = state.personeller.filter(p => {
-            let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
-            return (v === SHIFTS.IZIN || v === SHIFTS.BOS || !v || v === SHIFTS.YILLIK);
-        });
-        
-        let cellContent = izinliler.map(p => {
-            let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
-            let ek = v === SHIFTS.YILLIK ? " (YILLIK)" : "";
-            return `<span class="name-box">${p.ad}${ek}</span>`;
-        }).join('<br>');
-        
-        html += `<td class="shift-off">${cellContent}</td>`;
-    }
-    html += `</tr>`;
-
-    html += `</table></body></html>`;
-    
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `Ulastirma_Listesi_${hKey}.xls`;
-    a.click();
-}
+// -------------------------------------------------------------
 
 window.onload = async () => { 
     if(localStorage.getItem(PREFIX + "theme") === "dark") {
@@ -1912,6 +1728,7 @@ window.onload = async () => {
             
             checkUrlActions();
             
+            // AYARLARI YÜKLE
             verileriGuvenliHaleGetir();
             gorunumAyarlariYukle();
             tabloyuOlustur(); 

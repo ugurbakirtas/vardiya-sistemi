@@ -62,14 +62,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 /* Buzlu Cam (Glassmorphism) Efekti */
 #loginOverlay { 
     position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-    background: linear-gradient(135deg, #0f172a 0%, #334155 100%); /* Varsayılan koyu gradyan */
+    background: linear-gradient(135deg, #0f172a 0%, #334155 100%); 
     z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; 
     transition: 0.5s; 
-    backdrop-filter: blur(10px); /* Arka planı bulanıklaştırır */
+    backdrop-filter: blur(10px); 
 }
 
 .login-card { 
-    background: rgba(255, 255, 255, 0.9); /* Hafif şeffaf beyaz */
+    background: rgba(255, 255, 255, 0.9); 
     padding: 40px; border-radius: 24px; 
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); 
     text-align: center; width: 340px; 
@@ -79,7 +79,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 }
 
 [data-theme="dark"] .login-card {
-    background: rgba(30, 41, 59, 0.85); /* Koyu modda şeffaf gri */
+    background: rgba(30, 41, 59, 0.85); 
     border: 1px solid rgba(255,255,255,0.1);
 }
 
