@@ -1548,6 +1548,64 @@ function kisiselProgramiGoster() {
     
     if(!isim) {
         alan.innerHTML = "<div style='text-align:center; padding:30px; color:var(--text); opacity:0.6;'>Lütfen isminizi seçiniz.</div>";
+        localStorage.removeItem(PREFIX + 'mobilSecim'); 
+        return;
+    }
+
+    localStorage.setItem(PREFIX + 'mobilSecim', isim);
+    
+    // Personelin hangi birimde olduğunu buluyoruz
+    const secilenPersonel = state.personeller.find(p => p.ad === isim);
+
+    let html = `<div style="text-align:center; margin-bottom:15px;"><span style="font-size:24px;">👋</span><br><strong style="color:var(--primary); font-size:14px;">Hoş geldin, ${isim}</strong></div>`;
+
+    GUNLER.forEach((gunAdi, index) => {
+        let d = new Date(currentMonday);
+        d.setDate(d.getDate() + index);
+        let tarihStr = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+
+        let vardiya = vardiyaBul(isim, index);
+        if(!vardiya || vardiya === "BOŞ") vardiya = "İZİNLİ";
+
+        let renk = "#eee"; let yaziRengi = "#333"; let ikon = "⚪";
+        
+        if(vardiya.includes("06:30")) { renk = "#e0f2fe"; yaziRengi = "#0c4a6e"; ikon = "🌅"; }
+        else if(vardiya.includes("09:00")) { renk = "#f0fdf4"; yaziRengi = "#064e3b"; ikon = "☀️"; }
+        else if(vardiya.includes("16:00")) { renk = "#faf5ff"; yaziRengi = "#581c87"; ikon = "🌇"; }
+        else if(vardiya.includes("00:00")) { renk = "#fff7ed"; yaziRengi = "#7c2d12"; ikon = "🌙"; }
+        else if(vardiya === "İZİNLİ") { renk = "#fef2f2"; yaziRengi = "#ef4444"; ikon = "🏖️"; }
+        else if(vardiya === "YILLIK İZİN") { renk = "#9333ea"; yaziRengi = "#ffffff"; ikon = "✈️"; }
+        
+        // Birim Etiketi Oluşturma (KJ, Playout vs.)
+        let birimHtml = "";
+        if(secilenPersonel && vardiya !== "İZİNLİ" && vardiya !== "YILLIK İZİN") {
+            let gecerliBirim = getGecerliBirim(secilenPersonel, index);
+            let birimRengi = getBirimColor(gecerliBirim);
+            // Mobilde vardiya saatinin hemen üstünde şık bir etiket olarak görünecek
+            birimHtml = `<div style="font-size:10px; font-weight:bold; color:white; background-color:${birimRengi}; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:5px;">${gecerliBirim}</div><br>`;
+        }
+
+        html += `
+        <div class="modern-shift-card" style="background:var(--card-bg); border-radius:16px; padding:16px; margin-bottom:12px; box-shadow:0 4px 15px rgba(0,0,0,0.03); border:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+            <div class="m-date-group" style="display:flex; flex-direction:column; gap:2px;">
+                <span class="m-day-name" style="font-size:15px; font-weight:800; color:var(--text);">${gunAdi}</span>
+                <span class="m-date-text" style="font-size:11px; color:var(--text); opacity:0.7; font-weight:600;">${tarihStr}</span>
+            </div>
+            <div style="text-align: right;">
+                ${birimHtml}
+                <div class="m-shift-badge" style="background:${renk}; color:${yaziRengi}; padding:8px 14px; border-radius:12px; font-weight:700; font-size:13px; display:inline-flex; align-items:center; gap:8px;">
+                    <span style="font-size:16px;">${ikon}</span>
+                    <span>${vardiya}</span>
+                </div>
+            </div>
+        </div>`;
+    });
+
+    alan.innerHTML = html;
+}
+    
+    if(!isim) {
+        alan.innerHTML = "<div style='text-align:center; padding:30px; color:var(--text); opacity:0.6;'>Lütfen isminizi seçiniz.</div>";
         localStorage.removeItem(PREFIX + 'mobilSecim'); // Seçim temizlendiyse hafızayı sil
         return;
     }
