@@ -409,12 +409,6 @@ function vardiyaUretVeKaydet() {
     const safeAssign = (p, day, shift) => {
          if (tempProg[p.ad][day] !== null) return;
          if (shift === SHIFTS.IZIN) { tempProg[p.ad][day] = shift; return; }
-         
-         if (day === 0 && [SHIFTS.SABAH, SHIFTS.GUNDUZ].includes(shift)) {
-             let gecenPazar = state.manuelAtamalar[`${prevHKey}_${p.ad}_6`];
-             if ([SHIFTS.AKSAM, SHIFTS.GECE].includes(gecenPazar)) return; 
-         }
-
          const cap = (state.kapasite[`${p.birim}_${shift}`] || [0,0,0,0,0,0,0])[day];
          let currentCount = 0;
          state.personeller.filter(x => x.birim === p.birim).forEach(x => { if(tempProg[x.ad][day] === shift) currentCount++; });
@@ -555,37 +549,27 @@ function vardiyaUretVeKaydet() {
                     if (mevcut < hedef) {
                         let yedekAdaylar = state.personeller.filter(p => {
                             let birimUygun = getGecerliBirim(p, gun) === birim;
-                            let bostaVeyaIzinli = (tempProg[p.ad][gun] === null || tempProg[p.ad][gun] === SHIFTS.IZIN); 
-                            let yorgunDegil = calis[p.ad] < 7; 
+                            let bosta = (tempProg[p.ad][gun] === null); 
+                            let yorgunDegil = calis[p.ad] < 6;
+                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
                             let manuelVar = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`];
                             
-                            let dunVardiya = (gun > 0) ? tempProg[p.ad][gun-1] : state.manuelAtamalar[`${prevHKey}_${p.ad}_6`];
-                            let dunGece = (dunVardiya === SHIFTS.GECE);
-                            
-                            if ([SHIFTS.AKSAM, SHIFTS.GECE].includes(dunVardiya) && [SHIFTS.SABAH, SHIFTS.GUNDUZ].includes(saat)) {
-                                return false; 
+                            if (gun > 0) {
+                                let dunVardiya = tempProg[p.ad][gun-1];
+                                if ((dunVardiya === SHIFTS.AKSAM || dunVardiya === SHIFTS.GECE) && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) {
+                                    return false; 
+                                }
                             }
-                            
-                            return birimUygun && bostaVeyaIzinli && yorgunDegil && !dunGece && !manuelVar;
+                            return birimUygun && bosta && yorgunDegil && !dunGece && !manuelVar;
                         });
 
                         seededShuffle(yedekAdaylar, hKey + "yedek");
 
-                        yedekAdaylar.sort((a, b) => {
-                            let aDurum = tempProg[a.ad][gun] === null ? 0 : 1;
-                            let bDurum = tempProg[b.ad][gun] === null ? 0 : 1;
-                            return aDurum - bDurum;
-                        });
-
                         for (let p of yedekAdaylar) {
                             if (mevcut < hedef) {
-                                if(tempProg[p.ad][gun] === SHIFTS.IZIN || tempProg[p.ad][gun] === null) {
-                                    calis[p.ad]++;
-                                }
                                 tempProg[p.ad][gun] = saat;
+                                calis[p.ad]++;
                                 mevcut++;
-                            } else {
-                                break;
                             }
                         }
                     }
@@ -625,12 +609,10 @@ function vardiyaUretVeKaydet() {
                                 let cumaVardiya = tempProg[p.ad][4];
                                 if (cumaVardiya === SHIFTS.AKSAM || cumaVardiya === SHIFTS.GECE) return false;
                             }
-                            
-                            let dunVardiya = (gun > 0) ? tempProg[p.ad][gun-1] : state.manuelAtamalar[`${prevHKey}_${p.ad}_6`];
-                            if ([SHIFTS.AKSAM, SHIFTS.GECE].includes(dunVardiya) && [SHIFTS.SABAH, SHIFTS.GUNDUZ].includes(saat)) {
-                                return false;
+                            if (gun > 0) {
+                                let dun = tempProg[p.ad][gun-1];
+                                if ((dun === SHIFTS.AKSAM || dun === SHIFTS.GECE) && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) return false;
                             }
-                            
                             return true;
                         });
                         
@@ -688,12 +670,8 @@ function vardiyaUretVeKaydet() {
                     if (mvc < hdf) {
                         let ady = state.personeller.filter(p => {
                             let basic = getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null;
-                            
-                            let dunVardiya = (gun > 0) ? tempProg[p.ad][gun-1] : state.manuelAtamalar[`${prevHKey}_${p.ad}_6`];
-                            let dunAksamVeyaGece = [SHIFTS.AKSAM, SHIFTS.GECE].includes(dunVardiya);
-                            let yarinSabahVeyaGunduz = [SHIFTS.SABAH, SHIFTS.GUNDUZ].includes(saat);
-                            
-                            return basic && (calis[p.ad] < 6) && !(dunAksamVeyaGece && yarinSabahVeyaGunduz);
+                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
+                            return basic && (calis[p.ad] < 6) && !(dunGece && saat === SHIFTS.SABAH);
                         });
                         siralamaYap(ady, false); 
                         for (let p of ady) { if (mvc < hdf) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mvc++; } }
@@ -701,12 +679,8 @@ function vardiyaUretVeKaydet() {
                     if (mvc < hdf) {
                         let ady = state.personeller.filter(p => {
                             let basic = getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null;
-                            
-                            let dunVardiya = (gun > 0) ? tempProg[p.ad][gun-1] : state.manuelAtamalar[`${prevHKey}_${p.ad}_6`];
-                            let dunAksamVeyaGece = [SHIFTS.AKSAM, SHIFTS.GECE].includes(dunVardiya);
-                            let yarinSabahVeyaGunduz = [SHIFTS.SABAH, SHIFTS.GUNDUZ].includes(saat);
-                            
-                            return basic && !(dunAksamVeyaGece && yarinSabahVeyaGunduz);
+                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
+                            return basic && !(dunGece && saat === SHIFTS.SABAH);
                         });
                         siralamaYap(ady, false); 
                         for (let p of ady) { if (mvc < hdf) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mvc++; } }
@@ -718,21 +692,8 @@ function vardiyaUretVeKaydet() {
     }
 
     function adim6_EksikleriKapatVeKaydet() {
-        state.personeller.forEach(p => { 
-            const ayar = state.birimAyarlari[p.birim] || { tip: "HAVUZ" };
-            // HARİCİ / EXCEL birimlerine ASLA dokunmuyoruz.
-            if(ayar.tip === "HARICI") return; 
-            
-            for(let g=0; g<7; g++) { 
-                if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = SHIFTS.IZIN; 
-            } 
-        });
-        
-        state.personeller.forEach(p => { 
-            for(let i=0; i<7; i++) {
-                if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; 
-            }
-        });
+        state.personeller.forEach(p => { for(let g=0; g<7; g++) { if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = SHIFTS.IZIN; } });
+        state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
         
         save(); 
         logKoy("Otomatik vardiya oluşturuldu.");
@@ -829,6 +790,102 @@ function excelIndir() {
     const hKey = getDateKey(currentMonday);
     const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Vardiya_${hKey}.xls`; a.click();
+}
+
+function ulastirmaExcelIndir() {
+    const hKey = getDateKey(currentMonday);
+    let html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            table { border-collapse: collapse; font-family: 'Arial', sans-serif; width: 100%; table-layout: fixed; }
+            col { width: 200px; }
+            td, th { 
+                font-family: 'Arial', sans-serif;
+                font-size: 8pt; 
+                font-weight: bold;
+                height: 20px;
+                border: 0.5pt solid #000;
+                text-align: center; 
+                vertical-align: middle; 
+                padding: 5px;
+                white-space: normal;
+                word-wrap: break-word;
+            }
+            .header-main { background-color: #881337; color: #ffffff; font-size: 14pt; height: 40px; border: 2pt solid #000; }
+            .header-day { background-color: #881337; color: #ffffff; font-size: 11pt; height: 30px; border: 1pt solid #000; }
+            .time-col { background-color: #881337; color: #ffffff; width: 80px; font-size: 12pt; border: 2pt solid #000; }
+            .shift-off { background-color: #fca5a5; color: #000000; }
+            .name-box { margin-bottom: 2px; font-size: 10pt; display: block; }
+        </style>
+    </head>
+    <body>
+        <table>
+            <colgroup><col span="8" width="200"></colgroup>
+            <tr>
+                <th class="header-main">SAAT</th>
+                ${GUNLER.map((g, i) => {
+                    let d = new Date(currentMonday);
+                    d.setDate(d.getDate() + i);
+                    let dateStr = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    return `<th class="header-day">${dateStr}<br>${g.toUpperCase()}</th>`;
+                }).join('')}
+            </tr>`;
+
+    state.saatler.forEach((s, index) => {
+        let bgColor = (state.saatAyarlari && state.saatAyarlari[s]) ? state.saatAyarlari[s].renk : (DEFAULT_SHIFT_COLORS[index] || '#dbeafe');
+        let textColor = "#000000";
+
+        html += `<tr>`;
+        html += `<td class="time-col">${s.split('–')[0]}<br><span style="font-size:8pt;">${s.split('–')[1]}</span></td>`;
+
+        for(let i=0; i<7; i++) {
+            let calisanlar = state.personeller.filter(p => {
+                let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
+                if (v === SHIFTS.IZIN || v === SHIFTS.BOS || v === SHIFTS.YILLIK || !v) return false;
+                return v === s;
+            });
+
+            calisanlar.sort((a, b) => {
+                let birimA = getGecerliBirim(a, i);
+                let birimB = getGecerliBirim(b, i);
+                return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB);
+            });
+
+            let cellContent = calisanlar.map(p => {
+                return `<span class="name-box">${p.ad}</span>`;
+            }).join('<br>');
+
+            html += `<td style="background-color:${bgColor}; color:${textColor};">${cellContent}</td>`;
+        }
+        html += `</tr>`;
+    });
+
+    html += `<tr><td class="time-col" style="background-color:#991b1b;">İZİN</td>`;
+    for(let i=0; i<7; i++) {
+        let izinliler = state.personeller.filter(p => {
+            let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
+            return (v === SHIFTS.IZIN || v === SHIFTS.BOS || !v || v === SHIFTS.YILLIK);
+        });
+        
+        let cellContent = izinliler.map(p => {
+            let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
+            let ek = v === SHIFTS.YILLIK ? " (YILLIK)" : "";
+            return `<span class="name-box">${p.ad}${ek}</span>`;
+        }).join('<br>');
+        
+        html += `<td class="shift-off">${cellContent}</td>`;
+    }
+    html += `</tr>`;
+
+    html += `</table></body></html>`;
+    
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `Ulastirma_Listesi_${hKey}.xls`;
+    a.click();
 }
 
 function toggleAdminPanel() { 
@@ -967,6 +1024,7 @@ function refreshUI() {
         </div>`;
     }).join('');
     
+    // 🌟 YENİ: SÜRESİZ TRANSFER VE TAKAS ALANLARI GÜNCELLENİYOR
     const optionsHtml = "<option value=''>Seçiniz...</option>" + state.personeller.sort((a,b) => a.ad.localeCompare(b.ad)).map(p => `<option value="${p.ad}">${p.ad} (${p.birim})</option>`).join('');
     
     const swapKaynak = document.getElementById('swapKaynakPersonel');
@@ -1045,14 +1103,13 @@ function refreshUI() {
                 <option value="DONGU6">Ingest Tipi (6'lı Döngü)</option>
                 <option value="GRUP_ABC">3'lü Grup (Playout/Ses/KJ)</option>
                 <option value="AKILLI_HAFTASONU">Akıllı Haftasonu (Cuma Korumalı)</option>
-                <option value="HARICI">🔒 Sadece Excel/Harici (Oto Dokunmaz)</option>
             </select>
             <button onclick="birimEkle()" class="btn-main-action" style="background:var(--success); padding:8px 12px;">EKLE</button>
         </div>
         <div style="margin-top:5px; font-size:10px; color:var(--text); opacity:0.7; margin-bottom:10px;">
             * <b>Standart:</b> Kapasiteye göre boş olanı atar<br>
             * <b>Döngü:</b> 7/24 Sıralı sistem<br>
-            * <b>Harici:</b> Excel ile yüklenenler. Oto Vardiya karışmaz.
+            * <b>3'lü Grup:</b> Sabah/Akşam/İzin grubu (Playout mantığı)
         </div>
         ${state.birimler.map((b, i) => {
             let ayar = state.birimAyarlari[b] || {tip:"HAVUZ", renk:"#3b82f6"};
@@ -1060,8 +1117,7 @@ function refreshUI() {
                          (ayar.tip === "DONGU6" ? "6'lı Döngü" : 
                          (ayar.tip === "GRUP_ABC" ? "3'lü Grup" : 
                          (ayar.tip === "AKILLI_HAFTASONU" ? "Akıllı H.Sonu" : 
-                         (ayar.tip === "GECE_ONCELIKLI" ? "Gece Puanlı" : 
-                         (ayar.tip === "HARICI" ? "Excel/Harici" : "Standart")))));
+                         (ayar.tip === "GECE_ONCELIKLI" ? "Gece Puanlı" : "Standart"))));
             return `
             <div style="padding:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg); border-left: 5px solid ${getBirimColor(b)}">
                 <div>
@@ -1125,6 +1181,7 @@ function vardiyaBul(pAd, gIdx) {
     return null;
 }
 
+// 🌟 YENİ: SÜRESİZ KALICI TRANSFER FONKSİYONU 🌟
 function kaliciTransferYap() {
     const pAd = document.getElementById('transferPersSecim').value;
     const yBirim = document.getElementById('transferBirimSecim').value;
@@ -1140,6 +1197,7 @@ function kaliciTransferYap() {
     }
 }
 
+// 🌟 YENİ: KARŞILIKLI BİRİM VE VARDİYA TAKASI (SÜRESİZ) 🌟
 function karsilikliTakasYap() {
     const p1Ad = document.getElementById('takasPers1').value;
     const p2Ad = document.getElementById('takasPers2').value;
@@ -1151,10 +1209,12 @@ function karsilikliTakasYap() {
     if(p1 && p2) {
         saveStateToHistory();
         
+        // 1. Adım: Birimleri Süresiz Takas Et (Kart rengi değişmesi için)
         let tempBirim = p1.birim;
         p1.birim = p2.birim;
         p2.birim = tempBirim;
         
+        // 2. Adım: Bu haftaki vardiyaları da kendi aralarında yer değiştir
         const hKey = getDateKey(currentMonday);
         for(let i=0; i<7; i++) {
             let k1 = `${hKey}_${p1.ad}_${i}`;
@@ -1443,10 +1503,12 @@ function anlikSenkronizasyonBaslat() {
     });
 }
 
+// 🌟 YENİ: MOBİLDE HAFIZA ÖZELLİĞİ
 function mobilListeyiGuncelle() {
     const select = document.getElementById('mobilPersonelSecim');
     let mevcutSecim = select.value;
     
+    // Eğer o an seçim yoksa (sayfa yeni açılmışsa) cihazın hafızasına bak
     if(!mevcutSecim) {
         mevcutSecim = localStorage.getItem(PREFIX + 'mobilSecim') || "";
     }
@@ -1458,6 +1520,7 @@ function mobilListeyiGuncelle() {
     });
     select.innerHTML = html;
     
+    // Hafızada varsa listeyi otomatik göster
     if(mevcutSecim) kisiselProgramiGoster();
 }
 
@@ -1478,21 +1541,21 @@ async function mobilVerileriYenile() {
     btn.innerHTML = oldText;
 }
 
+// 🌟 YENİ: HOŞGELDİN MESAJI VE HAFIZAYA KAYDETME
 function kisiselProgramiGoster() {
     const isim = document.getElementById('mobilPersonelSecim').value;
     const alan = document.getElementById('kisiselListeSonuc');
     
     if(!isim) {
         alan.innerHTML = "<div style='text-align:center; padding:30px; color:var(--text); opacity:0.6;'>Lütfen isminizi seçiniz.</div>";
-        localStorage.removeItem(PREFIX + 'mobilSecim'); 
+        localStorage.removeItem(PREFIX + 'mobilSecim'); // Seçim temizlendiyse hafızayı sil
         return;
     }
 
+    // Seçilen ismi cihazın hafızasına kaydet
     localStorage.setItem(PREFIX + 'mobilSecim', isim);
-    
-    // İsme göre personeli buluyoruz ki birimini alalım
-    const secilenPersonel = state.personeller.find(p => p.ad === isim);
 
+    // Hoş geldin mesajı eklendi
     let html = `<div style="text-align:center; margin-bottom:15px;"><span style="font-size:24px;">👋</span><br><strong style="color:var(--primary); font-size:14px;">Hoş geldin, ${isim}</strong></div>`;
 
     GUNLER.forEach((gunAdi, index) => {
@@ -1512,19 +1575,6 @@ function kisiselProgramiGoster() {
         else if(vardiya.includes("00:00")) { renk = "#fff7ed"; yaziRengi = "#7c2d12"; ikon = "🌙"; }
         else if(vardiya === "İZİNLİ") { renk = "#fef2f2"; yaziRengi = "#ef4444"; ikon = "🏖️"; }
         else if(vardiya === "YILLIK İZİN") { renk = "#9333ea"; yaziRengi = "#ffffff"; ikon = "✈️"; }
-        
-        // Personelin o günkü aktif/geçerli birimini alıyoruz (Geçici görev swap varsa onu yazar)
-        let gecerliBirim = "";
-        if(secilenPersonel) {
-            gecerliBirim = getGecerliBirim(secilenPersonel, index);
-        }
-
-        // Eğer kişi izinli değilse birim etiketini karta ekliyoruz
-        let birimHtml = "";
-        if(vardiya !== "İZİNLİ" && vardiya !== "YILLIK İZİN" && gecerliBirim !== "") {
-            let birimRengi = getBirimColor(gecerliBirim);
-            birimHtml = `<span class="m-unit-badge" style="background-color:${birimRengi}; margin-right: 8px;">${gecerliBirim}</span>`;
-        }
 
         html += `
         <div class="modern-shift-card">
@@ -1532,12 +1582,9 @@ function kisiselProgramiGoster() {
                 <span class="m-day-name">${gunAdi}</span>
                 <span class="m-date-text">${tarihStr}</span>
             </div>
-            <div class="m-shift-info-group">
-                ${birimHtml}
-                <div class="m-shift-badge" style="background:${renk}; color:${yaziRengi};">
-                    <span style="font-size:16px;">${ikon}</span>
-                    <span>${vardiya}</span>
-                </div>
+            <div class="m-shift-badge" style="background:${renk}; color:${yaziRengi};">
+                <span style="font-size:16px;">${ikon}</span>
+                <span>${vardiya}</span>
             </div>
         </div>`;
     });
@@ -1736,6 +1783,14 @@ function gorunumAyarlariYukle() {
         document.documentElement.style.setProperty('--name-weight', state.gorunum.isimKalinlik);
     } else {
         document.documentElement.style.setProperty('--name-weight', '700');
+    }
+}
+
+function gorunumAyarlariYukleUI() {
+    if(state.gorunum) {
+        if(state.gorunum.isimKalinlik) document.getElementById('isimKalinlikRange').value = state.gorunum.isimKalinlik;
+        if(state.gorunum.panelYaziRenk) document.getElementById('panelTextPicker').value = state.gorunum.panelYaziRenk;
+        if(state.gorunum.isimRenk) document.getElementById('isimRenkPicker').value = state.gorunum.isimRenk;
     }
 }
 
