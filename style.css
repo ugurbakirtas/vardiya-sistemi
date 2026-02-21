@@ -84,19 +84,51 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 
 .app-wrapper { padding: 10px; display: none; } 
 
-.main-header { 
-    display: flex; 
-    flex-wrap: wrap; 
-    justify-content: space-between; 
-    align-items: center; 
-    background: var(--primary); 
-    color: white; 
-    padding: 10px 15px; 
-    border-radius: 12px; 
-    margin-bottom: 15px; 
-    gap: 15px; 
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); 
-}
+    /* 🌟 KESİN ÇÖZÜM: MOBİL HEADER (BAŞLIK VE LOGO) DÜZENLEMESİ 🌟 */
+    .main-header { 
+        display: flex !important;
+        flex-direction: column !important; 
+        align-items: center !important;
+        text-align: center !important; 
+        gap: 15px !important; 
+        padding: 15px !important; 
+        width: 100% !important; 
+        box-sizing: border-box !important;
+    } 
+    
+    /* Logoyu ve Yazıyı tutan kapsayıcı */
+    .main-header > div:first-child { 
+        display: flex !important;
+        flex-direction: column !important; 
+        align-items: center !important; 
+        justify-content: center !important;
+        gap: 10px !important; 
+        width: 100% !important;
+    } 
+    
+    /* Taşmayı durduran h1 ayarı */
+    .main-header h1 { 
+        white-space: normal !important; 
+        font-size: 16px !important; 
+        line-height: 1.4 !important; 
+        width: 100% !important;
+        word-wrap: break-word !important; /* Uzun kelimeleri gerekirse böler */
+        margin: 0 auto !important;
+    } 
+    
+    /* Logo ortalama garantisi */
+    .main-header img {
+        margin: 0 auto !important;
+        display: block !important;
+    }
+
+    /* Butonların olduğu alt kısım */
+    .main-header > div:last-child { 
+        width: 100% !important; 
+        justify-content: center !important; 
+        padding-left: 0 !important; /* Taşmaya sebep olan boşluğu sıfırladık */
+        flex-wrap: wrap !important;
+    } 
 .table-container { overflow-x: auto; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); max-height: 80vh; }
 
 table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; table-layout: fixed; }
