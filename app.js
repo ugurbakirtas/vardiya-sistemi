@@ -1489,6 +1489,9 @@ function kisiselProgramiGoster() {
     }
 
     localStorage.setItem(PREFIX + 'mobilSecim', isim);
+    
+    // İsme göre personeli buluyoruz ki birimini alalım
+    const secilenPersonel = state.personeller.find(p => p.ad === isim);
 
     let html = `<div style="text-align:center; margin-bottom:15px;"><span style="font-size:24px;">👋</span><br><strong style="color:var(--primary); font-size:14px;">Hoş geldin, ${isim}</strong></div>`;
 
@@ -1509,6 +1512,19 @@ function kisiselProgramiGoster() {
         else if(vardiya.includes("00:00")) { renk = "#fff7ed"; yaziRengi = "#7c2d12"; ikon = "🌙"; }
         else if(vardiya === "İZİNLİ") { renk = "#fef2f2"; yaziRengi = "#ef4444"; ikon = "🏖️"; }
         else if(vardiya === "YILLIK İZİN") { renk = "#9333ea"; yaziRengi = "#ffffff"; ikon = "✈️"; }
+        
+        // Personelin o günkü aktif/geçerli birimini alıyoruz (Geçici görev swap varsa onu yazar)
+        let gecerliBirim = "";
+        if(secilenPersonel) {
+            gecerliBirim = getGecerliBirim(secilenPersonel, index);
+        }
+
+        // Eğer kişi izinli değilse birim etiketini karta ekliyoruz
+        let birimHtml = "";
+        if(vardiya !== "İZİNLİ" && vardiya !== "YILLIK İZİN" && gecerliBirim !== "") {
+            let birimRengi = getBirimColor(gecerliBirim);
+            birimHtml = `<span class="m-unit-badge" style="background-color:${birimRengi}; margin-right: 8px;">${gecerliBirim}</span>`;
+        }
 
         html += `
         <div class="modern-shift-card">
@@ -1516,9 +1532,12 @@ function kisiselProgramiGoster() {
                 <span class="m-day-name">${gunAdi}</span>
                 <span class="m-date-text">${tarihStr}</span>
             </div>
-            <div class="m-shift-badge" style="background:${renk}; color:${yaziRengi};">
-                <span style="font-size:16px;">${ikon}</span>
-                <span>${vardiya}</span>
+            <div class="m-shift-info-group">
+                ${birimHtml}
+                <div class="m-shift-badge" style="background:${renk}; color:${yaziRengi};">
+                    <span style="font-size:16px;">${ikon}</span>
+                    <span>${vardiya}</span>
+                </div>
             </div>
         </div>`;
     });
