@@ -542,7 +542,6 @@ function vardiyaUretVeKaydet() {
         
         calisGuncelle();
 
-        // EKSİKLERİ KAPATAN BÖLÜM (CERRAHİ MÜDAHALE BURASI)
         state.birimler.forEach(birim => {
             const ayar = state.birimAyarlari[birim] || { tip: "HAVUZ" };
             if (ayar.tip !== "GRUP_ABC") return;
@@ -719,8 +718,21 @@ function vardiyaUretVeKaydet() {
     }
 
     function adim6_EksikleriKapatVeKaydet() {
-        state.personeller.forEach(p => { for(let g=0; g<7; g++) { if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = SHIFTS.IZIN; } });
-        state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
+        state.personeller.forEach(p => { 
+            const ayar = state.birimAyarlari[p.birim] || { tip: "HAVUZ" };
+            // HARİCİ / EXCEL birimlerine ASLA dokunmuyoruz.
+            if(ayar.tip === "HARICI") return; 
+            
+            for(let g=0; g<7; g++) { 
+                if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = SHIFTS.IZIN; 
+            } 
+        });
+        
+        state.personeller.forEach(p => { 
+            for(let i=0; i<7; i++) {
+                if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; 
+            }
+        });
         
         save(); 
         logKoy("Otomatik vardiya oluşturuldu.");
@@ -1033,13 +1045,14 @@ function refreshUI() {
                 <option value="DONGU6">Ingest Tipi (6'lı Döngü)</option>
                 <option value="GRUP_ABC">3'lü Grup (Playout/Ses/KJ)</option>
                 <option value="AKILLI_HAFTASONU">Akıllı Haftasonu (Cuma Korumalı)</option>
+                <option value="HARICI">🔒 Sadece Excel/Harici (Oto Dokunmaz)</option>
             </select>
             <button onclick="birimEkle()" class="btn-main-action" style="background:var(--success); padding:8px 12px;">EKLE</button>
         </div>
         <div style="margin-top:5px; font-size:10px; color:var(--text); opacity:0.7; margin-bottom:10px;">
             * <b>Standart:</b> Kapasiteye göre boş olanı atar<br>
             * <b>Döngü:</b> 7/24 Sıralı sistem<br>
-            * <b>3'lü Grup:</b> Sabah/Akşam/İzin grubu (Playout mantığı)
+            * <b>Harici:</b> Excel ile yüklenenler. Oto Vardiya karışmaz.
         </div>
         ${state.birimler.map((b, i) => {
             let ayar = state.birimAyarlari[b] || {tip:"HAVUZ", renk:"#3b82f6"};
@@ -1047,7 +1060,8 @@ function refreshUI() {
                          (ayar.tip === "DONGU6" ? "6'lı Döngü" : 
                          (ayar.tip === "GRUP_ABC" ? "3'lü Grup" : 
                          (ayar.tip === "AKILLI_HAFTASONU" ? "Akıllı H.Sonu" : 
-                         (ayar.tip === "GECE_ONCELIKLI" ? "Gece Puanlı" : "Standart"))));
+                         (ayar.tip === "GECE_ONCELIKLI" ? "Gece Puanlı" : 
+                         (ayar.tip === "HARICI" ? "Excel/Harici" : "Standart")))));
             return `
             <div style="padding:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg); border-left: 5px solid ${getBirimColor(b)}">
                 <div>
