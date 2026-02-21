@@ -409,6 +409,12 @@ function vardiyaUretVeKaydet() {
     const safeAssign = (p, day, shift) => {
          if (tempProg[p.ad][day] !== null) return;
          if (shift === SHIFTS.IZIN) { tempProg[p.ad][day] = shift; return; }
+         
+         if (day === 0 && [SHIFTS.SABAH, SHIFTS.GUNDUZ].includes(shift)) {
+             let gecenPazar = state.manuelAtamalar[`${prevHKey}_${p.ad}_6`];
+             if ([SHIFTS.AKSAM, SHIFTS.GECE].includes(gecenPazar)) return; 
+         }
+
          const cap = (state.kapasite[`${p.birim}_${shift}`] || [0,0,0,0,0,0,0])[day];
          let currentCount = 0;
          state.personeller.filter(x => x.birim === p.birim).forEach(x => { if(tempProg[x.ad][day] === shift) currentCount++; });
@@ -551,15 +557,15 @@ function vardiyaUretVeKaydet() {
                             let birimUygun = getGecerliBirim(p, gun) === birim;
                             let bosta = (tempProg[p.ad][gun] === null); 
                             let yorgunDegil = calis[p.ad] < 6;
-                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
                             let manuelVar = state.manuelAtamalar[`${hKey}_${p.ad}_${gun}`];
                             
-                            if (gun > 0) {
-                                let dunVardiya = tempProg[p.ad][gun-1];
-                                if ((dunVardiya === SHIFTS.AKSAM || dunVardiya === SHIFTS.GECE) && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) {
-                                    return false; 
-                                }
+                            let dunVardiya = (gun > 0) ? tempProg[p.ad][gun-1] : state.manuelAtamalar[`${prevHKey}_${p.ad}_6`];
+                            let dunGece = (dunVardiya === SHIFTS.GECE);
+                            
+                            if ([SHIFTS.AKSAM, SHIFTS.GECE].includes(dunVardiya) && [SHIFTS.SABAH, SHIFTS.GUNDUZ].includes(saat)) {
+                                return false; 
                             }
+                            
                             return birimUygun && bosta && yorgunDegil && !dunGece && !manuelVar;
                         });
 
@@ -609,10 +615,12 @@ function vardiyaUretVeKaydet() {
                                 let cumaVardiya = tempProg[p.ad][4];
                                 if (cumaVardiya === SHIFTS.AKSAM || cumaVardiya === SHIFTS.GECE) return false;
                             }
-                            if (gun > 0) {
-                                let dun = tempProg[p.ad][gun-1];
-                                if ((dun === SHIFTS.AKSAM || dun === SHIFTS.GECE) && (saat === SHIFTS.SABAH || saat === SHIFTS.GUNDUZ)) return false;
+                            
+                            let dunVardiya = (gun > 0) ? tempProg[p.ad][gun-1] : state.manuelAtamalar[`${prevHKey}_${p.ad}_6`];
+                            if ([SHIFTS.AKSAM, SHIFTS.GECE].includes(dunVardiya) && [SHIFTS.SABAH, SHIFTS.GUNDUZ].includes(saat)) {
+                                return false;
                             }
+                            
                             return true;
                         });
                         
@@ -670,8 +678,12 @@ function vardiyaUretVeKaydet() {
                     if (mvc < hdf) {
                         let ady = state.personeller.filter(p => {
                             let basic = getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null;
-                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
-                            return basic && (calis[p.ad] < 6) && !(dunGece && saat === SHIFTS.SABAH);
+                            
+                            let dunVardiya = (gun > 0) ? tempProg[p.ad][gun-1] : state.manuelAtamalar[`${prevHKey}_${p.ad}_6`];
+                            let dunAksamVeyaGece = [SHIFTS.AKSAM, SHIFTS.GECE].includes(dunVardiya);
+                            let yarinSabahVeyaGunduz = [SHIFTS.SABAH, SHIFTS.GUNDUZ].includes(saat);
+                            
+                            return basic && (calis[p.ad] < 6) && !(dunAksamVeyaGece && yarinSabahVeyaGunduz);
                         });
                         siralamaYap(ady, false); 
                         for (let p of ady) { if (mvc < hdf) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mvc++; } }
@@ -679,8 +691,12 @@ function vardiyaUretVeKaydet() {
                     if (mvc < hdf) {
                         let ady = state.personeller.filter(p => {
                             let basic = getGecerliBirim(p, gun) === birim && tempProg[p.ad][gun] === null;
-                            let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
-                            return basic && !(dunGece && saat === SHIFTS.SABAH);
+                            
+                            let dunVardiya = (gun > 0) ? tempProg[p.ad][gun-1] : state.manuelAtamalar[`${prevHKey}_${p.ad}_6`];
+                            let dunAksamVeyaGece = [SHIFTS.AKSAM, SHIFTS.GECE].includes(dunVardiya);
+                            let yarinSabahVeyaGunduz = [SHIFTS.SABAH, SHIFTS.GUNDUZ].includes(saat);
+                            
+                            return basic && !(dunAksamVeyaGece && yarinSabahVeyaGunduz);
                         });
                         siralamaYap(ady, false); 
                         for (let p of ady) { if (mvc < hdf) { tempProg[p.ad][gun] = saat; calis[p.ad]++; mvc++; } }
