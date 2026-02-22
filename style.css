@@ -192,20 +192,15 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
     color: inherit; 
 }
 
-/* 🌟 DÜZELTME: BİRİM LİSTESİ RENKLERİNİ EZEN KOD KALDIRILDI 🌟 */
 .panel-content .admin-tabs, 
 .panel-content .swap-container,
 .panel-content .login-card,
 .panel-content div[style*="background:var(--card-bg)"] {
     background: rgba(255, 255, 255, 0.05) !important; 
-    
-    /* Eskiden burada "border: 1px solid... !important" vardı, bu sol kenarlığı (renkleri) öldürüyordu. 
-       Şimdi sol kenarlığa dokunmuyoruz. */
     border-top: 1px solid rgba(128,128,128, 0.2) !important;
     border-right: 1px solid rgba(128,128,128, 0.2) !important;
     border-bottom: 1px solid rgba(128,128,128, 0.2) !important;
     border-left: 1px solid rgba(128,128,128, 0.2); 
-    
     color: inherit !important;
 }
 
@@ -274,7 +269,10 @@ body.focus-active .birim-card.focused { opacity: 1; transform: scale(1.05); box-
     .modern-shift-card { background: var(--card-bg); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; transition: transform 0.1s; }
     .modern-shift-card:active { transform: scale(0.98); } .m-date-group { display: flex; flex-direction: column; gap: 2px; } .m-day-name { font-size: 15px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; }
     .m-date-text { font-size: 11px; color: var(--text); opacity:0.7; font-weight: 600; text-transform: uppercase; } .m-shift-badge { padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-    .side-panel { width: 100%; right: -100%; } .main-header { flex-direction: column; text-align: center; gap: 10px;} .main-header div { width: 100%; justify-content: center; }
+    .side-panel { width: 100%; right: -100%; } 
+    .main-header { flex-direction: column; text-align: center; gap: 10px; padding: 15px;} 
+    .main-header div { width: 100%; justify-content: center; }
+    .main-header h1 { white-space: normal !important; font-size: 15px !important; }
     .btn-main-action { width: 100%; padding: 14px; margin-bottom: 5px; font-size: 12px;} .admin-tabs { grid-template-columns: repeat(3, 1fr); }
 }
 
