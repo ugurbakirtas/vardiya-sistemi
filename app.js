@@ -16,7 +16,9 @@ const UNITS = {
     REJI: "REJİ",
     MCR24: "24TV MCR OPERATÖRÜ",
     MCR360: "360TV MCR OPERATÖRÜ",
-    INGEST: "INGEST OPERATÖRÜ"
+    INGEST: "INGEST OPERATÖRÜ",
+	SİSTEM: "SİSTEM SORUMLUSU",
+	KAMERA: "KAMERAMANLAR"
 };
 
 const DEFAULT_SHIFT_COLORS = [
@@ -31,7 +33,7 @@ let TELEGRAM_ID = "";
 const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
 firebase.initializeApp(firebaseConfig); const database = firebase.database();
 const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = ""; 
-const BIRIM_RENKLERI = { [UNITS.YONETMEN]: "#2563eb", [UNITS.SES]: "#7c3aed", [UNITS.KJ]: "#db2777", [UNITS.PLAYOUT]: "#059669", [UNITS.REJI]: "#d97706", [UNITS.MCR24]: "#9333ea", [UNITS.MCR360]: "#9333ea", [UNITS.INGEST]: "#06b6d4" };
+const BIRIM_RENKLERI = { [UNITS.YONETMEN]: "#2563eb", [UNITS.SES]: "#7c3aed",  [UNITS.SİSTEM]: "#84cc16",  [UNITS.KAMERA]: "#ccfbf1", [UNITS.KJ]: "#db2777", [UNITS.PLAYOUT]: "#059669", [UNITS.REJI]: "#d97706", [UNITS.MCR24]: "#9333ea", [UNITS.MCR360]: "#9333ea", [UNITS.INGEST]: "#06b6d4" };
 let isAdmin = false;
 
 let state = { 
