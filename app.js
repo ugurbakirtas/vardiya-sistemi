@@ -1,7 +1,6 @@
 const SHIFTS = {
     SABAH: "06:30–16:00",
     GUNDUZ: "09:00–18:00",
-	ÖĞLE: "12:00–20:00",
     AKSAM: "16:00–00:00",
     GECE: "00:00–07:00",
     IZIN: "İZİNLİ",
@@ -14,12 +13,10 @@ const UNITS = {
     SES: "SES OPERATÖRÜ",
     KJ: "KJ OPERATÖRÜ",
     PLAYOUT: "PLAYOUT OPERATÖRÜ",
-    REJI: "REJİ",
+    REJI: "REJİ OPERATÖRÜ",
     MCR24: "24TV MCR OPERATÖRÜ",
     MCR360: "360TV MCR OPERATÖRÜ",
-    INGEST: "INGEST OPERATÖRÜ",
-	SİSTEM: "SİSTEM SORUMLUSU",
-	KAMERA: "KAMERAMANLAR"
+    INGEST: "INGEST OPERATÖRÜ"
 };
 
 const DEFAULT_SHIFT_COLORS = [
@@ -34,7 +31,7 @@ let TELEGRAM_ID = "";
 const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
 firebase.initializeApp(firebaseConfig); const database = firebase.database();
 const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = ""; 
-const BIRIM_RENKLERI = { [UNITS.YONETMEN]: "#2563eb", [UNITS.SES]: "#7c3aed",  [UNITS.SİSTEM]: "#84cc16",  [UNITS.KAMERA]: "#ccfbf1", [UNITS.KJ]: "#db2777", [UNITS.PLAYOUT]: "#059669", [UNITS.REJI]: "#d97706", [UNITS.MCR24]: "#9333ea", [UNITS.MCR360]: "#9333ea", [UNITS.INGEST]: "#06b6d4" };
+const BIRIM_RENKLERI = { [UNITS.YONETMEN]: "#2563eb", [UNITS.SES]: "#7c3aed", [UNITS.KJ]: "#db2777", [UNITS.PLAYOUT]: "#059669", [UNITS.REJI]: "#d97706", [UNITS.MCR24]: "#9333ea", [UNITS.MCR360]: "#9333ea", [UNITS.INGEST]: "#06b6d4" };
 let isAdmin = false;
 
 let state = { 
@@ -130,14 +127,15 @@ async function hassasAyarlariYukle() {
 
 function verileriGuvenliHaleGetir() {
     if(!state) state = {};
+    if(!Array.isArray(state.birimler) || state.birimler.length === 0) state.birimler = Object.values(UNITS);
+    if(!Array.isArray(state.saatler) || state.saatler.length === 0) state.saatler = Object.values(SHIFTS).filter(s => s.includes(":"));
+    if(!Array.isArray(state.personeller)) state.personeller = [];
     if(!state.manuelAtamalar) state.manuelAtamalar = {};
     if(!state.geciciGorevler) state.geciciGorevler = {};
-    if(!state.personeller) state.personeller = [];
     if(!state.kapasite) state.kapasite = {};
     if(!state.haftaIciSabitler) state.haftaIciSabitler = {};
     if(!state.mcrAyarlari) state.mcrAyarlari = { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} };
-    if(!state.birimler) state.birimler = Object.values(UNITS);
-    if(!state.saatler) state.saatler = Object.values(SHIFTS).filter(s => s.includes(":"));
+    if(!state.logs) state.logs = [];
     
     if(!state.birimAyarlari || Object.keys(state.birimAyarlari).length === 0) {
         state.birimAyarlari = {};
@@ -146,7 +144,7 @@ function verileriGuvenliHaleGetir() {
             let renk = BIRIM_RENKLERI[b] || "#64748b";
             if(b.includes("MCR")) tip = "DONGU8"; 
             if(b.includes("INGEST")) tip = "DONGU6"; 
-            if(b === UNITS.PLAYOUT || b === UNITS.SES || b === UNITS.KJ) tip = "GRUP_ABC"; 
+            if(b.includes("PLAYOUT") || b.includes("SES") || b.includes("KJ")) tip = "GRUP_ABC"; 
             state.birimAyarlari[b] = { tip: tip, renk: renk };
         });
     }
@@ -238,12 +236,12 @@ function talepGonder() {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ 
                 chat_id: TELEGRAM_ID, 
-                text: `🔔 *YENİ VARDİYA TALEBİ*\n\n👤 *Personel:* ${ad}\n📅 *Tarih:* ${tarih}\n📝 *Vardiya:* ${tur}`, 
+                text: `🔔 *YENİ VARDİYA TALEBİ*\n\n👤 *Personel:* ${ad}\n📅 *Tarih:* ${tarih}\n📝 *Vardiya:* ${tur}\n\n⚠️ _Sistem onayları tarayıcı üzerinden çalıştığı için alttaki butonlar sizi siteye yönlendirecektir._`, 
                 parse_mode: 'Markdown', 
                 reply_markup: { 
                     inline_keyboard: [[
-                        { text: "✅ SİTEYE GİT VE ONAYLA", url: `${appUrl}?action=onay&id=${talepId}` }, 
-                        { text: "❌ SİTEYE GİT VE REDDET", url: `${appUrl}?action=red&id=${talepId}` }
+                        { text: "✅ ONAYLA", callback_data: `onay_${talepId}` }, 
+                        { text: "❌ REDDET", callback_data: `red_${talepId}` }
                     ]] 
                 } 
             }) 
@@ -282,7 +280,7 @@ function logKoy(mesaj) {
     state.logs.unshift({zaman, user, mesaj});
     if(state.logs.length > 200) state.logs.pop(); 
     save();
-    refreshUI();
+    if(isAdmin) refreshUI();
 }
 
 function checkVisualConflict(pAd, gIdx, saat) {
@@ -307,6 +305,29 @@ function checkVisualConflict(pAd, gIdx, saat) {
     return false;
 }
 
+function uzmanlikGuncelle(ad, tip, eklenecekMi) {
+    let p = state.personeller.find(x => x.ad === ad);
+    if (!p) return;
+    if (!p.uzmanlik) p.uzmanlik = [];
+    
+    if (eklenecekMi && !p.uzmanlik.includes(tip)) p.uzmanlik.push(tip);
+    else if (!eklenecekMi) p.uzmanlik = p.uzmanlik.filter(u => u !== tip);
+    
+    save();
+    showToast("Uzmanlık güncellendi.", "success");
+}
+
+function birimRenkGuncelle(birimAd, renk) {
+    if(!state.birimAyarlari) state.birimAyarlari = {};
+    if(!state.birimAyarlari[birimAd]) state.birimAyarlari[birimAd] = { tip: "HAVUZ" };
+    
+    state.birimAyarlari[birimAd].renk = renk;
+    save();
+    refreshUI();
+    tabloyuOlustur();
+    showToast(birimAd + " rengi güncellendi.", "success");
+}
+
 function tabloyuOlustur() { 
     if(state.duyuruMetni) {
         document.getElementById('duyuruAlani').style.display = 'block';
@@ -328,8 +349,20 @@ function tabloyuOlustur() {
         return `<th class="${i>=5?'weekend-col':''} ${isToday}">${g}<div style="font-size:9px; opacity:0.7; font-weight:normal;">${dateStr}</div></th>`; 
     }).join('')}</tr>`;
 
-    let prog = {}; let calis = {}; state.personeller.forEach(p => { prog[p.ad] = Array(7).fill(null); calis[p.ad] = 0; for(let i=0; i<7; i++) { let mKey = `${hKey}_${p.ad}_${i}`; if(state.manuelAtamalar[mKey]) prog[p.ad][i] = state.manuelAtamalar[mKey]; if(prog[p.ad][i] && ![SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(prog[p.ad][i])) calis[p.ad]++; } });
+    let prog = {}; let calis = {}; 
+    if(state.personeller) {
+        state.personeller.forEach(p => { 
+            prog[p.ad] = Array(7).fill(null); calis[p.ad] = 0; 
+            for(let i=0; i<7; i++) { 
+                let mKey = `${hKey}_${p.ad}_${i}`; 
+                if(state.manuelAtamalar[mKey]) prog[p.ad][i] = state.manuelAtamalar[mKey]; 
+                if(prog[p.ad][i] && ![SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(prog[p.ad][i])) calis[p.ad]++; 
+            } 
+        });
+    }
     
+    let getSanalBirim = (b) => (b && (b.includes("PLAYOUT") || b.includes("KJ"))) ? UNITS.REJI : b;
+
     document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => { 
         const ozelRenk = (state.saatAyarlari && state.saatAyarlari[s]) ? state.saatAyarlari[s].renk : null;
         const rowStyle = ozelRenk ? `style="background-color:${ozelRenk}"` : ""; 
@@ -340,20 +373,39 @@ function tabloyuOlustur() {
             let d = new Date(currentMonday); d.setDate(d.getDate() + g); 
             let isToday = (getDateKey(d) === todayKey) ? 'today-col' : '';
 
-            let sortedPers = state.personeller.filter(p => prog[p.ad][g] === s).sort((a, b) => { let birimA = getGecerliBirim(a, g); let birimB = getGecerliBirim(b, g); return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); }); 
+            let sortedPers = state.personeller.filter(p => prog[p.ad][g] === s).sort((a, b) => { 
+                let birimA = getSanalBirim(getGecerliBirim(a, g)); 
+                let birimB = getSanalBirim(getGecerliBirim(b, g)); 
+                return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); 
+            }); 
+            
             let cellContent = ""; let lastBirim = ""; 
             
             sortedPers.forEach((p) => { 
                 let gecerliBirim = getGecerliBirim(p, g); 
-                let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : ""; 
+                let sanalBirim = gecerliBirim;
+                let masaRozeti = "";
+                
+                if (gecerliBirim && (gecerliBirim.includes("PLAYOUT") || gecerliBirim.includes("KJ"))) {
+                    sanalBirim = UNITS.REJI;
+                    masaRozeti = gecerliBirim.includes("PLAYOUT")
+                        ? " <span style='color:#0ea5e9; font-size:8px; font-weight:900;'>[PLAYOUT]</span>" 
+                        : " <span style='color:#db2777; font-size:8px; font-weight:900;'>[KJ]</span>";
+                }
+
+                let ayiriciClass = (lastBirim !== "" && lastBirim !== sanalBirim) ? "birim-ayirici" : ""; 
                 let clickAttr = isAdmin ? `onclick="vardiyaSecimiAc('${p.ad}',${g})"` : ""; 
                 let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, '${s}')"` : ""; 
                 
                 let isConflict = isAdmin ? checkVisualConflict(p.ad, g, s) : false;
                 let conflictHtml = isConflict ? `<span class="conflict-warn" title="Kural İhlali (Dinlenme Yetersiz)">⚠️</span>` : "";
 
-                cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(gecerliBirim)}; background-color:${getBirimColor(gecerliBirim)}15;" ${dragAttr} ${clickAttr}><span class="birim-tag" style="background:${getBirimColor(gecerliBirim)}">${gecerliBirim}</span><span class="pers-name">${p.ad} ${conflictHtml}</span></div>`; 
-                lastBirim = gecerliBirim; 
+                cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(sanalBirim)}; background-color:${getBirimColor(sanalBirim)}15;" ${dragAttr} ${clickAttr}>
+                    <span class="birim-tag" style="background:${getBirimColor(sanalBirim)}">${sanalBirim}</span>
+                    <span class="pers-name">${p.ad}${masaRozeti} ${conflictHtml}</span>
+                </div>`; 
+                
+                lastBirim = sanalBirim; 
             }); 
             rowHtml += `<td class="${g>=5?'weekend-col':''} ${isToday}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, '${s}', ${g})">${cellContent}</td>`; 
         } return rowHtml + "</tr>"; 
@@ -363,9 +415,39 @@ function tabloyuOlustur() {
         let d = new Date(currentMonday); d.setDate(d.getDate() + g); 
         let isToday = (getDateKey(d) === todayKey) ? 'today-col' : '';
 
-        let sortedPers = state.personeller.filter(p => [SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(prog[p.ad][g])).sort((a, b) => { let birimA = getGecerliBirim(a, g); let birimB = getGecerliBirim(b, g); return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); }); 
+        let sortedPers = state.personeller.filter(p => [SHIFTS.IZIN,SHIFTS.BOS,null,SHIFTS.YILLIK].includes(prog[p.ad][g])).sort((a, b) => { 
+            let birimA = getSanalBirim(getGecerliBirim(a, g)); 
+            let birimB = getSanalBirim(getGecerliBirim(b, g)); 
+            return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB); 
+        }); 
+        
         let cellContent = ""; let lastBirim = ""; 
-        sortedPers.forEach(p => { let gecerliBirim = getGecerliBirim(p, g); let ayiriciClass = (lastBirim !== "" && lastBirim !== gecerliBirim) ? "birim-ayirici" : ""; let clickAttr = isAdmin ? `onclick="vardiyaSecimiAc('${p.ad}',${g})"` : ""; let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, 'BOŞ')"` : ""; let isYillik = prog[p.ad][g] === SHIFTS.YILLIK; let bgStyle = isYillik ? 'background:var(--yillik-izin)' : (prog[p.ad][g]===SHIFTS.IZIN?'background:var(--danger)':`background:${getBirimColor(gecerliBirim)}`); let countStyle = calis[p.ad] >= 6 ? 'color:var(--danger); font-weight:bold; font-size:11px;' : 'color:var(--text)'; cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(gecerliBirim)};" ${dragAttr} ${clickAttr}><span class="birim-tag" style="${bgStyle}">${prog[p.ad][g] || 'BOŞ'}</span><span class="pers-name">${p.ad} <span style="${countStyle}">(${calis[p.ad]}G)</span></span></div>`; lastBirim = gecerliBirim; }); 
+        sortedPers.forEach(p => { 
+            let gecerliBirim = getGecerliBirim(p, g); 
+            let sanalBirim = gecerliBirim;
+            let masaRozeti = "";
+            
+            if (gecerliBirim && (gecerliBirim.includes("PLAYOUT") || gecerliBirim.includes("KJ"))) {
+                sanalBirim = UNITS.REJI;
+                masaRozeti = gecerliBirim.includes("PLAYOUT") 
+                    ? " <span style='color:#0ea5e9; font-size:8px; font-weight:900;'>[PLAYOUT]</span>" 
+                    : " <span style='color:#db2777; font-size:8px; font-weight:900;'>[KJ]</span>";
+            }
+
+            let ayiriciClass = (lastBirim !== "" && lastBirim !== sanalBirim) ? "birim-ayirici" : ""; 
+            let clickAttr = isAdmin ? `onclick="vardiyaSecimiAc('${p.ad}',${g})"` : ""; 
+            let dragAttr = isAdmin ? `draggable="true" ondragstart="drag(event, '${p.ad}', ${g}, 'BOŞ')"` : ""; 
+            let isYillik = prog[p.ad][g] === SHIFTS.YILLIK; 
+            let bgStyle = isYillik ? 'background:var(--yillik-izin)' : (prog[p.ad][g]===SHIFTS.IZIN?'background:var(--danger)':`background:${getBirimColor(sanalBirim)}`); 
+            let countStyle = calis[p.ad] >= 6 ? 'color:var(--danger); font-weight:bold; font-size:11px;' : 'color:var(--text)'; 
+            
+            cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(sanalBirim)};" ${dragAttr} ${clickAttr}>
+                <span class="birim-tag" style="${bgStyle}">${prog[p.ad][g] || 'BOŞ'}</span>
+                <span class="pers-name">${p.ad}${masaRozeti} <span style="${countStyle}">(${calis[p.ad]}G)</span></span>
+            </div>`; 
+            
+            lastBirim = sanalBirim; 
+        }); 
         return `<td class="${g>=5?'weekend-col':''} ${isToday}" data-label="${GUNLER[g]}" ondragover="event.preventDefault()" ondrop="drop(event, 'BOŞ', ${g})">${cellContent}</td>`; 
     }).join('')}</tr>`;
     
@@ -551,7 +633,16 @@ function vardiyaUretVeKaydet() {
 
                     if (mevcut < hedef) {
                         let yedekAdaylar = state.personeller.filter(p => {
-                            let birimUygun = getGecerliBirim(p, gun) === birim;
+                            let gBirim = getGecerliBirim(p, gun);
+                            let birimUygun = (gBirim === birim);
+                            
+                            if (!birimUygun && (birim.includes("PLAYOUT") || birim.includes("KJ")) && gBirim && (gBirim.includes("PLAYOUT") || gBirim.includes("KJ"))) {
+                                let arananUzmanlik = birim.includes("PLAYOUT") ? "PLAYOUT" : "KJ";
+                                if (p.uzmanlik && p.uzmanlik.includes(arananUzmanlik)) {
+                                    birimUygun = true; 
+                                }
+                            }
+
                             let bosta = (tempProg[p.ad][gun] === null); 
                             let yorgunDegil = calis[p.ad] < 6;
                             let dunGece = (gun > 0 && tempProg[p.ad][gun-1] === SHIFTS.GECE);
@@ -573,6 +664,12 @@ function vardiyaUretVeKaydet() {
                                 tempProg[p.ad][gun] = saat;
                                 calis[p.ad]++;
                                 mevcut++;
+                                
+                                let gercekBirim = getGecerliBirim(p, gun);
+                                if (gercekBirim !== birim) {
+                                    let d = new Date(currentMonday); d.setDate(d.getDate() + gun);
+                                    state.geciciGorevler[`${getDateKey(d)}_${p.ad}`] = birim;
+                                }
                             }
                         }
                     }
@@ -936,6 +1033,8 @@ function istatistikleriHesapla() {
     const hKey = getDateKey(currentMonday);
     let stats = {};
     
+    if(!state.personeller) return;
+    
     state.personeller.forEach(p => {
         stats[p.ad] = { toplamGun: 0, gece: 0, haftasonu: 0 };
         for(let i=0; i<7; i++) {
@@ -1003,9 +1102,10 @@ function odakModuAc() {
 
 function refreshUI() {
     document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
+    
     document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => {
         let mcrHtml = "";
-        if(p.birim.includes("MCR") || p.birim.includes("INGEST")) {
+        if(p.birim && (p.birim.includes("MCR") || p.birim.includes("INGEST"))) {
             mcrHtml = `<div class="mcr-ayarlar" style="background:var(--saat1); border-color:var(--border);">
                 <span style="color:var(--text);">${p.birim.includes("INGEST") ? 'INGEST' : 'MCR'} Döngü Ofseti: </span>
                 <input type="number" value="${state.mcrAyarlari.ofsetler[p.ad] || 0}" style="width:50px" onchange="mcrOfsetGuncelle('${p.ad}', this.value)">
@@ -1015,6 +1115,17 @@ function refreshUI() {
             <span style="font-weight:bold; color:var(--text);">Vardiya Öncelik Puanı (%):</span>
             <input type="number" value="${p.yuzde || 0}" style="width:50px; padding:6px; border-radius:4px; border:1px solid var(--border);" onchange="yuzdeGuncelle(${i}, this.value)">
         </div>`;
+        
+        let uzmanlikHtml = "";
+        if(p.birim && (p.birim.includes("PLAYOUT") || p.birim.includes("KJ"))) {
+            if(!p.uzmanlik) p.uzmanlik = [p.birim.includes("PLAYOUT") ? "PLAYOUT" : "KJ"]; 
+            uzmanlikHtml = `
+            <div style="margin-top:5px; font-size:10px; background:var(--bg); padding:8px; border-radius:4px; border:1px solid var(--border);">
+                <span style="font-weight:bold; color:var(--text);">REJİ UZMANLIĞI (Çapraz Atama):</span><br>
+                <label><input type="checkbox" ${p.uzmanlik.includes("PLAYOUT")?'checked':''} onchange="uzmanlikGuncelle('${p.ad}', 'PLAYOUT', this.checked)"> Playout</label>
+                <label style="margin-left:15px;"><input type="checkbox" ${p.uzmanlik.includes("KJ")?'checked':''} onchange="uzmanlikGuncelle('${p.ad}', 'KJ', this.checked)"> KJ</label>
+            </div>`;
+        }
 
         return `<div style="background:var(--card-bg); border:1px solid var(--border); padding:10px; border-radius:8px; margin-bottom:5px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -1023,11 +1134,11 @@ function refreshUI() {
             </div>
             <div style="margin-top:5px;">${GUNLER.map((g, gi) => `<span class="izin-gun-pill ${p.izinGunleri?.includes(gi)?'active':''}" onclick="izinGunuTetikle(${i},${gi})">${g}</span>`).join('')}</div>
             ${yuzdeHtml}
+            ${uzmanlikHtml}
             ${mcrHtml}
         </div>`;
     }).join('');
     
-    // 🌟 YENİ: SÜRESİZ TRANSFER VE TAKAS ALANLARI GÜNCELLENİYOR
     const optionsHtml = "<option value=''>Seçiniz...</option>" + state.personeller.sort((a,b) => a.ad.localeCompare(b.ad)).map(p => `<option value="${p.ad}">${p.ad} (${p.birim})</option>`).join('');
     
     const swapKaynak = document.getElementById('swapKaynakPersonel');
@@ -1093,7 +1204,7 @@ function refreshUI() {
         <input type="date" value="${state.mcrAyarlari.baslangicTarihi}" onchange="state.mcrAyarlari.baslangicTarihi = this.value; save();" style="width:100%; padding:8px; margin-top:5px;">
     </div>`;
     
-    document.getElementById("sabitListeAdmin").innerHTML = mcrSistemHtml + state.personeller.filter(p => !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--card-bg); padding:8px; border-radius:5px; border:1px solid var(--border);"><label style="color:var(--text);"><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
+    document.getElementById("sabitListeAdmin").innerHTML = mcrSistemHtml + state.personeller.filter(p => p.birim && !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--card-bg); padding:8px; border-radius:5px; border:1px solid var(--border);"><label style="color:var(--text);"><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
     
     document.getElementById("birimListesiAdmin").innerHTML = `
         <div style="margin-bottom:10px; display:flex; gap:5px; align-items:center; flex-wrap:wrap;">
@@ -1123,9 +1234,12 @@ function refreshUI() {
                          (ayar.tip === "GECE_ONCELIKLI" ? "Gece Puanlı" : "Standart"))));
             return `
             <div style="padding:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--card-bg); border-left: 5px solid ${getBirimColor(b)}">
-                <div>
-                    <span style="font-weight:bold; color:var(--text);">${b}</span>
-                    <span style="font-size:9px; background:var(--border); color:var(--text); padding:2px 4px; border-radius:3px; margin-left:5px;">${tipYazi}</span>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="color" value="${getBirimColor(b)}" onchange="birimRenkGuncelle('${b}', this.value)" style="width:25px; height:25px; padding:0; border:none; border-radius:4px; cursor:pointer;" title="Birim Rengini Değiştir">
+                    <div>
+                        <span style="font-weight:bold; color:var(--text);">${b}</span>
+                        <span style="font-size:9px; background:var(--border); color:var(--text); padding:2px 4px; border-radius:3px; margin-left:5px;">${tipYazi}</span>
+                    </div>
                 </div>
                 <button onclick="birimSil(${i})" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:10px;">Sil</button>
             </div>`;
@@ -1147,16 +1261,6 @@ function refreshUI() {
                 <button onclick="saatSil(${i})" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:10px;">Sil</button>
             </div>
         `}).join('')}`;
-}
-
-function saatRenkGuncelle(saat, renk) {
-    if(!state.saatAyarlari) state.saatAyarlari = {};
-    if(!state.saatAyarlari[saat]) state.saatAyarlari[saat] = {};
-    
-    state.saatAyarlari[saat].renk = renk;
-    save();
-    refreshUI(); 
-    tabloyuOlustur(); 
 }
 
 function vardiyaBul(pAd, gIdx) {
@@ -1184,7 +1288,6 @@ function vardiyaBul(pAd, gIdx) {
     return null;
 }
 
-// 🌟 YENİ: SÜRESİZ KALICI TRANSFER FONKSİYONU 🌟
 function kaliciTransferYap() {
     const pAd = document.getElementById('transferPersSecim').value;
     const yBirim = document.getElementById('transferBirimSecim').value;
@@ -1200,7 +1303,6 @@ function kaliciTransferYap() {
     }
 }
 
-// 🌟 YENİ: KARŞILIKLI BİRİM VE VARDİYA TAKASI (SÜRESİZ) 🌟
 function karsilikliTakasYap() {
     const p1Ad = document.getElementById('takasPers1').value;
     const p2Ad = document.getElementById('takasPers2').value;
@@ -1212,12 +1314,10 @@ function karsilikliTakasYap() {
     if(p1 && p2) {
         saveStateToHistory();
         
-        // 1. Adım: Birimleri Süresiz Takas Et (Kart rengi değişmesi için)
         let tempBirim = p1.birim;
         p1.birim = p2.birim;
         p2.birim = tempBirim;
         
-        // 2. Adım: Bu haftaki vardiyaları da kendi aralarında yer değiştir
         const hKey = getDateKey(currentMonday);
         for(let i=0; i<7; i++) {
             let k1 = `${hKey}_${p1.ad}_${i}`;
@@ -1506,24 +1606,23 @@ function anlikSenkronizasyonBaslat() {
     });
 }
 
-// 🌟 YENİ: MOBİLDE HAFIZA ÖZELLİĞİ
 function mobilListeyiGuncelle() {
     const select = document.getElementById('mobilPersonelSecim');
     let mevcutSecim = select.value;
     
-    // Eğer o an seçim yoksa (sayfa yeni açılmışsa) cihazın hafızasına bak
     if(!mevcutSecim) {
         mevcutSecim = localStorage.getItem(PREFIX + 'mobilSecim') || "";
     }
     
-    const siraliPersonel = [...state.personeller].sort((a,b) => a.ad.localeCompare(b.ad));
-    let html = '<option value="">Personel Seçiniz...</option>';
-    siraliPersonel.forEach(p => {
-        html += `<option value="${p.ad}" ${p.ad === mevcutSecim ? 'selected' : ''}>${p.ad}</option>`;
-    });
-    select.innerHTML = html;
+    if(state.personeller) {
+        const siraliPersonel = [...state.personeller].sort((a,b) => a.ad.localeCompare(b.ad));
+        let html = '<option value="">Personel Seçiniz...</option>';
+        siraliPersonel.forEach(p => {
+            html += `<option value="${p.ad}" ${p.ad === mevcutSecim ? 'selected' : ''}>${p.ad}</option>`;
+        });
+        select.innerHTML = html;
+    }
     
-    // Hafızada varsa listeyi otomatik göster
     if(mevcutSecim) kisiselProgramiGoster();
 }
 
@@ -1544,21 +1643,18 @@ async function mobilVerileriYenile() {
     btn.innerHTML = oldText;
 }
 
-// 🌟 YENİ: HOŞGELDİN MESAJI VE HAFIZAYA KAYDETME
 function kisiselProgramiGoster() {
     const isim = document.getElementById('mobilPersonelSecim').value;
     const alan = document.getElementById('kisiselListeSonuc');
     
     if(!isim) {
         alan.innerHTML = "<div style='text-align:center; padding:30px; color:var(--text); opacity:0.6;'>Lütfen isminizi seçiniz.</div>";
-        localStorage.removeItem(PREFIX + 'mobilSecim'); // Seçim temizlendiyse hafızayı sil
+        localStorage.removeItem(PREFIX + 'mobilSecim'); 
         return;
     }
 
-    // Seçilen ismi cihazın hafızasına kaydet
     localStorage.setItem(PREFIX + 'mobilSecim', isim);
 
-    // Hoş geldin mesajı eklendi
     let html = `<div style="text-align:center; margin-bottom:15px;"><span style="font-size:24px;">👋</span><br><strong style="color:var(--primary); font-size:14px;">Hoş geldin, ${isim}</strong></div>`;
 
     GUNLER.forEach((gunAdi, index) => {
@@ -1795,102 +1891,6 @@ function gorunumAyarlariYukleUI() {
         if(state.gorunum.panelYaziRenk) document.getElementById('panelTextPicker').value = state.gorunum.panelYaziRenk;
         if(state.gorunum.isimRenk) document.getElementById('isimRenkPicker').value = state.gorunum.isimRenk;
     }
-}
-
-function ulastirmaExcelIndir() {
-    const hKey = getDateKey(currentMonday);
-    let html = `
-    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            table { border-collapse: collapse; font-family: 'Arial', sans-serif; width: 100%; table-layout: fixed; }
-            col { width: 200px; }
-            td, th { 
-                font-family: 'Arial', sans-serif;
-                font-size: 8pt; 
-                font-weight: bold;
-                height: 20px;
-                border: 0.5pt solid #000;
-                text-align: center; 
-                vertical-align: middle; 
-                padding: 5px;
-                white-space: normal;
-                word-wrap: break-word;
-            }
-            .header-main { background-color: #881337; color: #ffffff; font-size: 14pt; height: 40px; border: 2pt solid #000; }
-            .header-day { background-color: #881337; color: #ffffff; font-size: 11pt; height: 30px; border: 1pt solid #000; }
-            .time-col { background-color: #881337; color: #ffffff; width: 80px; font-size: 12pt; border: 2pt solid #000; }
-            .shift-off { background-color: #fca5a5; color: #000000; }
-            .name-box { margin-bottom: 2px; font-size: 10pt; display: block; }
-        </style>
-    </head>
-    <body>
-        <table>
-            <colgroup><col span="8" width="200"></colgroup>
-            <tr>
-                <th class="header-main">SAAT</th>
-                ${GUNLER.map((g, i) => {
-                    let d = new Date(currentMonday);
-                    d.setDate(d.getDate() + i);
-                    let dateStr = d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                    return `<th class="header-day">${dateStr}<br>${g.toUpperCase()}</th>`;
-                }).join('')}
-            </tr>`;
-
-    state.saatler.forEach((s, index) => {
-        let bgColor = (state.saatAyarlari && state.saatAyarlari[s]) ? state.saatAyarlari[s].renk : (DEFAULT_SHIFT_COLORS[index] || '#dbeafe');
-        let textColor = "#000000";
-
-        html += `<tr>`;
-        html += `<td class="time-col">${s.split('–')[0]}<br><span style="font-size:8pt;">${s.split('–')[1]}</span></td>`;
-
-        for(let i=0; i<7; i++) {
-            let calisanlar = state.personeller.filter(p => {
-                let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
-                if (v === SHIFTS.IZIN || v === SHIFTS.BOS || v === SHIFTS.YILLIK || !v) return false;
-                return v === s;
-            });
-
-            calisanlar.sort((a, b) => {
-                let birimA = getGecerliBirim(a, i);
-                let birimB = getGecerliBirim(b, i);
-                return state.birimler.indexOf(birimA) - state.birimler.indexOf(birimB);
-            });
-
-            let cellContent = calisanlar.map(p => {
-                return `<span class="name-box">${p.ad}</span>`;
-            }).join('<br>');
-
-            html += `<td style="background-color:${bgColor}; color:${textColor};">${cellContent}</td>`;
-        }
-        html += `</tr>`;
-    });
-
-    html += `<tr><td class="time-col" style="background-color:#991b1b;">İZİN</td>`;
-    for(let i=0; i<7; i++) {
-        let izinliler = state.personeller.filter(p => {
-            let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
-            return (v === SHIFTS.IZIN || v === SHIFTS.BOS || !v || v === SHIFTS.YILLIK);
-        });
-        
-        let cellContent = izinliler.map(p => {
-            let v = state.manuelAtamalar[`${hKey}_${p.ad}_${i}`];
-            let ek = v === SHIFTS.YILLIK ? " (YILLIK)" : "";
-            return `<span class="name-box">${p.ad}${ek}</span>`;
-        }).join('<br>');
-        
-        html += `<td class="shift-off">${cellContent}</td>`;
-    }
-    html += `</tr>`;
-
-    html += `</table></body></html>`;
-    
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `Ulastirma_Listesi_${hKey}.xls`;
-    a.click();
 }
 
 window.onload = async () => { 
