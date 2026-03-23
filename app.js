@@ -236,12 +236,12 @@ function talepGonder() {
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ 
                 chat_id: TELEGRAM_ID, 
-                text: `🔔 *YENİ VARDİYA TALEBİ*\n\n👤 *Personel:* ${ad}\n📅 *Tarih:* ${tarih}\n📝 *Vardiya:* ${tur}\n\n⚠️ _Sistem onayları tarayıcı üzerinden çalıştığı için alttaki butonlar sizi siteye yönlendirecektir._`, 
+                text: `🔔 *YENİ VARDİYA TALEBİ*\n\n👤 *Personel:* ${ad}\n📅 *Tarih:* ${tarih}\n📝 *Vardiya:* ${tur}`, 
                 parse_mode: 'Markdown', 
                 reply_markup: { 
                     inline_keyboard: [[
-                        { text: "✅ ONAYLA", callback_data: `onay_${talepId}` }, 
-                        { text: "❌ REDDET", callback_data: `red_${talepId}` }
+                        { text: "✅ SİTEYE GİT VE ONAYLA", url: `${appUrl}?action=onay&id=${talepId}` }, 
+                        { text: "❌ SİTEYE GİT VE REDDET", url: `${appUrl}?action=red&id=${talepId}` }
                     ]] 
                 } 
             }) 
@@ -381,6 +381,7 @@ function tabloyuOlustur() {
             
             let cellContent = ""; let lastBirim = ""; 
             
+            // 🌟 DÜZELTİLEN KISIM: ROZET VE SANAL BİRİM KODLARI BURADA 🌟
             sortedPers.forEach((p) => { 
                 let gecerliBirim = getGecerliBirim(p, g); 
                 let sanalBirim = gecerliBirim;
@@ -422,6 +423,8 @@ function tabloyuOlustur() {
         }); 
         
         let cellContent = ""; let lastBirim = ""; 
+        
+        // 🌟 DÜZELTİLEN KISIM: ROZET VE SANAL BİRİM İZİN SATIRINDA DA BURADA 🌟
         sortedPers.forEach(p => { 
             let gecerliBirim = getGecerliBirim(p, g); 
             let sanalBirim = gecerliBirim;
@@ -1127,6 +1130,7 @@ function refreshUI() {
             </div>`;
         }
 
+        // 🌟 DÜZELTİLEN KISIM: uzmanlikHtml ARTIK EKRANA BASILIYOR 🌟
         return `<div style="background:var(--card-bg); border:1px solid var(--border); padding:10px; border-radius:8px; margin-bottom:5px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span><strong style="color:var(--text);">${p.ad}</strong> <small style="color:var(--text); opacity:0.6;">(${p.birim})</small></span>
@@ -1261,6 +1265,16 @@ function refreshUI() {
                 <button onclick="saatSil(${i})" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:10px;">Sil</button>
             </div>
         `}).join('')}`;
+}
+
+function saatRenkGuncelle(saat, renk) {
+    if(!state.saatAyarlari) state.saatAyarlari = {};
+    if(!state.saatAyarlari[saat]) state.saatAyarlari[saat] = {};
+    
+    state.saatAyarlari[saat].renk = renk;
+    save();
+    refreshUI(); 
+    tabloyuOlustur(); 
 }
 
 function vardiyaBul(pAd, gIdx) {
