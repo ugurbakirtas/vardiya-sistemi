@@ -29,7 +29,14 @@
         <label style="display:block; text-align:left; font-size:10px; margin-bottom:5px; font-weight:bold; color:var(--text)">TARİH SEÇİN:</label>
         <input type="date" id="talepTarih" style="width:100%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid var(--border); font-family:inherit; background:var(--card-bg); color:var(--text);">
         <select id="talepTuru" style="width:100%; padding:10px; margin-bottom:15px; border-radius:8px; border:1px solid var(--border); background:var(--card-bg); color:var(--text);">
-            <option value="İZİNLİ">İZİNLİ (İzin Talebi)</option><option value="06:30–16:00">06:30–16:00</option><option value="09:00–18:00">09:00–18:00</option><option value="16:00–00:00">16:00–00:00</option><option value="00:00–07:00">00:00–07:00</option>
+            <option value="İZİNLİ">İZİNLİ (İzin Talebi)</option>
+            <option value="YILLIK İZİN">YILLIK İZİN</option>
+            <option value="RAPORLU">RAPORLU</option>
+            <option value="06:30–16:00">06:30–16:00</option>
+            <option value="09:00–18:00">09:00–18:00</option>
+            <option value="12:00–20:00">12:00–20:00</option>
+            <option value="16:00–00:00">16:00–00:00</option>
+            <option value="00:00–07:00">00:00–07:00</option>
         </select>
         <button onclick="talepGonder()" class="btn-main-action" style="background:var(--success); width:100%; padding:12px;">TALEBİ GÖNDER</button>
         <button onclick="document.getElementById('talepModal').style.display='none'" style="background:none; border:none; color:var(--danger); margin-top:10px; cursor:pointer; font-weight:bold;">İptal</button>
@@ -210,7 +217,7 @@
 
   <div id="gorunumModal" class="modal-overlay">
     <div class="login-card modal-content-anim" style="width: 350px; padding: 25px; border: 2px solid #8b5cf6;">
-        <h3 style="margin-top:0; color:var(--primary); font-size:16px; margin-bottom:5px;">🎨 Görünüm Özelleştirme</h3>
+        <h3 style="margin:0; color:var(--primary); font-size:16px; margin-bottom:5px;">🎨 Görünüm Özelleştirme</h3>
         <p style="font-size:11px; color:var(--text); opacity:0.8; margin-top:0; margin-bottom:15px;">Arayüz renk ve yazı ayarlarını buradan yapabilirsiniz.</p>
         
         <div style="margin-bottom:15px; text-align:left; border-bottom:1px solid var(--border); padding-bottom:15px;">
@@ -266,4 +273,3 @@
 </body>
 
 </html>
-

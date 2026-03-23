@@ -7,8 +7,8 @@
   --primary: #1e293b; --blue: #2563eb; --bg: #f1f5f9; --card-bg: #ffffff;
   --text: #334155; --border: #e2e8f0; --danger: #ef4444; --success: #22c55e;
   --warning: #f59e0b; --weekend-bg: #fff1f2; --table-head: #f8fafc;
-  --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed;
-  --izin-bg: #fef2f2; --yillik-izin: #9333ea;
+  --saat1: #e0f2fe; --saat2: #f0fdf4; --saat3: #faf5ff; --saat4: #fff7ed; --saat5: #fef3c7;
+  --izin-bg: #fef2f2; --yillik-izin: #9333ea; --rapor-bg: #be123c;
   
   /* GÖRÜNÜM AYARLARI (Varsayılanlar) */
   --custom-panel-bg: var(--bg);
@@ -20,7 +20,7 @@
 [data-theme="dark"] {
   --primary: #0f172a; --bg: #020617; --card-bg: #1e293b; --text: #f1f5f9;
   --border: #334155; --weekend-bg: #2d1a1a; --table-head: #0f172a;
-  --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12;
+  --saat1: #0c4a6e; --saat2: #064e3b; --saat3: #581c87; --saat4: #7c2d12; --saat5: #b45309;
   --izin-bg: #450a0a;
   
   /* Koyu modda varsayılanlar */
@@ -103,7 +103,7 @@ table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 10
 
 th { background: var(--table-head); color: var(--text); padding: 12px 8px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1); }
 td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px; vertical-align: top; height: 95px; transition: background-color 0.2s; }
-.saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; position: sticky; left: 0; z-index: 9; background: inherit; }
+.saat-col { font-weight: 800; text-align: center; border-left: 5px solid var(--blue); width: 100px; position: sticky; left: 0; z-index: 9; background: inherit; display:flex; align-items:center; justify-content:center; }
 th:first-child { z-index: 11; left: 0; position: sticky; background: var(--table-head); }
 
 tbody tr:hover td { filter: brightness(0.95); cursor: default; }
@@ -113,8 +113,11 @@ tbody tr:hover td { filter: brightness(0.95); cursor: default; }
 th.today-col { border-top: 3px solid var(--warning) !important; background-color: rgba(245, 158, 11, 0.15) !important; color: var(--warning); }
 [data-theme="dark"] .today-col { background-color: rgba(245, 158, 11, 0.1) !important; }
 
-.row-saat-0 { background-color: var(--saat1); } .row-saat-1 { background-color: var(--saat2); } .row-saat-2 { background-color: var(--saat3); } .row-saat-3 { background-color: var(--saat4); }
+.row-saat-0 { background-color: var(--saat1); } .row-saat-1 { background-color: var(--saat2); } .row-saat-2 { background-color: var(--saat3); } .row-saat-3 { background-color: var(--saat4); } .row-saat-4 { background-color: var(--saat5); }
 .row-izin { background-color: var(--izin-bg) !important; } .row-izin .saat-col { border-left-color: var(--danger) !important; color: var(--danger); }
+.row-yillik { background-color: rgba(147, 51, 234, 0.05) !important; } .row-yillik .saat-col { border-left-color: var(--yillik-izin) !important; color: var(--yillik-izin); }
+.row-rapor { background-color: rgba(190, 18, 60, 0.05) !important; } .row-rapor .saat-col { border-left-color: var(--rapor-bg) !important; color: var(--rapor-bg); }
+
 th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { background-color: rgba(0,0,0,0.02); }
 
 .birim-card { 
@@ -192,20 +195,15 @@ th.weekend-col { background-color: var(--weekend-bg); } td.weekend-col { backgro
     color: inherit; 
 }
 
-/* 🌟 DÜZELTME: BİRİM LİSTESİ RENKLERİNİ EZEN KOD KALDIRILDI 🌟 */
 .panel-content .admin-tabs, 
 .panel-content .swap-container,
 .panel-content .login-card,
 .panel-content div[style*="background:var(--card-bg)"] {
     background: rgba(255, 255, 255, 0.05) !important; 
-    
-    /* Eskiden burada "border: 1px solid... !important" vardı, bu sol kenarlığı (renkleri) öldürüyordu. 
-       Şimdi sol kenarlığa dokunmuyoruz. */
     border-top: 1px solid rgba(128,128,128, 0.2) !important;
     border-right: 1px solid rgba(128,128,128, 0.2) !important;
     border-bottom: 1px solid rgba(128,128,128, 0.2) !important;
     border-left: 1px solid rgba(128,128,128, 0.2); 
-    
     color: inherit !important;
 }
 
