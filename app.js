@@ -18,7 +18,16 @@ const UNITS = {
     REJI: "REJİ OPERATÖRÜ",
     MCR24: "24TV MCR OPERATÖRÜ",
     MCR360: "360TV MCR OPERATÖRÜ",
-    INGEST: "INGEST OPERATÖRÜ"
+    INGEST: "INGEST OPERATÖRÜ",
+    BILGI_ISLEM: "24TV - 360TV BİLGİ İŞLEM",
+    YAYIN_SISTEMLERI: "24TV - 360TV YAYIN SİSTEMLERİ",
+    ISIK: "24TV - 360TV IŞIK",
+    DEKOR: "24TV - 360TV DEKOR",
+    KAMERAMANLAR: "24 TV - 360 TV KAMERAMANLAR",
+    REKLAM: "24 TV REKLAM AKIŞ",
+    YAYIN_YONETMENI: "24TV YAYIN YÖNETMENİ",
+    GAZETE_ARSIV: "GAZETE ARŞİV",
+    RENK_AYRIMI: "RENK AYRIMI"
 };
 
 const DEFAULT_SHIFT_COLORS = [
@@ -34,7 +43,14 @@ let TELEGRAM_ID = "";
 const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
 firebase.initializeApp(firebaseConfig); const database = firebase.database();
 const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = ""; 
-const BIRIM_RENKLERI = { [UNITS.YONETMEN]: "#2563eb", [UNITS.SES]: "#7c3aed", [UNITS.KJ]: "#db2777", [UNITS.PLAYOUT]: "#059669", [UNITS.REJI]: "#d97706", [UNITS.MCR24]: "#9333ea", [UNITS.MCR360]: "#9333ea", [UNITS.INGEST]: "#06b6d4" };
+const BIRIM_RENKLERI = { 
+    [UNITS.YONETMEN]: "#2563eb", [UNITS.SES]: "#7c3aed", [UNITS.KJ]: "#db2777", 
+    [UNITS.PLAYOUT]: "#059669", [UNITS.REJI]: "#d97706", [UNITS.MCR24]: "#9333ea", 
+    [UNITS.MCR360]: "#9333ea", [UNITS.INGEST]: "#06b6d4", [UNITS.BILGI_ISLEM]: "#4d7c0f", 
+    [UNITS.YAYIN_SISTEMLERI]: "#0f766e", [UNITS.ISIK]: "#b45309", [UNITS.DEKOR]: "#4338ca", 
+    [UNITS.KAMERAMANLAR]: "#be185d", [UNITS.REKLAM]: "#86198f", [UNITS.YAYIN_YONETMENI]: "#0369a1", 
+    [UNITS.GAZETE_ARSIV]: "#a21caf", [UNITS.RENK_AYRIMI]: "#b91c1c" 
+};
 let isAdmin = false;
 
 let state = { 
