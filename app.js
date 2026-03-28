@@ -202,38 +202,43 @@ function enterSystem(role) {
 }
 
 async function adminGirisYap() {
-    const email = document.getElementById('adminEmail').value;
+    const email = document.getElementById('adminEmail').value.trim();
     const password = document.getElementById('adminPassword').value;
-    
-    if(!email || !password) {
+
+    if (!email || !password) {
         showToast("Lütfen e-posta ve şifrenizi girin.", "warning");
         return;
     }
 
-    showLoading(); 
-    try { 
-        await firebase.auth().signInWithEmailAndPassword(email, password); 
-        isAdmin = true; 
-        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); 
-        document.getElementById('persTalepArea').style.display = 'none'; 
-        checkUrlActions(); 
-        gorunumAyarlariYukle(); 
-        
-        document.getElementById('adminLoginModal').style.display = 'none';
-        document.getElementById('loginOverlay').style.opacity = '0'; 
-        setTimeout(() => { 
-            document.getElementById('loginOverlay').style.display = 'none'; 
-            document.getElementById('appMain').style.display = 'block'; 
-            tabloyuOlustur(); 
-            hideLoading(); 
-            showToast("Yönetici girişi başarılı!", "success"); 
-        }, 500); 
+    showLoading();
 
-    catch (error) { 
-    hideLoading();
-    console.error("FIREBASE LOGIN ERROR:", error);
-    showToast("Hata: " + error.code, "error"); 
-} 
+    try {
+        await firebase.auth().signInWithEmailAndPassword(email, password);
+
+        isAdmin = true;
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
+        document.getElementById('persTalepArea').style.display = 'none';
+
+        checkUrlActions();
+        gorunumAyarlariYukle();
+
+        document.getElementById('adminLoginModal').style.display = 'none';
+        document.getElementById('loginOverlay').style.opacity = '0';
+
+        setTimeout(() => {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('appMain').style.display = 'block';
+            tabloyuOlustur();
+            hideLoading();
+            showToast("Yönetici girişi başarılı!", "success");
+        }, 500);
+
+    } catch (error) {
+        hideLoading();
+        console.error("FIREBASE LOGIN ERROR:", error);
+        showToast("Hata: " + error.code, "error");
+    }
+}
 
 function checkUrlActions() { const urlParams = new URLSearchParams(window.location.search); const action = urlParams.get('action'); const talepId = urlParams.get('id'); if((action === 'onay' || action === 'red') && talepId) { talepIslem(talepId, action); window.history.replaceState({}, document.title, window.location.pathname); } }
 function talepModalAc() { const sel = document.getElementById('talepPersonel'); sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); document.getElementById('talepModal').style.display = 'flex'; }
