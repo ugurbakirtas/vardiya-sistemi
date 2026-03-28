@@ -220,7 +220,7 @@ async function adminGirisYap() {
         document.getElementById('persTalepArea').style.display = 'none';
 
         checkUrlActions();
-        gorunumAyarlariYukle();
+        //gorunumAyarlariYukle();
 
         document.getElementById('adminLoginModal').style.display = 'none';
         document.getElementById('loginOverlay').style.opacity = '0';
