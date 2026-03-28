@@ -229,11 +229,11 @@ async function adminGirisYap() {
             showToast("Yönetici girişi başarılı!", "success"); 
         }, 500); 
 
-    } catch (error) { 
-        hideLoading();
-        showToast("Hatalı giriş: Şifre veya E-posta yanlış.", "error"); 
-    } 
-}
+    catch (error) { 
+    hideLoading();
+    console.error("FIREBASE LOGIN ERROR:", error);
+    showToast("Hata: " + error.code, "error"); 
+} 
 
 function checkUrlActions() { const urlParams = new URLSearchParams(window.location.search); const action = urlParams.get('action'); const talepId = urlParams.get('id'); if((action === 'onay' || action === 'red') && talepId) { talepIslem(talepId, action); window.history.replaceState({}, document.title, window.location.pathname); } }
 function talepModalAc() { const sel = document.getElementById('talepPersonel'); sel.innerHTML = state.personeller.map(p => `<option value="${p.ad}">${p.ad}</option>`).join(''); document.getElementById('talepModal').style.display = 'flex'; }
