@@ -53,7 +53,7 @@ const BIRIM_RENKLERI = {
 };
 let isAdmin = false;
 
-let state = { 
+var state = { 
     birimler: JSON.parse(localStorage.getItem(PREFIX + "birimler")) || Object.values(UNITS), 
     saatler: JSON.parse(localStorage.getItem(PREFIX + "saatler")) || Object.values(SHIFTS).filter(s => s.includes(":")), 
     personeller: JSON.parse(localStorage.getItem(PREFIX + "personeller")) || [], 
@@ -129,7 +129,7 @@ function getDateKey(d) {
     return `${year}-${month}-${day}`;
 }
 
-let currentMonday = getMonday(new Date());
+var currentMonday = getMonday(new Date());
 
 async function hassasAyarlariYukle() { 
     try { 
@@ -146,14 +146,31 @@ async function hassasAyarlariYukle() {
 
 function verileriGuvenliHaleGetir() {
     if(!state) state = {};
+
+    // 1. Firebase'in Array'leri Obje yapma sorununu düzelt
+    if(state.birimler && typeof state.birimler === 'object' && !Array.isArray(state.birimler)) state.birimler = Object.values(state.birimler);
     if(!Array.isArray(state.birimler) || state.birimler.length === 0) state.birimler = Object.values(UNITS);
+
+    if(state.saatler && typeof state.saatler === 'object' && !Array.isArray(state.saatler)) state.saatler = Object.values(state.saatler);
     if(!Array.isArray(state.saatler) || state.saatler.length === 0) state.saatler = Object.values(SHIFTS).filter(s => s.includes(":"));
+
+    // Personeller objeye dönüşmüşse veriyi kaybetmeden tekrar diziye al
+    if(state.personeller && typeof state.personeller === 'object' && !Array.isArray(state.personeller)) {
+        state.personeller = Object.values(state.personeller).filter(p => p !== null && p !== undefined);
+    }
     if(!Array.isArray(state.personeller)) state.personeller = [];
+
+    // 2. Diğer boş değer atamaları
     if(!state.manuelAtamalar) state.manuelAtamalar = {};
     if(!state.geciciGorevler) state.geciciGorevler = {};
     if(!state.kapasite) state.kapasite = {};
     if(!state.haftaIciSabitler) state.haftaIciSabitler = {};
+
+    // 3. MCR Ofset Çökmesini Engelle (Eksik ofset objesini zorla oluştur)
     if(!state.mcrAyarlari) state.mcrAyarlari = { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} };
+    if(!state.mcrAyarlari.ofsetler) state.mcrAyarlari.ofsetler = {};
+
+    if(state.logs && typeof state.logs === 'object' && !Array.isArray(state.logs)) state.logs = Object.values(state.logs);
     if(!state.logs) state.logs = [];
     
     if(!state.birimAyarlari || Object.keys(state.birimAyarlari).length === 0) {
@@ -171,33 +188,48 @@ function verileriGuvenliHaleGetir() {
     if(!state.gorunum) state.gorunum = { panelRenk: null, panelYaziRenk: null, isimRenk: null, isimKalinlik: 700 };
 }
 
+function tumArayuzuCiz() {
+    verileriGuvenliHaleGetir();
+    try { gorunumAyarlariYukle(); } catch (e) { console.warn("gorunumAyarlariYukle hatası:", e); }
+    try { tabloyuOlustur(); } catch (e) { console.error("tabloyuOlustur hatası:", e); }
+    try { mobilListeyiGuncelle(); } catch (e) { console.warn("mobilListeyiGuncelle hatası:", e); }
+    if (isAdmin) {
+        try { refreshUI(); } catch (e) { console.error("refreshUI hatası:", e); }
+    }
+}
+
+function veriyiBuluttanYukleVeCiz() {
+    return database.ref('vardiya_data').once('value').then(snap => {
+        if (snap.exists()) {
+            state = snap.val();
+        }
+        tumArayuzuCiz();
+        save();
+    }).catch(err => {
+        console.error("Bulut veri yükleme hatası:", err);
+        tumArayuzuCiz();
+    }).finally(() => {
+        hideLoading();
+    });
+}
+
 function enterSystem(role) { 
     if (role === 'admin') { 
         document.getElementById('adminLoginModal').style.display = 'flex';
         setTimeout(() => document.getElementById('adminLoginModal').classList.add('show'), 10);
     } else { 
         isAdmin = false; 
-        showLoading(); 
-        database.ref('vardiya_data').once('value').then(snap => {
-            if(snap.exists()) { 
-                 state = snap.val(); 
-                 verileriGuvenliHaleGetir(); 
-                 save(); 
-            }
-            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); 
-            document.getElementById('persTalepArea').style.display = 'block'; 
-            showToast("Sisteme hoş geldiniz.", "info");
-            document.getElementById('loginOverlay').style.opacity = '0'; 
-            setTimeout(() => { 
-                document.getElementById('loginOverlay').style.display = 'none'; 
-                document.getElementById('appMain').style.display = 'block'; 
-                tabloyuOlustur(); 
-                hideLoading(); 
-            }, 500); 
-        }).catch(e => {
-            hideLoading();
-            console.log("Veri çekilemedi: " + e.message); 
-        });
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); 
+        document.getElementById('persTalepArea').style.display = 'block'; 
+        document.getElementById('loginOverlay').style.opacity = '0'; 
+        showLoading();
+        setTimeout(() => { 
+            document.getElementById('loginOverlay').style.display = 'none'; 
+            document.getElementById('appMain').style.display = 'block'; 
+            veriyiBuluttanYukleVeCiz().then(() => {
+                showToast("Sisteme hoş geldiniz.", "info");
+            });
+        }, 500); 
     } 
 }
 
@@ -205,39 +237,34 @@ async function adminGirisYap() {
     const email = document.getElementById('adminEmail').value.trim();
     const password = document.getElementById('adminPassword').value;
 
-    if (!email || !password) {
+    if(!email || !password) {
         showToast("Lütfen e-posta ve şifrenizi girin.", "warning");
         return;
     }
 
-    showLoading();
-
-    try {
-        await firebase.auth().signInWithEmailAndPassword(email, password);
-
-        isAdmin = true;
-        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
-        document.getElementById('persTalepArea').style.display = 'none';
-
-        checkUrlActions();
-        //gorunumAyarlariYukle();
+    showLoading(); 
+    try { 
+        await firebase.auth().signInWithEmailAndPassword(email, password); 
+        isAdmin = true; 
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); 
+        document.getElementById('persTalepArea').style.display = 'none'; 
+        checkUrlActions(); 
 
         document.getElementById('adminLoginModal').style.display = 'none';
-        document.getElementById('loginOverlay').style.opacity = '0';
+        document.getElementById('loginOverlay').style.opacity = '0'; 
+        setTimeout(() => { 
+            document.getElementById('loginOverlay').style.display = 'none'; 
+            document.getElementById('appMain').style.display = 'block'; 
+            veriyiBuluttanYukleVeCiz().then(() => {
+                showToast("Yönetici girişi başarılı!", "success"); 
+            });
+        }, 500); 
 
-        setTimeout(() => {
-            document.getElementById('loginOverlay').style.display = 'none';
-            document.getElementById('appMain').style.display = 'block';
-            tabloyuOlustur();
-            hideLoading();
-            showToast("Yönetici girişi başarılı!", "success");
-        }, 500);
-
-    } catch (error) {
+    } catch (error) { 
         hideLoading();
         console.error("FIREBASE LOGIN ERROR:", error);
-        showToast("Hata: " + error.code, "error");
-    }
+        showToast("Hata: " + (error.code || error.message || "bilinmeyen_hata"), "error"); 
+    } 
 }
 
 function checkUrlActions() { const urlParams = new URLSearchParams(window.location.search); const action = urlParams.get('action'); const talepId = urlParams.get('id'); if((action === 'onay' || action === 'red') && talepId) { talepIslem(talepId, action); window.history.replaceState({}, document.title, window.location.pathname); } }
@@ -279,7 +306,7 @@ function talepleriYukle() { database.ref('talepler').orderByChild('durum').equal
 function talepIslem(id, tip) { database.ref('talepler/' + id).once('value', snap => { if(!snap.exists()) return; const t = snap.val(); if(tip === 'onay') { saveStateToHistory(); const mKey = `${t.hKey}_${t.ad}_${t.gunIdx}`; state.manuelAtamalar[mKey] = t.tur; save(); currentMonday = new Date(t.hKey); tabloyuOlustur(); database.ref('talepler/' + id).update({ durum: 'onaylandi' }); showToast(`✅ ${t.ad} için talep onaylandı.`, "success"); logKoy(`${t.ad} için talep onaylandı: ${t.tur}`); } else { database.ref('talepler/' + id).update({ durum: 'reddedildi' }); showToast("Talep reddedildi.", "error"); logKoy(`${t.ad} için talep reddedildi.`); } }); }
 function getMonday(d) { d = new Date(d); let day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day == 0 ? -6 : 1))); }
 
-let saveTimeout = null;
+var saveTimeout = null;
 function save() { 
     if(saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
@@ -1649,16 +1676,19 @@ function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save()
 
 function anlikSenkronizasyonBaslat() {
     database.ref('vardiya_data').on('value', (snap) => {
-        if (snap.exists()) {
-            state = snap.val();
-            verileriGuvenliHaleGetir(); 
-            save(); 
-            tabloyuOlustur();
-            gorunumAyarlariYukle();
-            if(isAdmin) refreshUI();
+        try {
+            if (snap.exists()) {
+                state = snap.val();
+            }
+            tumArayuzuCiz();
+            save();
             console.log("Sistem: Veriler eşitlendi.");
+        } catch (e) {
+            console.error("Veri yükleme hatası:", e);
+            showToast("Veri yükleme hatası: " + (e.message || e), "error");
+        } finally {
+            hideLoading();
         }
-        hideLoading(); 
     });
 }
 
@@ -1961,30 +1991,23 @@ window.onload = async () => {
     if(localStorage.getItem(PREFIX + "theme") === "dark") {
         document.documentElement.setAttribute("data-theme", "dark");
     }
-    
-    showLoading(); 
 
+    showLoading(); 
     await hassasAyarlariYukle(); 
-    
+
     firebase.auth().onAuthStateChanged(function(user) {
         if (user) {
             console.log("Oturum açık:", user.email);
             isAdmin = true;
-            
+
             document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
             document.getElementById('persTalepArea').style.display = 'none';
-            
+
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('appMain').style.display = 'block'; 
-            
+
             checkUrlActions();
-            
-            verileriGuvenliHaleGetir();
-            gorunumAyarlariYukle();
-            tabloyuOlustur(); 
-            
-            const p = document.getElementById("sidePanel");
-            if(p.classList.contains("open")) tabDegistir('personel');
+            veriyiBuluttanYukleVeCiz();
         } else {
             hideLoading(); 
         }
