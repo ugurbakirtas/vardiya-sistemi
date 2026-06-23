@@ -12,6 +12,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
   
@@ -58,6 +59,7 @@
   <div class="app-wrapper" id="appMain">
     <div id="duyuruAlani" class="duyuru-bar no-print">📢 <span id="duyuruMetniSpan"></span></div>
     <div id="yorgunlukUyari" class="yorgunluk-bar no-print"></div>
+    <div id="capacityWarningBar" class="yorgunluk-bar admin-only no-print" style="display:none; background:var(--danger); color:white; padding:12px; margin-bottom:15px; border-radius:8px; font-weight:700; text-align:center;">⚠️ KRİTİK ALARM: Kapasite eksikliği tespit edildi! Gerekli uzmanlığa sahip personel bulunamadı. Lütfen boş alanlara manuel atama yapın.</div>
     
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 15px;">
@@ -124,6 +126,7 @@
             
             <button id="btn-tab-degisim" class="tab-btn" onclick="tabDegistir('degisim')"><i>⚡</i>Günlük Swap</button>
             <button id="btn-tab-yillik" class="tab-btn" onclick="tabDegistir('yillik')"><i>🏖️</i>Yıllık</button>
+            <button id="btn-tab-izintakvim" class="tab-btn" onclick="tabDegistir('izintakvim')"><i>📅</i>İzin Takvimi</button>
             <button id="btn-tab-istatistik" class="tab-btn" onclick="tabDegistir('istatistik')"><i>📊</i>Analiz</button>
             
             <button id="btn-tab-birimler" class="tab-btn" onclick="tabDegistir('birimler')"><i>🏢</i>Birimler</button>
@@ -177,6 +180,8 @@
         <div id="tab-kapasite" class="tab-content hidden"><div id="kapasiteTable"></div></div>
         
         <div id="tab-yillik" class="tab-content hidden"><div class="swap-container" style="border-color:var(--yillik-izin); background:var(--card-bg);"><div class="swap-header" style="color:var(--yillik-izin);">🏖️ TOPLU YILLIK İZİN İŞLEME</div><div class="swap-row"><label class="swap-label">PERSONEL SEÇİN:</label><select id="yillikIzinPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row"><div style="flex:1;"><label class="swap-label">BAŞLANGIÇ:</label><input type="date" id="yillikBaslangic" class="swap-select"></div><div style="flex:1;"><label class="swap-label">BİTİŞ (Dahil):</label><input type="date" id="yillikBitis" class="swap-select"></div></div><button onclick="yillikIzinIsle()" class="btn-main-action" style="background:var(--yillik-izin); width:100%; padding:12px; margin-top:10px;">İZİNLERİ İŞLE</button><div style="margin-top:10px; font-size:10px; color:var(--text); opacity:0.7; text-align:center;">* Seçilen tarih aralığına "YILLIK İZİN" yazılacak ve sistem gerektiğinde yerine başkasını atayacaktır.</div></div></div>
+
+        <div id="tab-izintakvim" class="tab-content hidden"><div class="swap-container" style="border-color:var(--success); background:var(--card-bg);"><div class="swap-header" style="color:var(--success);">📅 AKTİF VE ONAYLI İZİNLER</div><div style="padding: 10px;"><h4 style="margin-top:0; margin-bottom:10px; color:var(--danger);">Şu An İzinde Olanlar</h4><ul id="activeLeavesList" style="list-style: none; padding: 0; margin: 0 0 20px 0; font-weight: bold; font-size:12px;"></ul><h4 style="margin-top:0; margin-bottom:10px; color:var(--blue);">Gelecek İzinler</h4><div id="upcomingLeavesList" style="font-size:12px;"></div></div></div></div>
         
         <div id="tab-loglar" class="tab-content hidden">
             <h3 style="margin-top:0; font-size:14px; color:inherit;">Son İşlem Kayıtları</h3>
