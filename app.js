@@ -226,16 +226,31 @@ function veriyiBuluttanYukleVeCiz() {
     });
 }
 
+function formatTarih(t) {
+    if (!t) return "";
+    if (t.includes('.')) return t.split('.').reverse().join('-');
+    if (t.includes('/')) return t.split('/').reverse().join('-');
+    return t; 
+}
+
 function otomatikIzinleriTabloyaIsle() {
     let degisiklikVar = false;
     if (!state.personeller || !state.manuelAtamalar) return;
     
     hariciIzinler.forEach(izin => {
-        if (izin.durum !== 'onaylandı' && izin.durum !== 'Onaylandı') return;
-        let current = new Date(izin.baslangic_tarihi);
-        let end = new Date(izin.bitis_tarihi);
+        const durum = (izin.durum || "").toLocaleLowerCase('tr-TR');
+        if (durum !== 'onaylandı') return;
         
-        while(current <= end) {
+        let basTarih = formatTarih(izin.baslangic_tarihi);
+        let bitTarih = formatTarih(izin.bitis_tarihi);
+        
+        let current = new Date(basTarih);
+        let end = new Date(bitTarih);
+        
+        if (isNaN(current) || isNaN(end)) return;
+
+        let loops = 0;
+        while(current <= end && loops < 100) {
             const hKey = getDateKey(getMonday(current));
             let jsDay = current.getDay();
             let gunIdx = (jsDay + 6) % 7;
@@ -247,6 +262,7 @@ function otomatikIzinleriTabloyaIsle() {
                 degisiklikVar = true;
             }
             current.setDate(current.getDate() + 1);
+            loops++;
         }
     });
     
@@ -271,9 +287,14 @@ function izinleriBuluttanCek() {
 
 function isPersonOnAnnualLeave(pAd, dateStr) {
     return hariciIzinler.some(izin => {
-        if(izin.durum !== "onaylandı" && izin.durum !== "Onaylandı") return false;
+        const durum = (izin.durum || "").toLocaleLowerCase('tr-TR');
+        if(durum !== 'onaylandı') return false;
         if(izin.personel_adi !== pAd) return false;
-        return dateStr >= izin.baslangic_tarihi && dateStr <= izin.bitis_tarihi;
+        
+        let basTarih = formatTarih(izin.baslangic_tarihi);
+        let bitTarih = formatTarih(izin.bitis_tarihi);
+
+        return dateStr >= basTarih && dateStr <= bitTarih;
     });
 }
 
@@ -286,14 +307,19 @@ function renderLeaveCalendar() {
     let activeCount = 0; let upcomingCount = 0;
     
     hariciIzinler.forEach(izin => {
-        if(izin.durum !== 'onaylandı' && izin.durum !== 'Onaylandı') return;
+        const durum = (izin.durum || "").toLocaleLowerCase('tr-TR');
+        if(durum !== 'onaylandı') return;
+        
+        let basTarih = formatTarih(izin.baslangic_tarihi);
+        let bitTarih = formatTarih(izin.bitis_tarihi);
+        
         const div = document.createElement('li');
         div.style.padding = "8px"; div.style.background = "rgba(128,128,128,0.1)"; div.style.marginBottom = "5px"; div.style.borderRadius = "4px";
         div.innerHTML = `👤 ${izin.personel_adi} <span style="float:right; font-size:10px; background:#e2e8f0; color:#000; padding:2px 4px; border-radius:3px;">${izin.baslangic_tarihi} / ${izin.bitis_tarihi}</span>`;
         
-        if(today >= izin.baslangic_tarihi && today <= izin.bitis_tarihi) {
+        if(today >= basTarih && today <= bitTarih) {
             activeList.appendChild(div); activeCount++;
-        } else if (izin.baslangic_tarihi > today) {
+        } else if (basTarih > today) {
             upcomingList.appendChild(div); upcomingCount++;
         }
     });
@@ -503,7 +529,9 @@ window.geciciBirimAta = function(pAd, gIdx, yeniBirim) {
     tabloyuOlustur();
     if(isAdmin) refreshUI();
     showToast("Geçici masa (birim) güncellendi.", "success");
-};function tabloyuOlustur() { 
+};
+
+function tabloyuOlustur() { 
     if(state.duyuruMetni) {
         document.getElementById('duyuruAlani').style.display = 'block';
         document.getElementById('duyuruMetniSpan').innerText = state.duyuruMetni;
@@ -682,9 +710,7 @@ window.geciciBirimAta = function(pAd, gIdx, yeniBirim) {
     istatistikleriHesapla();
     mobilListeyiGuncelle();
     tabloFiltrele();
-}
-
-function cakismaKontrol(personelAd, hedefGun, hedefSaat) { const hKey = getDateKey(currentMonday); if ([SHIFTS.IZIN, SHIFTS.BOS, null, SHIFTS.YILLIK, SHIFTS.RAPOR].includes(hedefSaat)) return; if (hedefGun > 0) { let dunKey = `${hKey}_${personelAd}_${hedefGun - 1}`; let dunVardiya = state.manuelAtamalar[dunKey]; let sabahVardiyalari = [SHIFTS.SABAH, SHIFTS.GUNDUZ, SHIFTS.OGLEN]; let aksamVardiyalari = [SHIFTS.AKSAM, SHIFTS.GECE]; if (aksamVardiyalari.includes(dunVardiya) && sabahVardiyalari.includes(hedefSaat)) showToast(`⚠️ DİKKAT: ${personelAd} dün AKŞAM/GECE vardiyasındaydı. Yetersiz dinlenme!`, "warning"); } if (hedefGun < 6) { let yarinKey = `${hKey}_${personelAd}_${hedefGun + 1}`; let yarinVardiya = state.manuelAtamalar[yarinKey]; let sabahVardiyalari = [SHIFTS.SABAH, SHIFTS.GUNDUZ, SHIFTS.OGLEN]; let aksamVardiyalari = [SHIFTS.AKSAM, SHIFTS.GECE]; if (aksamVardiyalari.includes(hedefSaat) && sabahVardiyalari.includes(yarinVardiya)) showToast(`⚠️ DİKKAT: ${personelAd} yarın SABAH görünüyor. Yetersiz dinlenme!`, "warning"); } }
+}function cakismaKontrol(personelAd, hedefGun, hedefSaat) { const hKey = getDateKey(currentMonday); if ([SHIFTS.IZIN, SHIFTS.BOS, null, SHIFTS.YILLIK, SHIFTS.RAPOR].includes(hedefSaat)) return; if (hedefGun > 0) { let dunKey = `${hKey}_${personelAd}_${hedefGun - 1}`; let dunVardiya = state.manuelAtamalar[dunKey]; let sabahVardiyalari = [SHIFTS.SABAH, SHIFTS.GUNDUZ, SHIFTS.OGLEN]; let aksamVardiyalari = [SHIFTS.AKSAM, SHIFTS.GECE]; if (aksamVardiyalari.includes(dunVardiya) && sabahVardiyalari.includes(hedefSaat)) showToast(`⚠️ DİKKAT: ${personelAd} dün AKŞAM/GECE vardiyasındaydı. Yetersiz dinlenme!`, "warning"); } if (hedefGun < 6) { let yarinKey = `${hKey}_${personelAd}_${hedefGun + 1}`; let yarinVardiya = state.manuelAtamalar[yarinKey]; let sabahVardiyalari = [SHIFTS.SABAH, SHIFTS.GUNDUZ, SHIFTS.OGLEN]; let aksamVardiyalari = [SHIFTS.AKSAM, SHIFTS.GECE]; if (aksamVardiyalari.includes(hedefSaat) && sabahVardiyalari.includes(yarinVardiya)) showToast(`⚠️ DİKKAT: ${personelAd} yarın SABAH görünüyor. Yetersiz dinlenme!`, "warning"); } }
 function mulberry32(a) { return function() { var t = a += 0x6D2B79F5; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; } }
 function seededShuffle(array, seed) { let hash = 0; for (let i = 0; i < seed.length; i++) hash = Math.imul(31, hash) + seed.charCodeAt(i) | 0; let rng = mulberry32(hash); let m = array.length, t, i; while (m) { i = Math.floor(rng() * m--); t = array[m]; array[m] = array[i]; array[i] = t; } return array; }
 
