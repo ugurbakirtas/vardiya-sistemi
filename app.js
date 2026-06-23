@@ -226,6 +226,35 @@ function veriyiBuluttanYukleVeCiz() {
     });
 }
 
+function otomatikIzinleriTabloyaIsle() {
+    let degisiklikVar = false;
+    if (!state.personeller || !state.manuelAtamalar) return;
+    
+    hariciIzinler.forEach(izin => {
+        if (izin.durum !== 'onaylandı' && izin.durum !== 'Onaylandı') return;
+        let current = new Date(izin.baslangic_tarihi);
+        let end = new Date(izin.bitis_tarihi);
+        
+        while(current <= end) {
+            const hKey = getDateKey(getMonday(current));
+            let jsDay = current.getDay();
+            let gunIdx = (jsDay + 6) % 7;
+            const mKey = `${hKey}_${izin.personel_adi}_${gunIdx}`;
+
+            let p = state.personeller.find(x => x.ad === izin.personel_adi);
+            if (p && state.manuelAtamalar[mKey] !== SHIFTS.YILLIK) {
+                state.manuelAtamalar[mKey] = SHIFTS.YILLIK;
+                degisiklikVar = true;
+            }
+            current.setDate(current.getDate() + 1);
+        }
+    });
+    
+    if (degisiklikVar) {
+        save();
+    }
+}
+
 function izinleriBuluttanCek() {
     dbIzin.collection('izinler').onSnapshot(snapshot => {
         hariciIzinler = [];
@@ -233,6 +262,7 @@ function izinleriBuluttanCek() {
             hariciIzinler.push(doc.data());
         });
         renderLeaveCalendar();
+        otomatikIzinleriTabloyaIsle();
         tabloyuOlustur();
     }, error => {
         console.error("Yıllık izinler çekilirken hata oluştu:", error);
@@ -473,9 +503,7 @@ window.geciciBirimAta = function(pAd, gIdx, yeniBirim) {
     tabloyuOlustur();
     if(isAdmin) refreshUI();
     showToast("Geçici masa (birim) güncellendi.", "success");
-};
-
-function tabloyuOlustur() { 
+};function tabloyuOlustur() { 
     if(state.duyuruMetni) {
         document.getElementById('duyuruAlani').style.display = 'block';
         document.getElementById('duyuruMetniSpan').innerText = state.duyuruMetni;
@@ -823,7 +851,6 @@ function vardiyaUretVeKaydet() {
                 else grupC.push(p);
             });
             
-            // DİKKAT: Artık İZİN ataması yapmıyoruz (null bırakıyoruz ki kapasite doldururken geri çağrılabilsinler)
             grupA.forEach(p => { safeAssign(p, 0, SHIFTS.SABAH); safeAssign(p, 1, SHIFTS.AKSAM); safeAssign(p, 2, SHIFTS.AKSAM); safeAssign(p, 5, SHIFTS.SABAH); safeAssign(p, 6, SHIFTS.SABAH); });
             grupB.forEach(p => { safeAssign(p, 0, SHIFTS.AKSAM); safeAssign(p, 3, SHIFTS.SABAH); safeAssign(p, 4, SHIFTS.SABAH); safeAssign(p, 5, SHIFTS.AKSAM); safeAssign(p, 6, SHIFTS.AKSAM); });
             
@@ -1025,7 +1052,6 @@ function vardiyaUretVeKaydet() {
     }
 
     function adim6_EksikleriKapatVeKaydet() {
-        // En son açıkta kalan null'ları İZİN olarak değiştiriyoruz ki herkes listeye yansısın.
         state.personeller.forEach(p => { for(let g=0; g<7; g++) { if(tempProg[p.ad][g] === null) tempProg[p.ad][g] = SHIFTS.IZIN; } });
         state.personeller.forEach(p => { for(let i=0; i<7; i++) if(tempProg[p.ad][i]) state.manuelAtamalar[`${hKey}_${p.ad}_${i}`] = tempProg[p.ad][i]; });
         
@@ -1351,7 +1377,6 @@ function refreshUI() {
             <input type="number" value="${p.yuzde || 0}" style="width:50px; padding:6px; border-radius:4px; border:1px solid var(--border);" onchange="yuzdeGuncelle(${i}, this.value)">
         </div>`;
         
-        // Uzmanlık yetkilerini hiçbir koşula bağlamadan AÇIK bıraktım. Artık her personelde (Sesçi dahil) görünecek. Hatalı olanı temizleyebilirsin.
         if(!p.uzmanlik) p.uzmanlik = [];
         let uzmanlikHtml = `
         <div style="margin-top:5px; font-size:10px; background:var(--bg); padding:8px; border-radius:4px; border:1px solid var(--border);">
