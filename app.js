@@ -43,7 +43,6 @@ let TELEGRAM_ID = "";
 const firebaseConfig = { apiKey: "AIzaSyBY8dA7IQ0vcdjtG0haRVFuF0vTgZACU0M", authDomain: "teknik-vardiya-listesi.firebaseapp.com", databaseURL: "https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app", projectId: "teknik-vardiya-listesi", storageBucket: "teknik-vardiya-listesi.firebasestorage.app", messagingSenderId: "900931844150", appId: "1:900931844150:web:41c799492e85d62df8c097" };
 firebase.initializeApp(firebaseConfig); const database = firebase.database();
 
-// --- YILLIK İZİN (FIRESTORE) ÇİFT BAĞLANTISI ---
 const firebaseConfigIzin = {
     apiKey: "AIzaSyBHEts1PhRYVRKcvYYVMZYKvNXuaVno7m8",
     authDomain: "yillik-izin-864ca.firebaseapp.com",
@@ -55,7 +54,6 @@ const firebaseConfigIzin = {
 };
 const appIzin = firebase.initializeApp(firebaseConfigIzin, "yillikIzinApp");
 const dbIzin = appIzin.firestore();
-// -----------------------------------------------
 
 const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = ""; 
 const BIRIM_RENKLERI = { 
@@ -86,7 +84,6 @@ var state = {
     gorunum: JSON.parse(localStorage.getItem(PREFIX + "gorunum")) || { panelRenk: null, panelYaziRenk: null, isimRenk: null, isimKalinlik: 700 }
 };
 
-let undoStack = [];
 function saveStateToHistory() {
     undoStack.push({
         manuelAtamalar: JSON.parse(JSON.stringify(state.manuelAtamalar)),
@@ -268,11 +265,15 @@ function otomatikIzinleriTabloyaIsle() {
     
     if (degisiklikVar) {
         save();
+        tabloyuOlustur();
     }
 }
 
-function izinleriBuluttanCek() {
-    dbIzin.collection('izinler').onSnapshot(snapshot => {
+// MANUEL TETİKLENEN GÜNCELLEME FONKSİYONU
+async function izinleriGuncelleVeCek() {
+    showLoading();
+    try {
+        const snapshot = await dbIzin.collection('izinler').get();
         hariciIzinler = [];
         snapshot.forEach(doc => {
             hariciIzinler.push(doc.data());
@@ -280,22 +281,14 @@ function izinleriBuluttanCek() {
         renderLeaveCalendar();
         otomatikIzinleriTabloyaIsle();
         tabloyuOlustur();
-    }, error => {
+        showToast("✅ İzinler başarıyla güncellendi.", "success");
+        logKoy("İzinler manuel olarak çekildi ve güncellendi.");
+    } catch (error) {
         console.error("Yıllık izinler çekilirken hata oluştu:", error);
-    });
-}
-
-function isPersonOnAnnualLeave(pAd, dateStr) {
-    return hariciIzinler.some(izin => {
-        const durum = (izin.durum || "").toLocaleLowerCase('tr-TR');
-        if(durum !== 'onaylandı') return false;
-        if(izin.personel_adi !== pAd) return false;
-        
-        let basTarih = formatTarih(izin.baslangic_tarihi);
-        let bitTarih = formatTarih(izin.bitis_tarihi);
-
-        return dateStr >= basTarih && dateStr <= bitTarih;
-    });
+        showToast("Hata: İzinler çekilemedi!", "error");
+    } finally {
+        hideLoading();
+    }
 }
 
 function renderLeaveCalendar() {
@@ -325,9 +318,7 @@ function renderLeaveCalendar() {
     });
     if(activeCount === 0) activeList.innerHTML = '<li style="color:var(--text); font-weight:normal; font-size:11px;">Şu an yıllık izinde personel bulunmuyor.</li>';
     if(upcomingCount === 0) upcomingList.innerHTML = '<div style="color:var(--text); font-weight:normal; font-size:11px;">Gelecek izin bulunmuyor.</div>';
-}
-
-function enterSystem(role) { 
+}function enterSystem(role) { 
     if (role === 'admin') { 
         document.getElementById('adminLoginModal').style.display = 'flex';
         setTimeout(() => document.getElementById('adminLoginModal').classList.add('show'), 10);
@@ -420,7 +411,6 @@ function talepleriYukle() { database.ref('talepler').orderByChild('durum').equal
 function talepIslem(id, tip) { database.ref('talepler/' + id).once('value', snap => { if(!snap.exists()) return; const t = snap.val(); if(tip === 'onay') { saveStateToHistory(); const mKey = `${t.hKey}_${t.ad}_${t.gunIdx}`; state.manuelAtamalar[mKey] = t.tur; save(); currentMonday = new Date(t.hKey); tabloyuOlustur(); database.ref('talepler/' + id).update({ durum: 'onaylandi' }); showToast(`✅ ${t.ad} için talep onaylandı.`, "success"); logKoy(`${t.ad} için talep onaylandı: ${t.tur}`); } else { database.ref('talepler/' + id).update({ durum: 'reddedildi' }); showToast("Talep reddedildi.", "error"); logKoy(`${t.ad} için talep reddedildi.`); } }); }
 function getMonday(d) { d = new Date(d); let day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day == 0 ? -6 : 1))); }
 
-var saveTimeout = null;
 function save() { 
     if(saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
@@ -710,13 +700,6 @@ function tabloyuOlustur() {
     istatistikleriHesapla();
     mobilListeyiGuncelle();
     tabloFiltrele();
-}function cakismaKontrol(personelAd, hedefGun, hedefSaat) { const hKey = getDateKey(currentMonday); if ([SHIFTS.IZIN, SHIFTS.BOS, null, SHIFTS.YILLIK, SHIFTS.RAPOR].includes(hedefSaat)) return; if (hedefGun > 0) { let dunKey = `${hKey}_${personelAd}_${hedefGun - 1}`; let dunVardiya = state.manuelAtamalar[dunKey]; let sabahVardiyalari = [SHIFTS.SABAH, SHIFTS.GUNDUZ, SHIFTS.OGLEN]; let aksamVardiyalari = [SHIFTS.AKSAM, SHIFTS.GECE]; if (aksamVardiyalari.includes(dunVardiya) && sabahVardiyalari.includes(hedefSaat)) showToast(`⚠️ DİKKAT: ${personelAd} dün AKŞAM/GECE vardiyasındaydı. Yetersiz dinlenme!`, "warning"); } if (hedefGun < 6) { let yarinKey = `${hKey}_${personelAd}_${hedefGun + 1}`; let yarinVardiya = state.manuelAtamalar[yarinKey]; let sabahVardiyalari = [SHIFTS.SABAH, SHIFTS.GUNDUZ, SHIFTS.OGLEN]; let aksamVardiyalari = [SHIFTS.AKSAM, SHIFTS.GECE]; if (aksamVardiyalari.includes(hedefSaat) && sabahVardiyalari.includes(yarinVardiya)) showToast(`⚠️ DİKKAT: ${personelAd} yarın SABAH görünüyor. Yetersiz dinlenme!`, "warning"); } }
-function mulberry32(a) { return function() { var t = a += 0x6D2B79F5; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; } }
-function seededShuffle(array, seed) { let hash = 0; for (let i = 0; i < seed.length; i++) hash = Math.imul(31, hash) + seed.charCodeAt(i) | 0; let rng = mulberry32(hash); let m = array.length, t, i; while (m) { i = Math.floor(rng() * m--); t = array[m]; array[m] = array[i]; array[i] = t; } return array; }
-
-function yillikIzinIsle() { 
-    saveStateToHistory(); 
-    const pAd = document.getElementById('yillikIzinPersonel').value; const basTarih = document.getElementById('yillikBaslangic').value; const bitTarih = document.getElementById('yillikBitis').value; if(!pAd || !basTarih || !bitTarih) { showToast("Lütfen tüm alanları doldurun.", "error"); return; } let current = new Date(basTarih); let end = new Date(bitTarih); while(current <= end) { const hKey = getDateKey(getMonday(current)); let jsDay = current.getDay(); let gunIdx = (jsDay + 6) % 7; const mKey = `${hKey}_${pAd}_${gunIdx}`; state.manuelAtamalar[mKey] = SHIFTS.YILLIK; current.setDate(current.getDate() + 1); } save(); tabloyuOlustur(); showToast(`${pAd} için yıllık izin işlendi.`, "success"); logKoy(`${pAd} için YILLIK İZİN işlendi (${basTarih} - ${bitTarih})`); document.getElementById('yillikBaslangic').value = ""; document.getElementById('yillikBitis').value = ""; 
 }
 
 function vardiyaUretVeKaydet() {
@@ -1388,6 +1371,17 @@ function odakModuAc() {
 }
 
 function refreshUI() {
+    // Manuel İzin Güncelleme Butonunu Yönetim Paneline Ekle
+    const adminTab = document.getElementById("tab-personel"); // Yönetim paneli alanı
+    if (adminTab && !document.getElementById('btnIzinGuncelle')) {
+        const btn = document.createElement('button');
+        btn.id = 'btnIzinGuncelle';
+        btn.innerHTML = "🔄 İzinleri Güncelle";
+        btn.onclick = izinleriGuncelleVeCek;
+        btn.style.cssText = "width:100%; background:var(--blue); color:white; border:none; padding:10px; border-radius:5px; margin-bottom:10px; cursor:pointer;";
+        adminTab.prepend(btn);
+    }
+
     document.getElementById("yeniPersBirimSec").innerHTML = state.birimler.map(b => `<option value="${b}">${b}</option>`).join('');
     
     document.getElementById("persListesiAdmin").innerHTML = state.personeller.map((p, i) => {
@@ -2255,7 +2249,8 @@ window.onload = async () => {
 
             checkUrlActions();
             veriyiBuluttanYukleVeCiz();
-            izinleriBuluttanCek();
+            // Sayfa açıldığında otomatik 1 kez çekiyoruz
+            izinleriGuncelleVeCek();
         } else {
             hideLoading(); 
         }
