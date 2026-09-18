@@ -1,0 +1,86 @@
+name: TurkMedya Weekly Vardiya
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Firebase productiona yazilsin mi?'
+        required: true
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+      weeks_ahead:
+        description: 'Kac hafta sonrasini olustursun?'
+        required: true
+        default: '1'
+        type: choice
+        options: ['0', '1', '2']
+  schedule:
+    # Saatlik tetiklenir; gate adimi Türkiye saatine göre sadece seçilen gün/saatte devam eder.
+    - cron: '7 * * * *'
+
+concurrency:
+  group: turkmedya-vardiya-weekly-auto
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  weekly-vardiya:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Schedule gate
+        id: gate
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          AUTO_ENABLED: ${{ vars.VARDIYA_AUTO_ENABLED }}
+          AUTO_WEEKDAY: ${{ vars.VARDIYA_AUTO_WEEKDAY }}
+          AUTO_HOUR_TR: ${{ vars.VARDIYA_AUTO_HOUR_TR }}
+        run: node automation/gate.mjs
+
+      - name: Disabled / outside schedule
+        if: steps.gate.outputs.run != 'true'
+        run: echo "Weekly automation skipped - ${{ steps.gate.outputs.reason }}"
+
+      - name: Setup Node
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install automation dependencies
+        if: steps.gate.outputs.run == 'true'
+        working-directory: automation
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chromium
+        if: steps.gate.outputs.run == 'true'
+        working-directory: automation
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate next week
+        if: steps.gate.outputs.run == 'true'
+        working-directory: automation
+        env:
+          VARDIYA_ADMIN_EMAIL: ${{ secrets.VARDIYA_ADMIN_EMAIL }}
+          VARDIYA_ADMIN_PASSWORD: ${{ secrets.VARDIYA_ADMIN_PASSWORD }}
+          AUTO_PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.publish || vars.VARDIYA_AUTO_PUBLISH }}
+          WEEKS_AHEAD: ${{ github.event_name == 'workflow_dispatch' && inputs.weeks_ahead || vars.VARDIYA_AUTO_WEEKS_AHEAD }}
+          AUTO_TELEGRAM_NOTIFY: ${{ vars.VARDIYA_AUTO_TELEGRAM_NOTIFY }}
+          VARDIYA_TELEGRAM_BOT_TOKEN: ${{ secrets.VARDIYA_TELEGRAM_BOT_TOKEN }}
+          VARDIYA_TELEGRAM_CHAT_ID: ${{ secrets.VARDIYA_TELEGRAM_CHAT_ID }}
+        run: node weekly-runner.mjs
+
+      - name: Upload automation report
+        if: always() && steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-vardiya-report-${{ github.run_number }}
+          path: automation/automation-output.json
+          if-no-files-found: warn
+          retention-days: 30
