@@ -75,6 +75,7 @@ var state = {
     kapasite: JSON.parse(localStorage.getItem(PREFIX + "kapasite")) || {}, 
     manuelAtamalar: JSON.parse(localStorage.getItem(PREFIX + "manuelAtamalar")) || {}, 
     haftaIciSabitler: JSON.parse(localStorage.getItem(PREFIX + "haftaIciSabitler")) || {}, 
+    haftaSonuYedekler: JSON.parse(localStorage.getItem(PREFIX + "haftaSonuYedekler")) || {}, 
     mcrAyarlari: JSON.parse(localStorage.getItem(PREFIX + "mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }, 
     geciciGorevler: JSON.parse(localStorage.getItem(PREFIX + "geciciGorevler")) || {},
     logs: JSON.parse(localStorage.getItem(PREFIX + "logs")) || [],
@@ -110,11 +111,9 @@ function geriAl() {
 function tabloFiltrele() {
     const val = document.getElementById('tabloArama').value.toLocaleLowerCase('tr-TR');
     document.querySelectorAll('.birim-card').forEach(card => {
-        if (card.innerText.toLocaleLowerCase('tr-TR').includes(val)) {
-            card.style.display = 'block';
-        } else {
-            card.style.display = 'none';
-        }
+        const meta = (card.getAttribute('data-search') || '').toLocaleLowerCase('tr-TR');
+        const visible = (card.innerText || '').toLocaleLowerCase('tr-TR');
+        card.style.display = (visible.includes(val) || meta.includes(val)) ? 'block' : 'none';
     });
 }
 
@@ -176,6 +175,7 @@ function verileriGuvenliHaleGetir() {
     if(!state.geciciGorevler) state.geciciGorevler = {};
     if(!state.kapasite) state.kapasite = {};
     if(!state.haftaIciSabitler) state.haftaIciSabitler = {};
+    if(!state.haftaSonuYedekler) state.haftaSonuYedekler = {};
 
     if(!state.mcrAyarlari) state.mcrAyarlari = { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} };
     if(!state.mcrAyarlari.ofsetler) state.mcrAyarlari.ofsetler = {};
@@ -521,6 +521,34 @@ window.geciciBirimAta = function(pAd, gIdx, yeniBirim) {
     showToast("Geçici masa (birim) güncellendi.", "success");
 };
 
+
+function v62AtamaKaynagi(pAd, gIdx) {
+    try {
+        const hKey = getDateKey(currentMonday);
+        return state.schedulerV2 && state.schedulerV2.assignmentSource
+            ? (state.schedulerV2.assignmentSource[`${hKey}_${pAd}_${gIdx}`] || '')
+            : '';
+    } catch(e) { return ''; }
+}
+
+function v62YedekBilgisi(pAd, gIdx) {
+    try {
+        const hKey = getDateKey(currentMonday);
+        const reps = state.schedulerV2 && state.schedulerV2.mcrReplacements
+            ? state.schedulerV2.mcrReplacements[hKey]
+            : null;
+        if (!reps) return null;
+        for (const k of Object.keys(reps)) {
+            const r = reps[k];
+            if (!r || r.substitute !== pAd) continue;
+            const job = Array.isArray(r.jobs) ? r.jobs.find(j => Number(j.day) === Number(gIdx)) : null;
+            if (!job) continue;
+            return { absent:r.absent, substitute:r.substitute, unit:r.unit, shift:job.shift };
+        }
+    } catch(e) {}
+    return null;
+}
+
 function tabloyuOlustur() { 
     if(state.duyuruMetni) {
         document.getElementById('duyuruAlani').style.display = 'block';
@@ -592,10 +620,15 @@ function tabloyuOlustur() {
                 
                 let isConflict = isAdmin ? checkVisualConflict(p.ad, g, s) : false;
                 let conflictHtml = isConflict ? `<span class="conflict-warn" title="Kural İhlali (Dinlenme Yetersiz)">⚠️</span>` : "";
+                let v62Rep = v62YedekBilgisi(p.ad, g);
+                let v62RepHtml = v62Rep
+                    ? ` <span style="display:inline-block;margin-left:4px;padding:1px 4px;border-radius:4px;background:#f59e0b;color:#111827;font-size:7px;font-weight:900;" title="${v62Rep.absent} yerine izin süresince vekil">↪ ${v62Rep.absent} YERİNE</span>`
+                    : "";
+                let searchMeta = `${p.ad} ${gecerliBirim || ''} ${sanalBirim || ''} ${s || ''} ${v62Rep ? v62Rep.absent + ' vekil yedek' : ''}`;
 
-                cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${getBirimColor(sanalBirim)}; background-color:${getBirimColor(sanalBirim)}15;" ${dragAttr} ${clickAttr}>
+                cellContent += `<div class="birim-card ${ayiriciClass}" data-search="${searchMeta.replace(/"/g,'&quot;')}" style="border-left-color:${getBirimColor(sanalBirim)}; background-color:${getBirimColor(sanalBirim)}15;" ${dragAttr} ${clickAttr}>
                     <span class="birim-tag" style="background:${getBirimColor(sanalBirim)}">${sanalBirim}</span>
-                    <span class="pers-name">${p.ad}${masaRozeti} ${conflictHtml}</span>
+                    <span class="pers-name">${p.ad}${masaRozeti}${v62RepHtml} ${conflictHtml}</span>
                 </div>`; 
                 
                 lastBirim = sanalBirim; 
@@ -648,9 +681,18 @@ function tabloyuOlustur() {
                 else if(ft.label === "RAPORLU") tBg = "background:var(--rapor-bg)";
                 else tBg = prog[p.ad][g] === SHIFTS.IZIN ? "background:var(--danger)" : `background:${bColor}`;
 
-                cellContent += `<div class="birim-card ${ayiriciClass}" style="border-left-color:${bColor};" ${dragAttr} ${clickAttr}>
-                    <span class="birim-tag" style="${tBg}">${prog[p.ad][g] || 'BOŞ'}</span>
-                    <span class="pers-name">${p.ad}${masaRozeti} <span style="${countStyle}">(${calis[p.ad]}G)</span></span>
+                const v62Source = v62AtamaKaynagi(p.ad, g);
+                const isCycleOff = (prog[p.ad][g] === SHIFTS.IZIN && v62Source === 'AUTO_V62_CYCLE_LOCK');
+                const isIngestEmergencyOff = (prog[p.ad][g] === SHIFTS.IZIN && v62Source === 'AUTO_V62_INGEST_ACIL');
+                const izinEtiket = isIngestEmergencyOff ? 'INGEST ACİL İZNİ' : (isCycleOff ? 'DÖNGÜ İZNİ' : (prog[p.ad][g] || 'BOŞ'));
+                const birimBadge = gecerliBirim
+                    ? ` <span style="font-size:7px;font-weight:900;color:${bColor};">[${gecerliBirim}]</span>`
+                    : '';
+                const searchMeta = `${p.ad} ${gecerliBirim || ''} ${sanalBirim || ''} ${izinEtiket} ${ft.label}`;
+
+                cellContent += `<div class="birim-card ${ayiriciClass}" data-search="${searchMeta.replace(/"/g,'&quot;')}" style="border-left-color:${bColor};" ${dragAttr} ${clickAttr}>
+                    <span class="birim-tag" style="${tBg}">${izinEtiket}</span>
+                    <span class="pers-name">${p.ad}${masaRozeti}${birimBadge} <span style="${countStyle}">(${calis[p.ad]}G)</span></span>
                 </div>`; 
                 
                 lastBirim = sanalBirim; 
@@ -1406,6 +1448,7 @@ function refreshUI() {
                 <label><input type="checkbox" ${p.uzmanlik.includes("KJ")?'checked':''} onchange="uzmanlikGuncelle('${p.ad}', 'KJ', this.checked)"> KJ</label>
                 <label><input type="checkbox" ${p.uzmanlik.includes("24 MCR")?'checked':''} onchange="uzmanlikGuncelle('${p.ad}', '24 MCR', this.checked)"> 24 MCR</label>
                 <label><input type="checkbox" ${p.uzmanlik.includes("360 MCR")?'checked':''} onchange="uzmanlikGuncelle('${p.ad}', '360 MCR', this.checked)"> 360 MCR</label>
+                <label><input type="checkbox" ${p.uzmanlik.includes("INGEST")?'checked':''} onchange="uzmanlikGuncelle('${p.ad}', 'INGEST', this.checked)"> INGEST</label>
             </div>
         </div>`;
 
@@ -1486,7 +1529,19 @@ function refreshUI() {
         <input type="date" value="${state.mcrAyarlari.baslangicTarihi}" onchange="state.mcrAyarlari.baslangicTarihi = this.value; save();" style="width:100%; padding:8px; margin-top:5px;">
     </div>`;
     
-    document.getElementById("sabitListeAdmin").innerHTML = mcrSistemHtml + state.personeller.filter(p => p.birim && !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:var(--card-bg); padding:8px; border-radius:5px; border:1px solid var(--border);"><label style="color:var(--text);"><input type="checkbox" ${state.haftaIciSabitler[p.ad]?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label><select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!state.haftaIciSabitler[p.ad]?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`).join('');
+    document.getElementById("sabitListeAdmin").innerHTML = mcrSistemHtml + `
+        <div style="font-size:10px; line-height:1.45; margin:8px 0 10px; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text);">
+            <b>Hafta içi sabit personel:</b> Pzt-Cum seçilen sabit saatte çalışır; Cmt-Paz varsayılan olarak HARD İZİNLİDİR.<br>
+            <b>Hafta sonu kapasite yedeği</b> işaretli olanlar sadece normal uygun personelle kapasite dolmuyorsa son çare olarak kullanılabilir.
+        </div>` + state.personeller.filter(p => p.birim && !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => {
+        const sabit = !!state.haftaIciSabitler[p.ad];
+        const yedek = !!state.haftaSonuYedekler[p.ad];
+        return `<div style="display:grid; grid-template-columns:minmax(180px,1fr) minmax(130px,180px); gap:6px 10px; align-items:center; margin-bottom:5px; background:var(--card-bg); padding:8px; border-radius:5px; border:1px solid var(--border);">
+            <label style="color:var(--text);"><input type="checkbox" ${sabit?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label>
+            <select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!sabit?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+            <label style="grid-column:1 / -1; font-size:10px; color:var(--text); opacity:${sabit?'1':'0.45'};"><input type="checkbox" ${yedek?'checked':''} ${!sabit?'disabled':''} onchange="haftaSonuYedekTetikle('${p.ad}', this.checked)"> Cmt/Paz kapasite yedeği olabilir (son çare)</label>
+        </div>`;
+    }).join('');
     
     document.getElementById("birimListesiAdmin").innerHTML = `
         <div style="margin-bottom:10px; display:flex; gap:5px; align-items:center; flex-wrap:wrap;">
@@ -1912,14 +1967,32 @@ if (confirm("Sistem verileri GitHub üzerindeki yedekle değiştirilecek. Onayl�
     }
 }
 }
-function sabitTetikle(ad) { if(state.haftaIciSabitler[ad]) delete state.haftaIciSabitler[ad]; else state.haftaIciSabitler[ad] = state.saatler[0]; save(); refreshUI(); showToast("Sabit değiştirildi.", "info"); }
+function sabitTetikle(ad) {
+    if(state.haftaIciSabitler[ad]) {
+        delete state.haftaIciSabitler[ad];
+        if(state.haftaSonuYedekler) delete state.haftaSonuYedekler[ad];
+    } else {
+        state.haftaIciSabitler[ad] = state.saatler[0];
+    }
+    save(); refreshUI(); showToast("Sabit değiştirildi.", "info");
+}
 function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
+function haftaSonuYedekTetikle(ad, aktif) {
+    if(!state.haftaSonuYedekler) state.haftaSonuYedekler = {};
+    if(!state.haftaIciSabitler[ad]) { delete state.haftaSonuYedekler[ad]; refreshUI(); return; }
+    if(aktif) state.haftaSonuYedekler[ad] = true; else delete state.haftaSonuYedekler[ad];
+    save(); refreshUI(); showToast(aktif ? "Hafta sonu kapasite yedeği açıldı." : "Hafta sonu kapasite yedeği kapatıldı.", "info");
+}
 
 function anlikSenkronizasyonBaslat() {
     database.ref('vardiya_data').on('value', (snap) => {
         try {
             if (snap.exists()) {
                 state = snap.val();
+            }
+            verileriGuvenliHaleGetir();
+            if (window.SchedulerV2 && typeof window.SchedulerV2.applyExternalAnnualLocks === 'function') {
+                window.SchedulerV2.applyExternalAnnualLocks(hariciIzinler, {reoptimize:false});
             }
             tumArayuzuCiz();
             save();
@@ -2037,6 +2110,7 @@ function exceldenVardiyaYukle() {
             
             const hKey = getDateKey(currentMonday);
             let islenenSayisi = 0;
+            const excelBirimleri = new Set();
 
             jsonData.forEach(row => {
                 if (!row || row.length < 2) return; 
@@ -2114,6 +2188,17 @@ function exceldenVardiyaYukle() {
                         if (personel) {
                             let gunIdx = i - 1;
                             state.manuelAtamalar[`${hKey}_${personel.ad}_${gunIdx}`] = cellVardiya;
+                            excelBirimleri.add(personel.birim);
+                            // Excel'den gelen birim yalnız BU HAFTA V62 otomasyonundan korunur.
+                            // Sonraki hafta tekrar algoritmayla üretilebilir veya yeni Excel yeniden işaretler.
+                            if (window.SchedulerV2 && typeof window.SchedulerV2.markExternalUnitWeek === 'function') {
+                                window.SchedulerV2.markExternalUnitWeek(personel.birim, hKey);
+                            } else {
+                                if (!state.schedulerV2) state.schedulerV2 = {};
+                                if (!state.schedulerV2.externalUnitWeeks) state.schedulerV2.externalUnitWeeks = {};
+                                if (!state.schedulerV2.externalUnitWeeks[hKey]) state.schedulerV2.externalUnitWeeks[hKey] = {};
+                                state.schedulerV2.externalUnitWeeks[hKey][personel.birim] = true;
+                            }
                             islenenSayisi++;
                         }
                     }
@@ -2123,8 +2208,8 @@ function exceldenVardiyaYukle() {
             if (islenenSayisi > 0) {
                 save();
                 tabloyuOlustur();
-                alert(`✅ Excel Başarıyla İşlendi!\n\nToplam ${islenenSayisi} hücre sisteme aktarıldı.`);
-                logKoy(`Excel yüklendi (${islenenSayisi} atama)`);
+                alert(`✅ Excel Başarıyla İşlendi!\n\nToplam ${islenenSayisi} hücre sisteme aktarıldı.\n\nBu hafta V62 tarafından korunacak birimler:\n${Array.from(excelBirimleri).join('\n')}`);
+                logKoy(`Excel yüklendi (${islenenSayisi} atama) / korunan birimler: ${Array.from(excelBirimleri).join(', ')}`);
             } else {
                 showToast("⚠️ Excel okundu ancak eşleşen veri bulunamadı. Formatı veya isimleri kontrol edin.", "warning");
             }

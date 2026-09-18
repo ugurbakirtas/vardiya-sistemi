@@ -1,0 +1,133 @@
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T1 PASS exact+deterministic { 'PLAYOUT OPERATÖRÜ': '5_GUN_CALISMA' }
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T2 PASS rest [
+  '16:00–00:00',
+  'İZİNLİ',
+  'İZİNLİ',
+  '06:30–16:00',
+  '06:30–16:00',
+  '06:30–16:00',
+  '06:30–16:00'
+]
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T3 PASS expertise {
+  A: [
+    'İZİNLİ',
+    'İZİNLİ',
+    '06:30–16:00',
+    '06:30–16:00',
+    '06:30–16:00',
+    '06:30–16:00',
+    '06:30–16:00'
+  ],
+  B: [ '06:30–16:00', '06:30–16:00', null, null, null, null, null ],
+  C: [
+    null, null,
+    null, null,
+    null, null,
+    null
+  ]
+}
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T4 PASS MCR replacement [
+  {
+    absent: 'M1',
+    substitute: 'SUB',
+    unit: '24TV MCR OPERATÖRÜ',
+    start: 0,
+    end: 2,
+    jobs: [ [Object], [Object], [Object] ]
+  }
+]
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T5 PASS local-only reopt
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T6 PASS hard capacity failure 24TV MCR OPERATÖRÜ: X2 / Pzt döngü saati 16:00–00:00, mevcut kilitli çalışma 07:00–16:00. MCR/INGEST sıralaması otomatik değiştirilemez; izin/rapor verilebilir veya döngü ofseti değiştirilmelidir.
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T7 PASS weekly fairness [
+  5, 5, 5, 5,
+  5, 5, 5
+]
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T8 PASS previous-week rotation 7/49 exact same cells
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T9 PASS min5 + weekend morning [ 5, 5, 5, 5, 5 ] [
+  'İZİNLİ',
+  'İZİNLİ',
+  '06:30–16:00',
+  '06:30–16:00',
+  '06:30–16:00',
+  '06:30–16:00',
+  '06:30–16:00'
+]
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T10a PASS fixed weekend off / reserve last-resort
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T10b PASS selected weekend reserves fill shortage only 2
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T11 PASS external annual hard lock + exact capacity
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T12 PASS external annual source tracking
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T13 PASS capacity floor + controlled MIN5 extras [
+  5, 5, 5, 5,
+  5, 5, 5
+] 35
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T14 PASS MCR full-week annual cover {
+  absent: 'AM1',
+  substitute: 'ASUB',
+  unit: '24TV MCR OPERATÖRÜ',
+  start: 0,
+  end: 6,
+  jobs: [
+    { day: 0, shift: '07:00–16:00' },
+    { day: 1, shift: '07:00–16:00' },
+    { day: 2, shift: '16:00–00:00' },
+    { day: 3, shift: '16:00–00:00' },
+    { day: 4, shift: '00:00–07:00' },
+    { day: 5, shift: '00:00–07:00' }
+  ]
+}
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T15 PASS no unqualified MCR replacement 24TV MCR OPERATÖRÜ: BM1 Pzt-Paz yok. Aynı uzman yedeği kişi dönene kadar sürdürecek uygun personel bulunamadı.
+ALL TESTS PASS
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T16 PASS camera/excel preserve [
+  '06:30–16:00',
+  '06:30–16:00',
+  '06:30–16:00',
+  '06:30–16:00',
+  '06:30–16:00',
+  'İZİNLİ',
+  'İZİNLİ'
+]
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T17 PASS manual leave preserved on capacity shortage
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T18 PASS zero-capacity support unit preserved / no MIN5 global failure
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T19 PASS arbitrary Excel-imported unit preserved for current week
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T20 PASS preserved unit manual leave accepted without global solve
+FIX6 EXTENDED TESTS PASS
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T21 PASS strict MCR cycle / zero-capacity independent
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T22 PASS previous-week rotation cannot alter MCR
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T23 PASS leave replaces only missing MCR slots / others unchanged
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T24 PASS INGEST weekly role rotation
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T25 PASS INGEST A->B->C weekly rotation + cycle-off source
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T26 PASS INGEST same backup preserves absent card/role
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T27 PASS INGEST no-backup emergency 6G/1I [ 6, 6 ]
+[SchedulerV2] V62-INGEST-CARRY-FORWARD-FIX10-20260918 loaded.
+T28 PASS INGEST Sunday lane carry-forward 06:30–16:00 16:00–00:00
+FIX10 INGEST CARRY-FORWARD TESTS PASS

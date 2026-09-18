@@ -1,0 +1,14 @@
+{
+  "name": "turkmedya-vardiya-weekly-automation",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gate": "node gate.mjs",
+    "run": "node weekly-runner.mjs",
+    "test": "node test-schedule.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
+}
