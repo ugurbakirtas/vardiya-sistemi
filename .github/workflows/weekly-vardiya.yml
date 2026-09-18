@@ -1,6 +1,13 @@
 name: TurkMedya Weekly Vardiya
 
 on:
+  # TEST BRANCH:
+  # v62-weekly-auto-test branch'ine yapılan commit,
+  # AUTO_ENABLED=false olsa bile güvenli DRY-RUN başlatır.
+  push:
+    branches:
+      - v62-weekly-auto-test
+
   workflow_dispatch:
     inputs:
       publish:
@@ -15,8 +22,10 @@ on:
         default: '1'
         type: choice
         options: ['0', '1', '2']
+
   schedule:
-    # Saatlik tetiklenir; gate adimi Türkiye saatine göre sadece seçilen gün/saatte devam eder.
+    # Production'da saatlik tetiklenir.
+    # Gate Türkiye saatini kontrol eder.
     - cron: '7 * * * *'
 
 concurrency:
@@ -30,6 +39,7 @@ jobs:
   weekly-vardiya:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,6 +48,11 @@ jobs:
         id: gate
         env:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
+
+          # Test branch push'u gate'i zorla açar.
+          # Production schedule'da kullanılmaz.
+          FORCE_RUN: ${{ github.event_name == 'push' && 'true' || 'false' }}
+
           AUTO_ENABLED: ${{ vars.VARDIYA_AUTO_ENABLED }}
           AUTO_WEEKDAY: ${{ vars.VARDIYA_AUTO_WEEKDAY }}
           AUTO_HOUR_TR: ${{ vars.VARDIYA_AUTO_HOUR_TR }}
@@ -69,11 +84,18 @@ jobs:
         env:
           VARDIYA_ADMIN_EMAIL: ${{ secrets.VARDIYA_ADMIN_EMAIL }}
           VARDIYA_ADMIN_PASSWORD: ${{ secrets.VARDIYA_ADMIN_PASSWORD }}
+
+          # PUSH TESTİNDE vars.VARDIYA_AUTO_PUBLISH=false
+          # olduğu için Firebase'e YAZMA YAPILMAZ.
           AUTO_PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.publish || vars.VARDIYA_AUTO_PUBLISH }}
+
+          # Variable tanımlı değilse runner otomatik 1 kullanır.
           WEEKS_AHEAD: ${{ github.event_name == 'workflow_dispatch' && inputs.weeks_ahead || vars.VARDIYA_AUTO_WEEKS_AHEAD }}
+
           AUTO_TELEGRAM_NOTIFY: ${{ vars.VARDIYA_AUTO_TELEGRAM_NOTIFY }}
           VARDIYA_TELEGRAM_BOT_TOKEN: ${{ secrets.VARDIYA_TELEGRAM_BOT_TOKEN }}
           VARDIYA_TELEGRAM_CHAT_ID: ${{ secrets.VARDIYA_TELEGRAM_CHAT_ID }}
+
         run: node weekly-runner.mjs
 
       - name: Upload automation report
