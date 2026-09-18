@@ -1,21 +1,22 @@
-name: TurkMedya Telegram Request Approval
+name: TurkMedya Telegram Request Approval FREE
 
 on:
-  repository_dispatch:
-    types: [telegram-vardiya-request]
+  workflow_dispatch:
+  schedule:
+    # GitHub'un ücretsiz zamanlayıcısı: her 5 dakikada bir kontrol.
+    - cron: '*/5 * * * *'
 
 concurrency:
-  group: turkmedya-telegram-request-${{ github.event.client_payload.request_id }}
+  group: turkmedya-telegram-request-free
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  apply-request:
+  telegram-request:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     steps:
       - name: Checkout accepted FIX10 branch
         uses: actions/checkout@v4
@@ -27,29 +28,52 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Poll Firebase requests and Telegram buttons
+        id: poll
+        working-directory: automation
+        env:
+          VARDIYA_TELEGRAM_BOT_TOKEN: ${{ secrets.VARDIYA_TELEGRAM_BOT_TOKEN }}
+          VARDIYA_TELEGRAM_CHAT_ID: ${{ secrets.VARDIYA_TELEGRAM_CHAT_ID }}
+        run: node telegram-poll.mjs
+
       - name: Install automation dependencies
+        if: steps.poll.outputs.has_approved == 'true'
         working-directory: automation
         run: npm install --no-audit --no-fund
 
       - name: Install Chromium
+        if: steps.poll.outputs.has_approved == 'true'
         working-directory: automation
         run: npx playwright install --with-deps chromium
 
-      - name: Apply approved request
+      - name: Apply approved requests with accepted FIX10
+        if: steps.poll.outputs.has_approved == 'true'
         working-directory: automation
         env:
-          REQUEST_ID: ${{ github.event.client_payload.request_id }}
+          APPROVED_IDS: ${{ steps.poll.outputs.approved_ids }}
           VARDIYA_ADMIN_EMAIL: ${{ secrets.VARDIYA_ADMIN_EMAIL }}
           VARDIYA_ADMIN_PASSWORD: ${{ secrets.VARDIYA_ADMIN_PASSWORD }}
           VARDIYA_TELEGRAM_BOT_TOKEN: ${{ secrets.VARDIYA_TELEGRAM_BOT_TOKEN }}
           VARDIYA_TELEGRAM_CHAT_ID: ${{ secrets.VARDIYA_TELEGRAM_CHAT_ID }}
-        run: node request-runner.mjs
+        shell: bash
+        run: |
+          set +e
+          rc=0
+          IFS=',' read -ra IDS <<< "$APPROVED_IDS"
+          for REQUEST_ID in "${IDS[@]}"; do
+            [ -z "$REQUEST_ID" ] && continue
+            echo "Applying request: $REQUEST_ID"
+            REQUEST_ID="$REQUEST_ID" node request-runner.mjs || rc=1
+          done
+          exit $rc
 
-      - name: Upload request report
+      - name: Upload Telegram poll report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: telegram-request-${{ github.event.client_payload.request_id }}-${{ github.run_number }}
-          path: automation/request-output.json
+          name: telegram-free-poll-${{ github.run_number }}
+          path: |
+            automation/telegram-poll-output.json
+            automation/request-output.json
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 14
