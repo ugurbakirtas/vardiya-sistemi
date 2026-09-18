@@ -28,6 +28,47 @@ function canonical(value) {
 }
 function sameData(a,b) { return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b)); }
 
+// Realtime Database JSON semantiği: null/undefined ve boş container çocukları
+// sunucuda saklanmaz; array'ler de okuma sırasında numeric-key object/array olarak
+// temsil edilebilir. Write verification bu eşdeğer durumları hata saymamalı.
+function firebaseSemantic(value) {
+  if (value === null || value === undefined) return undefined;
+  if (Array.isArray(value)) {
+    const out = {};
+    for (let i = 0; i < value.length; i++) {
+      const v = firebaseSemantic(value[i]);
+      if (v !== undefined) out[String(i)] = v;
+    }
+    return Object.keys(out).length ? out : undefined;
+  }
+  if (typeof value === 'object') {
+    const out = {};
+    for (const key of Object.keys(value).sort()) {
+      const v = firebaseSemantic(value[key]);
+      if (v !== undefined) out[key] = v;
+    }
+    return Object.keys(out).length ? out : undefined;
+  }
+  return value;
+}
+function sameFirebaseData(a,b) {
+  return JSON.stringify(firebaseSemantic(a) ?? null) === JSON.stringify(firebaseSemantic(b) ?? null);
+}
+function firstSemanticDiff(a,b,path='vardiya_data') {
+  const x = firebaseSemantic(a);
+  const y = firebaseSemantic(b);
+  if (JSON.stringify(x) === JSON.stringify(y)) return null;
+  const xo = x && typeof x === 'object';
+  const yo = y && typeof y === 'object';
+  if (!xo || !yo) return path;
+  const keys = [...new Set([...Object.keys(x || {}), ...Object.keys(y || {})])].sort();
+  for (const k of keys) {
+    const d = firstSemanticDiff(x?.[k], y?.[k], `${path}/${k}`);
+    if (d) return d;
+  }
+  return path;
+}
+
 const mime = {
   '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8',
   '.css':'text/css; charset=utf-8', '.json':'application/json; charset=utf-8',
@@ -215,7 +256,10 @@ try {
         const s = await database.ref('vardiya_data').once('value');
         return s.exists() ? s.val() : null;
       });
-      if (!sameData(apply.generatedState, verify)) throw new Error('Firebase write verification başarısız.');
+      if (!sameFirebaseData(apply.generatedState, verify)) {
+        const diffPath = firstSemanticDiff(apply.generatedState, verify) || 'vardiya_data';
+        throw new Error(`Firebase write verification başarısız. İlk fark: ${diffPath}`);
+      }
       await page.evaluate(async (id) => {
         await database.ref('talepler/' + id).update({durum:'onaylandi', hata:null, processedAt:firebase.database.ServerValue.TIMESTAMP, processedBy:'telegram'});
       }, requestId);
