@@ -59,7 +59,51 @@ async function editRequestMessage(r, text) {
   const chatId = r.telegramChatId || CHAT_ID;
   const messageId = r.telegramMessageId;
   if (!messageId) return;
-  await tg('editMessageText', {chat_id: chatId, message_id: messageId, text});
+  await tg('editMessageText', {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    reply_markup: {inline_keyboard: []}
+  });
+}
+
+// GitHub polling callback'a dakikalar sonra ulaşabilir. Telegram bu durumda
+// answerCallbackQuery için "query is too old" döndürür. Bu sadece butonun
+// anlık spinner cevabıdır; Firebase işlemini başarısız saymamalıdır.
+async function answerCallbackSafe(callbackQueryId, text) {
+  try {
+    await tg('answerCallbackQuery', {callback_query_id: callbackQueryId, text});
+  } catch (e) {
+    console.warn(`answerCallbackQuery ignored: ${e?.message || e}`);
+  }
+}
+
+async function editRequestMessageSafe(r, text) {
+  try {
+    await editRequestMessage(r, text);
+  } catch (e) {
+    // Mesaj zaten aynı metne çevrilmişse veya Telegram UI güncellemesi geçici
+    // hata verirse, asıl talep durumunu geri alma / Action'ı fail etme.
+    console.warn(`editMessageText ignored: ${e?.message || e}`);
+  }
+}
+
+function rejectedText(r) {
+  return [
+    '❌ VARDİYA TALEBİ REDDEDİLDİ', '',
+    `👤 Personel: ${r.ad || '-'}`,
+    `📅 Tarih: ${r.tarih || '-'}`,
+    `📝 Talep: ${r.tur || '-'}`
+  ].join('\n');
+}
+
+function processingText(r) {
+  return [
+    '⏳ VARDİYA TALEBİ ONAYLANDI — İŞLENİYOR', '',
+    `👤 Personel: ${r.ad || '-'}`,
+    `📅 Tarih: ${r.tarih || '-'}`,
+    `📝 Talep: ${r.tur || '-'}`
+  ].join('\n');
 }
 
 const report = {
@@ -121,7 +165,7 @@ try {
     const m = /^rq:([ar]):(.+)$/.exec(String(q.data || ''));
     if (cbChatId !== CHAT_ID || !m) {
       report.ignoredCallbacks++;
-      try { await tg('answerCallbackQuery', {callback_query_id: q.id, text: 'Yetkisiz veya geçersiz işlem.'}); } catch {}
+      await answerCallbackSafe(q.id, 'Yetkisiz veya geçersiz işlem.');
       continue;
     }
 
@@ -129,13 +173,20 @@ try {
     const id = m[2];
     const r = requests[id] || await dbGet(`talepler/${encodeURIComponent(id)}`);
     if (!r) {
-      await tg('answerCallbackQuery', {callback_query_id: q.id, text: 'Talep bulunamadı.'});
+      await answerCallbackSafe(q.id, 'Talep bulunamadı.');
       continue;
     }
 
     const status = String(r.durum || '').toLowerCase();
     if (status !== 'bekliyor') {
-      await tg('answerCallbackQuery', {callback_query_id: q.id, text: `Talep zaten işlendi: ${r.durum || '-'}`});
+      await answerCallbackSafe(q.id, `Talep zaten işlendi: ${r.durum || '-'}`);
+      // Önceki run Firebase durumunu yazıp Telegram UI cevabında yarıda kaldıysa
+      // mesajı mevcut durumla uzlaştır.
+      if (status === 'reddedildi') {
+        await editRequestMessageSafe(r, rejectedText(r));
+      } else if (status === 'isleniyor') {
+        await editRequestMessageSafe(r, processingText(r));
+      }
       continue;
     }
 
@@ -145,13 +196,8 @@ try {
         processedBy: 'telegram-github-poll',
         processedAt: Date.now()
       });
-      await tg('answerCallbackQuery', {callback_query_id: q.id, text: 'Talep reddedildi.'});
-      await editRequestMessage(r, [
-        '❌ VARDİYA TALEBİ REDDEDİLDİ', '',
-        `👤 Personel: ${r.ad || '-'}`,
-        `📅 Tarih: ${r.tarih || '-'}`,
-        `📝 Talep: ${r.tur || '-'}`
-      ].join('\n'));
+      await answerCallbackSafe(q.id, 'Talep reddedildi.');
+      await editRequestMessageSafe(r, rejectedText(r));
       report.rejected.push(id);
       requests[id] = {...r, durum:'reddedildi'};
       continue;
@@ -162,13 +208,8 @@ try {
       processedBy: 'telegram-github-poll',
       processedAt: Date.now()
     });
-    await tg('answerCallbackQuery', {callback_query_id: q.id, text: 'Onay alındı. Vardiya uygulanıyor…'});
-    await editRequestMessage(r, [
-      '⏳ VARDİYA TALEBİ ONAYLANDI — İŞLENİYOR', '',
-      `👤 Personel: ${r.ad || '-'}`,
-      `📅 Tarih: ${r.tarih || '-'}`,
-      `📝 Talep: ${r.tur || '-'}`
-    ].join('\n'));
+    await answerCallbackSafe(q.id, 'Onay alındı. Vardiya uygulanıyor…');
+    await editRequestMessageSafe(r, processingText(r));
     report.approved.push(id);
     requests[id] = {...r, durum:'isleniyor'};
   }
