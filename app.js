@@ -68,16 +68,11 @@ const BIRIM_RENKLERI = {
     [UNITS.KAMERAMANLAR]: "#be185d", [UNITS.REKLAM]: "#86198f", [UNITS.YAYIN_YONETMENI]: "#0369a1", 
     [UNITS.GAZETE_ARSIV]: "#a21caf", [UNITS.RENK_AYRIMI]: "#b91c1c",
     [UNITS.SISTEM_SORUMLULARI]: "#334155", [UNITS.UPLINK]: "#0891b2",
-    [UNITS.RESIM_SECICI]: "#7c2d12", [UNITS.TV_ARSIV]: "#475569"
+    [UNITS.RESIM_SECICI]: "#65a30d", [UNITS.TV_ARSIV]: "#475569"
 };
 let isAdmin = false;
 
 let hariciIzinler = [];
-
-// V63 FIX2: app.js kendi basina calisabilsin.
-// Eski test indexlerinde bu iki global var olarak tanimli olabilir; var redeclaration guvenlidir.
-var undoStack = Array.isArray(window.undoStack) ? window.undoStack : [];
-var saveTimeout = (typeof window.saveTimeout !== "undefined") ? window.saveTimeout : null;
 
 var state = { 
     birimler: JSON.parse(localStorage.getItem(PREFIX + "birimler")) || Object.values(UNITS), 
@@ -635,9 +630,10 @@ function tabloyuOlustur() {
                 let v62RepHtml = v62Rep
                     ? ` <span style="display:inline-block;margin-left:4px;padding:1px 4px;border-radius:4px;background:#f59e0b;color:#111827;font-size:7px;font-weight:900;" title="${v62Rep.absent} yerine izin süresince vekil">↪ ${v62Rep.absent} YERİNE</span>`
                     : "";
+                // Excel / geçici görev varsa kartta o günün GERÇEK görev birimini göster.
+                // Personelin kayıtlı ana birimi ve FIX10 uzmanlık verisi değişmez.
                 const kartBirim = gecerliBirim || sanalBirim;
                 const kartRenk = getBirimColor(kartBirim);
-                // Excel'de PLAYOUT altında görevliyse kartta PLAYOUT yazsın; personelin ana birimi etiketi bunu ezmesin.
                 if (gecerliBirim && (gecerliBirim.includes("PLAYOUT") || gecerliBirim.includes("KJ"))) masaRozeti = "";
                 let searchMeta = `${p.ad} ${gecerliBirim || ''} ${sanalBirim || ''} ${s || ''} ${v62Rep ? v62Rep.absent + ' vekil yedek' : ''}`;
 
@@ -2109,7 +2105,7 @@ function kisiselProgramiGoster() {
 }
 
 // ============================================================
-// V63 SAFE EXCEL IMPORT FIX1
+// EXCEL COMPATIBILITY PATCH — STABLE V62/FIX13
 // - Tam haftalık kurum Excel'i ve tek-birim Excel'leri destekler.
 // - SİSTEM SORUMLULARI / UPLINK / RESİM SEÇİCİ / TV ARŞİV bölümlerini de tanır.
 // - Excel bölüm başlığı o günün GERÇEK görev birimidir.
@@ -2311,8 +2307,7 @@ function exceldenVardiyaYukle() {
         return;
     }
 
-    if (typeof window.v63Snapshot === 'function') window.v63Snapshot('Excel içe aktarma öncesi');
-    else if (typeof saveStateToHistory === 'function') saveStateToHistory();
+    if (typeof saveStateToHistory === 'function') saveStateToHistory();
 
     const file = fileInput.files[0];
     const fileUnit = v63ExcelUnitFromText(file.name);
@@ -2456,10 +2451,9 @@ function exceldenVardiyaYukle() {
             if (ignoredList.length) summary.push('', `Karşılığı olmayan satır (${ignoredRows.size}):`, ...ignoredList.map(x=>`• ${x}`));
 
             alert(summary.join('\n'));
-            logKoy(`V63 Excel içe aktarma: ${islenenSayisi} atama / ${unitLines.join(', ')} / sayfa=${chosen.name}`);
-            if (typeof window.v63Audit === 'function') window.v63Audit(`Excel işlendi: ${file.name} / ${islenenSayisi} atama`, 'EXCEL');
+            logKoy(`Excel uyumlu içe aktarma: ${islenenSayisi} atama / ${unitLines.join(', ')} / sayfa=${chosen.name}`);
         } catch (err) {
-            console.error('V63 Excel import error:', err);
+            console.error('Excel import error:', err);
             showToast('Dosya okuma hatası: ' + (err.message || err), 'error');
         }
     };
@@ -2589,296 +2583,3 @@ window.onload = async () => {
     anlikSenkronizasyonBaslat();
     talepleriYukle(); 
 };
-
-// ============================================================
-// V63 SAFE UPGRADE LAYER
-// Tek dosyalık, geriye uyumlu yönetim katmanı.
-// FIX10/FIX11 scheduler-v2.js DEĞİŞMEZ.
-// ============================================================
-(function V63SafeUpgrade(global){
-    'use strict';
-
-    const V63_VERSION = 'V63-SAFE-UPGRADE-EXCEL1';
-    const BACKUP_KEY = 'V63_SAFE_BACKUPS';
-    const MAX_BACKUPS = 6;
-
-    global.V63 = global.V63 || {};
-    global.V63.version = V63_VERSION;
-
-    function clone(obj) {
-        return JSON.parse(JSON.stringify(obj));
-    }
-
-    function safeParse(raw, fallback) {
-        try { return JSON.parse(raw); } catch(e) { return fallback; }
-    }
-
-    function getBackups() {
-        return safeParse(localStorage.getItem(BACKUP_KEY) || '[]', []);
-    }
-
-    function setBackups(list) {
-        try { localStorage.setItem(BACKUP_KEY, JSON.stringify(list.slice(0, MAX_BACKUPS))); } catch(e) { console.warn('V63 backup save:', e); }
-    }
-
-    function snapshot(reason) {
-        try {
-            if (typeof state === 'undefined' || !state) return false;
-            const backups = getBackups();
-            backups.unshift({
-                ts: new Date().toISOString(),
-                reason: reason || 'Manuel yedek',
-                week: (typeof currentMonday !== 'undefined' && typeof getDateKey === 'function') ? getDateKey(currentMonday) : '',
-                state: clone(state)
-            });
-            setBackups(backups);
-            return true;
-        } catch(e) {
-            console.warn('V63 snapshot error:', e);
-            return false;
-        }
-    }
-    global.v63Snapshot = snapshot;
-
-    function audit(message, type='INFO') {
-        try {
-            if (typeof logKoy === 'function') logKoy(`[${V63_VERSION}/${type}] ${message}`);
-        } catch(e) { console.warn(e); }
-    }
-    global.v63Audit = audit;
-
-    global.v63SonYedegiGeriAl = function() {
-        const backups = getBackups();
-        if (!backups.length) {
-            if (typeof showToast === 'function') showToast('Geri alınacak V63 yedeği yok.', 'warning');
-            return false;
-        }
-        const last = backups[0];
-        if (!confirm(`Son yedeğe dönülsün mü?\n\n${last.reason}\n${new Date(last.ts).toLocaleString('tr-TR')}\n\nMevcut yerel durum değişecektir.`)) return false;
-        try {
-            state = clone(last.state);
-            if (typeof verileriGuvenliHaleGetir === 'function') verileriGuvenliHaleGetir();
-            if (typeof save === 'function') save();
-            if (typeof tumArayuzuCiz === 'function') tumArayuzuCiz();
-            audit(`Yerel durum geri alındı: ${last.reason}`, 'ROLLBACK');
-            if (typeof showToast === 'function') showToast('✅ Son V63 yedeği geri yüklendi. Canlıya yazmak için ayrıca Buluta Kaydet gerekir.', 'success');
-            return true;
-        } catch(e) {
-            console.error(e);
-            if (typeof showToast === 'function') showToast('Yedek geri yüklenemedi: ' + e.message, 'error');
-            return false;
-        }
-    };
-
-    function workShift(v) {
-        return !!v && ![SHIFTS.IZIN, SHIFTS.BOS, SHIFTS.YILLIK, SHIFTS.RAPOR].includes(v);
-    }
-
-    function currentWeekRows() {
-        const hKey = getDateKey(currentMonday);
-        const rows = [];
-        (state.personeller || []).forEach(p => {
-            let workDays = 0;
-            for (let g=0; g<7; g++) {
-                const shift = (state.manuelAtamalar || {})[`${hKey}_${p.ad}_${g}`] || null;
-                if (workShift(shift)) workDays++;
-            }
-            rows.push({p, workDays});
-        });
-        return rows;
-    }
-
-    function smartWarnings() {
-        const out = [];
-        const hKey = getDateKey(currentMonday);
-        currentWeekRows().forEach(({p,workDays}) => {
-            if (workDays >= 6) out.push(`${p.ad}: ${workDays} gün çalışma`);
-            for (let g=0; g<7; g++) {
-                const shift = (state.manuelAtamalar || {})[`${hKey}_${p.ad}_${g}`] || null;
-                if (workShift(shift) && typeof checkVisualConflict === 'function' && checkVisualConflict(p.ad,g,shift)) {
-                    out.push(`${p.ad} / ${GUNLER[g]}: dinlenme uyarısı (${shift})`);
-                }
-            }
-        });
-        return Array.from(new Set(out));
-    }
-
-    async function healthData() {
-        const data = {
-            online: navigator.onLine,
-            firebase: false,
-            annual: false,
-            annualCount: Array.isArray(global.hariciIzinler) ? global.hariciIzinler.length : (typeof hariciIzinler !== 'undefined' && Array.isArray(hariciIzinler) ? hariciIzinler.length : 0),
-            scheduler: global.SchedulerV2 ? global.SchedulerV2.version : 'YÜKLENMEDİ',
-            week: getDateKey(currentMonday),
-            excelUnits: [],
-            warnings: smartWarnings()
-        };
-        try {
-            const snap = await database.ref('.info/connected').once('value');
-            data.firebase = snap.val() === true || navigator.onLine;
-        } catch(e) { data.firebase = false; }
-        try {
-            if (typeof dbIzin !== 'undefined' && dbIzin) {
-                await dbIzin.collection('izinler').limit(1).get();
-                data.annual = true;
-            }
-        } catch(e) { data.annual = false; }
-        try {
-            const ext = state.schedulerV2 && state.schedulerV2.externalUnitWeeks && state.schedulerV2.externalUnitWeeks[data.week];
-            data.excelUnits = ext ? Object.keys(ext).filter(k => ext[k]) : [];
-        } catch(e) {}
-        return data;
-    }
-
-    global.v63SistemSagligi = async function() {
-        const box = document.getElementById('v63HealthOutput');
-        if (box) box.innerHTML = '<div style="padding:8px;">Kontrol ediliyor...</div>';
-        const h = await healthData();
-        const lines = [
-            `İnternet: ${h.online ? '✅' : '❌'}`,
-            `Firebase RTDB: ${h.firebase ? '✅' : '❌'}`,
-            `Yıllık izin kaynağı: ${h.annual ? '✅' : '❌'} (${h.annualCount} kayıt bellekte)`,
-            `Scheduler: ${h.scheduler ? '✅ ' + h.scheduler : '❌'}`,
-            `Hafta: ${h.week}`,
-            `Excel korumalı birimler: ${h.excelUnits.length ? h.excelUnits.join(', ') : 'Yok'}`,
-            `Akıllı uyarı: ${h.warnings.length ? h.warnings.length : '0'}`
-        ];
-        if (box) {
-            box.innerHTML = `<pre style="white-space:pre-wrap; margin:0; font-family:inherit; font-size:10px; line-height:1.55;">${lines.join('\n')}</pre>` +
-                (h.warnings.length ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:10px;">${h.warnings.slice(0,12).map(x=>'⚠️ '+x).join('<br>')}</div>` : '');
-        }
-        return h;
-    };
-
-    global.v63HaftaRaporuIndir = function() {
-        if (!global.XLSX) {
-            showToast('Excel kütüphanesi yüklenmedi.', 'error');
-            return;
-        }
-        const hKey = getDateKey(currentMonday);
-        const rows = [['PERSONEL','ANA BİRİM',...GUNLER.map((g,i)=>{
-            const d = new Date(currentMonday); d.setDate(d.getDate()+i); return `${g} ${getDateKey(d)}`;
-        })]];
-        [...(state.personeller || [])].sort((a,b)=>a.ad.localeCompare(b.ad,'tr')).forEach(p => {
-            const r = [p.ad,p.birim];
-            for (let g=0;g<7;g++) {
-                const d = new Date(currentMonday); d.setDate(d.getDate()+g);
-                const shift = (state.manuelAtamalar || {})[`${hKey}_${p.ad}_${g}`] || '';
-                const unit = (state.geciciGorevler || {})[`${getDateKey(d)}_${p.ad}`] || p.birim;
-                r.push(shift ? `${shift} | ${unit}` : '');
-            }
-            rows.push(r);
-        });
-        const ws = XLSX.utils.aoa_to_sheet(rows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb,ws,'Hafta Raporu');
-        XLSX.writeFile(wb,`TURKMEDYA-${hKey}-V63-RAPOR.xlsx`);
-        audit(`Hafta raporu indirildi: ${hKey}`, 'RAPOR');
-    };
-
-    // Talep Merkezi V2: bekleyenlerin yanında geçmiş durumları da gösterir.
-    global.talepleriYukle = function() {
-        database.ref('talepler').on('value', snap => {
-            const liste = document.getElementById('gelenTaleplerListesi');
-            if (!liste) return;
-            const items = [];
-            if (snap.exists()) snap.forEach(item => items.push(item.val()));
-            items.sort((a,b) => String(b.id || '').localeCompare(String(a.id || '')));
-            const counts = {bekliyor:0,isleniyor:0,onaylandi:0,reddedildi:0,hata:0};
-            items.forEach(t => { const s=String(t.durum||'bekliyor').toLocaleLowerCase('tr-TR'); counts[s]=(counts[s]||0)+1; });
-            let html = `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:10px;font-size:9px;text-align:center;">
-                <div style="padding:6px;border:1px solid var(--border);border-radius:6px;">⏳ ${counts.bekliyor||0}<br>Bekliyor</div>
-                <div style="padding:6px;border:1px solid var(--border);border-radius:6px;">⚙️ ${counts.isleniyor||0}<br>İşleniyor</div>
-                <div style="padding:6px;border:1px solid var(--border);border-radius:6px;">✅ ${counts.onaylandi||0}<br>Onay</div>
-                <div style="padding:6px;border:1px solid var(--border);border-radius:6px;">❌ ${counts.reddedildi||0}<br>Red</div>
-                <div style="padding:6px;border:1px solid var(--border);border-radius:6px;">⚠️ ${counts.hata||0}<br>Hata</div>
-            </div>`;
-            if (!items.length) {
-                liste.innerHTML = html + `<p style="text-align:center;padding:20px;opacity:.5;color:var(--text);">Talep bulunmuyor.</p>`;
-                return;
-            }
-            const statusColor = s => s==='onaylandi'?'var(--success)':s==='reddedildi'?'var(--danger)':s==='hata'?'var(--danger)':s==='isleniyor'?'var(--blue)':'var(--warning)';
-            items.slice(0,100).forEach(t => {
-                const s = String(t.durum || 'bekliyor').toLocaleLowerCase('tr-TR');
-                html += `<div style="background:var(--card-bg);border:1px solid var(--border);border-left:5px solid ${statusColor(s)};padding:10px;border-radius:8px;margin-bottom:8px;">
-                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
-                        <div style="font-weight:800;color:var(--primary);font-size:11px;">${t.ad || '-'}</div>
-                        <span style="font-size:8px;font-weight:900;padding:3px 6px;border-radius:10px;background:${statusColor(s)};color:white;">${String(t.durum||'bekliyor').toUpperCase()}</span>
-                    </div>
-                    <div style="font-size:10px;color:var(--text);margin-top:5px;">📅 ${t.tarih || '-'} · 📝 <b>${t.tur || '-'}</b></div>
-                    ${t.error ? `<div style="font-size:9px;color:var(--danger);margin-top:4px;">${t.error}</div>` : ''}
-                    ${s==='bekliyor' ? `<div style="display:flex;gap:6px;margin-top:8px;"><button onclick="talepIslem('${t.id}','onay')" style="flex:1;background:var(--success);color:#fff;border:none;border-radius:6px;padding:7px;cursor:pointer;font-weight:700;font-size:9px;">ONAYLA</button><button onclick="talepIslem('${t.id}','red')" style="flex:1;background:var(--danger);color:#fff;border:none;border-radius:6px;padding:7px;cursor:pointer;font-weight:700;font-size:9px;">REDDET</button></div>` : ''}
-                </div>`;
-            });
-            liste.innerHTML = html;
-        });
-    };
-
-    function injectUI() {
-        try {
-            const sys = document.getElementById('tab-sistem');
-            if (sys && !document.getElementById('v63SafePanel')) {
-                const div = document.createElement('div');
-                div.id = 'v63SafePanel';
-                div.style.cssText = 'margin-bottom:15px;border:1px solid var(--blue);padding:10px;border-radius:8px;background:var(--card-bg);';
-                div.innerHTML = `<strong style="color:var(--text);">🛡️ ${V63_VERSION}</strong>
-                    <div style="font-size:9px;color:var(--text);opacity:.75;margin:5px 0 8px 0;">FIX10/FIX11 scheduler çekirdeğine dokunmadan Excel, yedek, sağlık ve raporlama katmanı.</div>
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;">
-                        <button onclick="v63SistemSagligi()" class="btn-main-action" style="background:var(--blue);font-size:9px;">SİSTEM SAĞLIĞI</button>
-                        <button onclick="v63HaftaRaporuIndir()" class="btn-main-action" style="background:var(--success);font-size:9px;">HAFTA RAPORU</button>
-                        <button onclick="v63SonYedegiGeriAl()" class="btn-main-action" style="background:var(--warning);color:#111;font-size:9px;">SON YEDEĞE DÖN</button>
-                    </div>
-                    <div id="v63HealthOutput" style="margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:10px;">Sağlık kontrolü için butona basın.</div>`;
-                sys.prepend(div);
-            }
-
-            const inp = document.getElementById('excelUploadInput');
-            if (inp && !document.getElementById('v63ExcelHint')) {
-                const hint = document.createElement('div');
-                hint.id = 'v63ExcelHint';
-                hint.style.cssText='font-size:9px;color:var(--text);opacity:.8;margin:4px 0 7px 0;line-height:1.4;';
-                hint.innerHTML='✅ <b>V63 Excel:</b> Komple haftalık kurum dosyası veya PLAYOUT.xlsx / KJ.xlsx gibi tek-birim dosyası kabul edilir. Excel bölüm başlığı günlük görev birimidir; personelin ana birimi değişmez.';
-                inp.parentNode.insertBefore(hint, inp);
-            }
-        } catch(e) { console.warn('V63 UI inject:',e); }
-    }
-
-    function installLateWrappers() {
-        if (global.__V63_LATE_WRAPPED) return;
-        global.__V63_LATE_WRAPPED = true;
-
-        // V62 üretiminden önce kullanıcı geri dönüş noktası.
-        if (typeof global.vardiyaUretVeKaydet === 'function') {
-            const oldGenerate = global.vardiyaUretVeKaydet;
-            global.vardiyaUretVeKaydet = function() {
-                snapshot('Otomatik vardiya üretimi öncesi');
-                audit('Otomatik vardiya üretimi başlatıldı', 'SCHEDULER');
-                return oldGenerate.apply(this, arguments);
-            };
-        }
-
-        // Canlı Firebase yazımından önce otomatik yedek. Var olan yayın mantığını değiştirmez.
-        if (typeof global.bulutaKaydet === 'function') {
-            const oldCloudSave = global.bulutaKaydet;
-            global.bulutaKaydet = function() {
-                snapshot('Canlı Firebase yayını öncesi');
-                audit('Canlı vardiya_data yayını başlatıldı', 'PUBLISH');
-                return oldCloudSave.apply(this, arguments);
-            };
-        }
-    }
-
-    global.V63.snapshot = snapshot;
-    global.V63.health = healthData;
-    global.V63.warnings = smartWarnings;
-
-    setTimeout(injectUI, 50);
-    setTimeout(installLateWrappers, 1600); // scheduler-v2.js override'ları tamamlandıktan sonra
-    window.addEventListener('load', () => {
-        setTimeout(injectUI, 250);
-        setTimeout(installLateWrappers, 1800);
-    });
-
-    console.log(`[V63] ${V63_VERSION} loaded. FIX10/FIX11 scheduler untouched.`);
-})(window);
