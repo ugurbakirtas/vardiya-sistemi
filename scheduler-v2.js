@@ -252,16 +252,25 @@
         return n;
     }
 
+    function normalizedAnnualRecord(rec) {
+        if (global.normalizeExternalLeaveRecord) return global.normalizeExternalLeaveRecord(rec || {});
+        return rec || {};
+    }
+
     function isApprovedAnnualLeaveRecord(rec) {
-        const durum = normalizeName(rec && rec.durum);
-        return durum === normalizeName('onaylandı');
+        const n = normalizedAnnualRecord(rec);
+        if (typeof n.__approved === 'boolean') return n.__approved;
+        if (global.izinDurumOnayli) return global.izinDurumOnayli(n.durum);
+        const durum = normalizeName(n && n.durum).replace(/[İI]/g,'I').replace(/[^A-ZÇĞÖŞÜ0-9]+/g,'');
+        return ['ONAYLANDI','ONAYLI','ONAY','APPROVED','ACCEPTED'].includes(durum);
     }
 
     // app.js V61'de çağrılıp tanımı bulunmayan yardımcıyı tamamlar.
     function isPersonOnAnnualLeaveV2(name, dateStr) {
         const wanted = normalizeName(name);
         if (!wanted || !dateStr) return false;
-        return (hariciIzinler || []).some(rec => {
+        return (hariciIzinler || []).some(rawRec => {
+            const rec = normalizedAnnualRecord(rawRec);
             if (!isApprovedAnnualLeaveRecord(rec)) return false;
             if (normalizeName(rec.personel_adi) !== wanted) return false;
             const start = formatTarih(rec.baslangic_tarihi);
@@ -2037,7 +2046,7 @@
         return (state.geciciGorevler || {})[tempKey(name,day)] || p.birim;
     }
 
-    function reoptimizeUnits(units, reasonText) {
+    function reoptimizeUnits(units, reasonText, options={}) {
         if (!isAdmin) return false;
         const requested = Array.from(new Set((units || []).filter(Boolean)));
         const uniq = autoManagedUnits(requested);
@@ -2053,7 +2062,7 @@
             const result = solveSchedule({full:false, units:uniq});
             if (!result.ok) {
                 restoreSnapshot(snap);
-                showSchedulerReport('❌ MANUEL DEĞİŞİKLİK UYGULANAMADI', [
+                if (!options.silentFailure) showSchedulerReport('❌ MANUEL DEĞİŞİKLİK UYGULANAMADI', [
                     'Değişiklik mevcut uzmanlık / dinlenme / hard kurallarla çözülemedi.',
                     'Diğer birimlerin listesine dokunulmadı.',
                     '',
@@ -2289,8 +2298,9 @@
     }
 
     function actualPersonByExternalName(name) {
-        const wanted = normalizeName(name);
-        return state.personeller.find(p => normalizeName(p.ad) === wanted) || null;
+        const clean = v => normalizeName(v).replace(/\s+/g,' ');
+        const wanted = clean(name);
+        return state.personeller.find(p => clean(p.ad) === wanted) || null;
     }
 
     function unitForAbsoluteDate(person,dateObj) {
@@ -2306,7 +2316,8 @@
         const affectedCurrentUnits = new Set();
         const currentH = hKeyNow();
 
-        (records || []).forEach(rec => {
+        (records || []).forEach(rawRec => {
+            const rec = normalizedAnnualRecord(rawRec);
             if (!isApprovedAnnualLeaveRecord(rec)) return;
             const p = actualPersonByExternalName(rec.personel_adi);
             if (!p) return;
@@ -2345,7 +2356,7 @@
 
         if (options.reoptimize !== false && isAdmin && affectedCurrentUnits.size) {
             const units = autoManagedUnits(Array.from(affectedCurrentUnits));
-            const ok = units.length ? reoptimizeUnits(units,'Harici yönetici onaylı yıllık izin güncellendi') : true;
+            const ok = units.length ? reoptimizeUnits(units,'Harici yönetici onaylı yıllık izin güncellendi',{silentFailure:true}) : true;
             if (!ok) {
                 showSchedulerReport('⚠️ YILLIK İZİN KORUNDU / KAPASİTE ÇÖZÜLEMEDİ',[
                     'Harici uygulamadaki yönetici onayı HARD LOCK olarak uygulandı ve geri alınmadı.',
@@ -2363,11 +2374,16 @@
             if (global.__V62_ANNUAL_UNSUB) return true;
             global.__V62_ANNUAL_UNSUB = dbIzin.collection('izinler').onSnapshot(snapshot => {
                 const records = [];
-                snapshot.forEach(doc => records.push(doc.data()));
+                snapshot.forEach(doc => {
+                    const raw = doc.data();
+                    records.push(normalizedAnnualRecord(raw));
+                });
                 hariciIzinler = records;
                 try { renderLeaveCalendar(); } catch(e) {}
                 const r = applyExternalAnnualLocks(records,{reoptimize:true});
-                if (typeof showToast === 'function') showToast(`🏖️ Yıllık izinler otomatik güncellendi (${r.count} gün hard lock).`,'info');
+                const approved = records.filter(isApprovedAnnualLeaveRecord).length;
+                const matched = records.filter(x => isApprovedAnnualLeaveRecord(x) && actualPersonByExternalName(x.personel_adi)).length;
+                if (typeof showToast === 'function') showToast(`🏖️ Yıllık izin senkronu: ${records.length} kayıt / ${approved} onaylı / ${matched} personel / ${r.count} gün hard lock.`,'info');
             }, err => console.error('V62 yıllık izin realtime listener:',err));
             return true;
         } catch(err) {
@@ -2428,7 +2444,7 @@
         try { tabloyuOlustur(); } catch(e) {}
         let ok = true;
         const affectedManaged = autoManagedUnits(Array.from(affected));
-        if (affectedManaged.length) ok = reoptimizeUnits(affectedManaged,`${p.ad} yerel yıllık izin ${start}-${end}`);
+        if (affectedManaged.length) ok = reoptimizeUnits(affectedManaged,`${p.ad} yerel yıllık izin ${start}-${end}`,{silentFailure:true});
         if (ok) {
             showSchedulerReport('✅ YILLIK İZİN HARD LOCK',[
                 `${p.ad}: ${start} - ${end}`,

@@ -231,21 +231,73 @@ function veriyiBuluttanYukleVeCiz() {
 
 function formatTarih(t) {
     if (!t) return "";
-    if (t.includes('.')) return t.split('.').reverse().join('-');
-    if (t.includes('/')) return t.split('/').reverse().join('-');
-    return t; 
+    try {
+        let d = null;
+        if (t instanceof Date) d = t;
+        else if (typeof t === 'object' && typeof t.toDate === 'function') d = t.toDate();
+        else if (typeof t === 'object' && Number.isFinite(Number(t.seconds))) d = new Date(Number(t.seconds) * 1000);
+        else if (typeof t === 'number') d = new Date(t);
+        if (d && !isNaN(d)) {
+            const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+            return `${y}-${m}-${day}`;
+        }
+    } catch(e) {}
+
+    const raw = String(t).trim();
+    if (!raw) return "";
+    const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (iso) return `${iso[1]}-${String(iso[2]).padStart(2,'0')}-${String(iso[3]).padStart(2,'0')}`;
+    const tr = raw.match(/^(\d{1,2})[.\/]([0-9]{1,2})[.\/]([0-9]{4})/);
+    if (tr) return `${tr[3]}-${String(tr[2]).padStart(2,'0')}-${String(tr[1]).padStart(2,'0')}`;
+    return raw;
 }
+
+function izinMetinNormalize(v) {
+    return String(v ?? '').trim().replace(/\s+/g,' ');
+}
+function izinKimlikNormalize(v) {
+    return izinMetinNormalize(v).toLocaleUpperCase('tr-TR');
+}
+function izinDurumOnayli(v) {
+    if (v === true || v === 1 || v === '1') return true;
+    const s = izinKimlikNormalize(v)
+        .replace(/[İI]/g,'I')
+        .replace(/[^A-ZÇĞÖŞÜ0-9]+/g,'');
+    return ['ONAYLANDI','ONAYLI','ONAY','APPROVED','ACCEPTED'].includes(s);
+}
+function ilkDolu(obj, keys) {
+    for (const k of keys) {
+        if (obj && obj[k] !== undefined && obj[k] !== null && String(obj[k]).trim() !== '') return obj[k];
+    }
+    return '';
+}
+function normalizeExternalLeaveRecord(raw) {
+    raw = raw || {};
+    const person = ilkDolu(raw,['personel_adi','personelAdi','personel','ad_soyad','adSoyad','ad','isim','name']);
+    const start = ilkDolu(raw,['baslangic_tarihi','baslangicTarihi','izin_baslangic','izinBaslangic','baslangic','startDate','start_date','start']);
+    const end = ilkDolu(raw,['bitis_tarihi','bitisTarihi','izin_bitis','izinBitis','bitis','endDate','end_date','end']);
+    const status = ilkDolu(raw,['durum','status','onay_durumu','onayDurumu','approvalStatus','approved']);
+    return Object.assign({}, raw, {
+        personel_adi: izinMetinNormalize(person),
+        baslangic_tarihi: formatTarih(start),
+        bitis_tarihi: formatTarih(end),
+        durum: status,
+        __approved: izinDurumOnayli(status)
+    });
+}
+window.normalizeExternalLeaveRecord = normalizeExternalLeaveRecord;
+window.izinDurumOnayli = izinDurumOnayli;
 
 function otomatikIzinleriTabloyaIsle() {
     let degisiklikVar = false;
     if (!state.personeller || !state.manuelAtamalar) return;
     
-    hariciIzinler.forEach(izin => {
-        const durum = (izin.durum || "").toLocaleLowerCase('tr-TR');
-        if (durum !== 'onaylandı') return;
+    hariciIzinler.forEach(rawIzin => {
+        const izin = normalizeExternalLeaveRecord(rawIzin);
+        if (!izin.__approved) return;
         
-        let basTarih = formatTarih(izin.baslangic_tarihi);
-        let bitTarih = formatTarih(izin.bitis_tarihi);
+        let basTarih = izin.baslangic_tarihi;
+        let bitTarih = izin.bitis_tarihi;
         
         let current = new Date(basTarih);
         let end = new Date(bitTarih);
@@ -259,7 +311,7 @@ function otomatikIzinleriTabloyaIsle() {
             let gunIdx = (jsDay + 6) % 7;
             const mKey = `${hKey}_${izin.personel_adi}_${gunIdx}`;
 
-            let p = state.personeller.find(x => x.ad === izin.personel_adi);
+            let p = state.personeller.find(x => izinKimlikNormalize(x.ad) === izinKimlikNormalize(izin.personel_adi));
             if (p && state.manuelAtamalar[mKey] !== SHIFTS.YILLIK) {
                 state.manuelAtamalar[mKey] = SHIFTS.YILLIK;
                 degisiklikVar = true;
@@ -282,13 +334,15 @@ async function izinleriGuncelleVeCek() {
         const snapshot = await dbIzin.collection('izinler').get();
         hariciIzinler = [];
         snapshot.forEach(doc => {
-            hariciIzinler.push(doc.data());
+            hariciIzinler.push(normalizeExternalLeaveRecord(doc.data()));
         });
         renderLeaveCalendar();
         otomatikIzinleriTabloyaIsle();
         tabloyuOlustur();
-        showToast("✅ İzinler başarıyla güncellendi.", "success");
-        logKoy("İzinler manuel olarak çekildi ve güncellendi.");
+        const approved = hariciIzinler.filter(x => x.__approved).length;
+        const matched = hariciIzinler.filter(x => x.__approved && state.personeller.some(p => izinKimlikNormalize(p.ad) === izinKimlikNormalize(x.personel_adi))).length;
+        showToast(`✅ İzinler güncellendi: ${snapshot.size} kayıt / ${approved} onaylı / ${matched} personel eşleşti.`, "success");
+        logKoy(`İzinler manuel çekildi: ${snapshot.size} kayıt, ${approved} onaylı, ${matched} personel eşleşti.`);
     } catch (error) {
         console.error("Yıllık izinler çekilirken hata oluştu:", error);
         showToast("Hata: İzinler çekilemedi!", "error");
@@ -305,12 +359,12 @@ function renderLeaveCalendar() {
     const today = new Date().toISOString().split('T')[0];
     let activeCount = 0; let upcomingCount = 0;
     
-    hariciIzinler.forEach(izin => {
-        const durum = (izin.durum || "").toLocaleLowerCase('tr-TR');
-        if(durum !== 'onaylandı') return;
+    hariciIzinler.forEach(rawIzin => {
+        const izin = normalizeExternalLeaveRecord(rawIzin);
+        if(!izin.__approved) return;
         
-        let basTarih = formatTarih(izin.baslangic_tarihi);
-        let bitTarih = formatTarih(izin.bitis_tarihi);
+        let basTarih = izin.baslangic_tarihi;
+        let bitTarih = izin.bitis_tarihi;
         
         const div = document.createElement('li');
         div.style.padding = "8px"; div.style.background = "rgba(128,128,128,0.1)"; div.style.marginBottom = "5px"; div.style.borderRadius = "4px";
