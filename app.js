@@ -74,6 +74,11 @@ let isAdmin = false;
 
 let hariciIzinler = [];
 
+// V63 FIX2: app.js kendi basina calisabilsin.
+// Eski test indexlerinde bu iki global var olarak tanimli olabilir; var redeclaration guvenlidir.
+var undoStack = Array.isArray(window.undoStack) ? window.undoStack : [];
+var saveTimeout = (typeof window.saveTimeout !== "undefined") ? window.saveTimeout : null;
+
 var state = { 
     birimler: JSON.parse(localStorage.getItem(PREFIX + "birimler")) || Object.values(UNITS), 
     saatler: JSON.parse(localStorage.getItem(PREFIX + "saatler")) || Object.values(SHIFTS).filter(s => s.includes(":")), 
