@@ -27,7 +27,11 @@ const UNITS = {
     REKLAM: "24 TV REKLAM AKIŞ",
     YAYIN_YONETMENI: "24TV YAYIN YÖNETMENİ",
     GAZETE_ARSIV: "GAZETE ARŞİV",
-    RENK_AYRIMI: "RENK AYRIMI"
+    RENK_AYRIMI: "RENK AYRIMI",
+    SISTEM_SORUMLULARI: "SİSTEM SORUMLULARI",
+    UPLINK: "24TV - 360TV UPLINK",
+    RESIM_SECICI: "360TV RESİM SEÇİCİ",
+    TV_ARSIV: "TV ARŞİV"
 };
 
 const DEFAULT_SHIFT_COLORS = [
@@ -62,7 +66,9 @@ const BIRIM_RENKLERI = {
     [UNITS.MCR360]: "#9333ea", [UNITS.INGEST]: "#06b6d4", [UNITS.BILGI_ISLEM]: "#4d7c0f", 
     [UNITS.YAYIN_SISTEMLERI]: "#0f766e", [UNITS.ISIK]: "#b45309", [UNITS.DEKOR]: "#4338ca", 
     [UNITS.KAMERAMANLAR]: "#be185d", [UNITS.REKLAM]: "#86198f", [UNITS.YAYIN_YONETMENI]: "#0369a1", 
-    [UNITS.GAZETE_ARSIV]: "#a21caf", [UNITS.RENK_AYRIMI]: "#b91c1c" 
+    [UNITS.GAZETE_ARSIV]: "#a21caf", [UNITS.RENK_AYRIMI]: "#b91c1c",
+    [UNITS.SISTEM_SORUMLULARI]: "#334155", [UNITS.UPLINK]: "#0891b2",
+    [UNITS.RESIM_SECICI]: "#7c2d12", [UNITS.TV_ARSIV]: "#475569"
 };
 let isAdmin = false;
 
@@ -624,10 +630,14 @@ function tabloyuOlustur() {
                 let v62RepHtml = v62Rep
                     ? ` <span style="display:inline-block;margin-left:4px;padding:1px 4px;border-radius:4px;background:#f59e0b;color:#111827;font-size:7px;font-weight:900;" title="${v62Rep.absent} yerine izin süresince vekil">↪ ${v62Rep.absent} YERİNE</span>`
                     : "";
+                const kartBirim = gecerliBirim || sanalBirim;
+                const kartRenk = getBirimColor(kartBirim);
+                // Excel'de PLAYOUT altında görevliyse kartta PLAYOUT yazsın; personelin ana birimi etiketi bunu ezmesin.
+                if (gecerliBirim && (gecerliBirim.includes("PLAYOUT") || gecerliBirim.includes("KJ"))) masaRozeti = "";
                 let searchMeta = `${p.ad} ${gecerliBirim || ''} ${sanalBirim || ''} ${s || ''} ${v62Rep ? v62Rep.absent + ' vekil yedek' : ''}`;
 
-                cellContent += `<div class="birim-card ${ayiriciClass}" data-search="${searchMeta.replace(/"/g,'&quot;')}" style="border-left-color:${getBirimColor(sanalBirim)}; background-color:${getBirimColor(sanalBirim)}15;" ${dragAttr} ${clickAttr}>
-                    <span class="birim-tag" style="background:${getBirimColor(sanalBirim)}">${sanalBirim}</span>
+                cellContent += `<div class="birim-card ${ayiriciClass}" data-search="${searchMeta.replace(/"/g,'&quot;')}" style="border-left-color:${kartRenk}; background-color:${kartRenk}15;" ${dragAttr} ${clickAttr}>
+                    <span class="birim-tag" style="background:${kartRenk}">${kartBirim}</span>
                     <span class="pers-name">${p.ad}${masaRozeti}${v62RepHtml} ${conflictHtml}</span>
                 </div>`; 
                 
@@ -2094,8 +2104,9 @@ function kisiselProgramiGoster() {
 }
 
 // ============================================================
-// V63 SAFE EXCEL IMPORT
+// V63 SAFE EXCEL IMPORT FIX1
 // - Tam haftalık kurum Excel'i ve tek-birim Excel'leri destekler.
+// - SİSTEM SORUMLULARI / UPLINK / RESİM SEÇİCİ / TV ARŞİV bölümlerini de tanır.
 // - Excel bölüm başlığı o günün GERÇEK görev birimidir.
 // - Personelin ana birimini değiştirmez; state.geciciGorevler kullanır.
 // - Excel ile içe alınan birimleri yalnız ilgili hafta V62/FIX10 otomasyonundan korur.
@@ -2145,6 +2156,10 @@ function v63ExcelUnitFromText(value) {
     if (k.includes('GAZETEARSIV')) return UNITS.GAZETE_ARSIV;
     if (k.includes('RENKAYRIM')) return UNITS.RENK_AYRIMI;
     if (k.includes('REJIOPERATOR')) return UNITS.REJI;
+    if (k.includes('SISTEMSORUMLU')) return UNITS.SISTEM_SORUMLULARI;
+    if (k.includes('UPLINK')) return UNITS.UPLINK;
+    if (k.includes('RESIMSECICI')) return UNITS.RESIM_SECICI;
+    if (k.includes('TVARSIV')) return UNITS.TV_ARSIV;
 
     // PLAYOUT + KJ ortak başlığı tek bir fiziksel bölüm değildir; kişi bazında ana birime düşeceğiz.
     if (k.includes('PLAYOUT') && k.includes('KJ')) return '__MIXED_PLAYOUT_KJ__';
