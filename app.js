@@ -2093,132 +2093,357 @@ function kisiselProgramiGoster() {
     alan.innerHTML = html;
 }
 
+// ============================================================
+// V63 SAFE EXCEL IMPORT
+// - Tam haftalık kurum Excel'i ve tek-birim Excel'leri destekler.
+// - Excel bölüm başlığı o günün GERÇEK görev birimidir.
+// - Personelin ana birimini değiştirmez; state.geciciGorevler kullanır.
+// - Excel ile içe alınan birimleri yalnız ilgili hafta V62/FIX10 otomasyonundan korur.
+// ============================================================
+function v63ExcelNormalizeText(value) {
+    return String(value ?? '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[‐‑‒–—―]/g, '-')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function v63ExcelKey(value) {
+    return v63ExcelNormalizeText(value)
+        .toLocaleUpperCase('tr-TR')
+        .replace(/[^0-9A-ZÇĞİÖŞÜ]/g, '');
+}
+
+function v63ExcelUnitFromText(value) {
+    const raw = v63ExcelNormalizeText(value);
+    const k = v63ExcelKey(raw);
+    if (!k) return null;
+
+    // Önce state'teki gerçek birim adlarını birebir/karşılıklı kapsama ile eşleştir.
+    const known = Array.isArray(state.birimler) ? state.birimler : [];
+    const direct = known.find(b => {
+        const bk = v63ExcelKey(b);
+        return bk && (k === bk || k.includes(bk) || bk.includes(k));
+    });
+    if (direct) return direct;
+
+    // Kurumsal Excel başlıkları için toleranslı alias'lar.
+    if (k.includes('TEKNIKYONETMEN')) return UNITS.YONETMEN;
+    if (k.includes('SESOPERATOR')) return UNITS.SES;
+    if (k.includes('PLAYOUT') && !k.includes('KJ')) return UNITS.PLAYOUT;
+    if (k.includes('KJ') && !k.includes('PLAYOUT')) return UNITS.KJ;
+    if (k.includes('INGEST')) return UNITS.INGEST;
+    if (k.includes('MCR') && k.includes('360')) return UNITS.MCR360;
+    if (k.includes('MCR') && (k.includes('24TV') || k.startsWith('24'))) return UNITS.MCR24;
+    if (k.includes('BILGIISLEM')) return UNITS.BILGI_ISLEM;
+    if (k.includes('YAYINSISTEM')) return UNITS.YAYIN_SISTEMLERI;
+    if (k.includes('ISIK')) return UNITS.ISIK;
+    if (k.includes('DEKOR')) return UNITS.DEKOR;
+    if (k.includes('KAMERAMAN')) return UNITS.KAMERAMANLAR;
+    if (k.includes('REKLAMAKIS')) return UNITS.REKLAM;
+    if (k.includes('YAYINYONETMEN')) return UNITS.YAYIN_YONETMENI;
+    if (k.includes('GAZETEARSIV')) return UNITS.GAZETE_ARSIV;
+    if (k.includes('RENKAYRIM')) return UNITS.RENK_AYRIMI;
+    if (k.includes('REJIOPERATOR')) return UNITS.REJI;
+
+    // PLAYOUT + KJ ortak başlığı tek bir fiziksel bölüm değildir; kişi bazında ana birime düşeceğiz.
+    if (k.includes('PLAYOUT') && k.includes('KJ')) return '__MIXED_PLAYOUT_KJ__';
+    return null;
+}
+
+function v63ExcelLooksLikeSectionHeader(row) {
+    if (!row || !row.length) return false;
+    const a = v63ExcelNormalizeText(row[0]);
+    if (!a) return false;
+    if (v63ExcelShiftFromText(a)) return false;
+    // Bölüm satırlarında B:H genellikle boştur. Bu sayede UPLINK / TV ARŞİV gibi
+    // programda tanımlı olmayan başlıklarda önceki bölümün yanlış taşınmasını önleriz.
+    const rest = row.slice(1, 8).filter(v => v !== null && v !== undefined && v63ExcelNormalizeText(v) !== '');
+    if (rest.length) return false;
+    return /[A-ZÇĞİÖŞÜa-zçğıöşü]/.test(a);
+}
+
+function v63ExcelShiftFromText(value) {
+    const raw = v63ExcelNormalizeText(value);
+    if (!raw) return null;
+    const tr = raw.toLocaleUpperCase('tr-TR');
+    const compact = tr.replace(/\s+/g, '');
+    const en = raw.toUpperCase().replace(/\s+/g, '');
+
+    if (compact.includes('YILLIK')) return SHIFTS.YILLIK;
+    if (compact.includes('RAPOR')) return SHIFTS.RAPOR;
+    if (compact.includes('İZİN') || en.includes('IZIN') || en.includes('OFF')) return SHIFTS.IZIN;
+
+    const canon = raw.replace(/[‐‑‒–—―]/g, '-').replace(/\s+/g, '');
+    const exact = (state.saatler || []).find(s => String(s).replace(/[‐‑‒–—―]/g, '-').replace(/\s+/g, '') === canon);
+    if (exact) return exact;
+
+    const m = canon.match(/(\d{1,2})[:.](\d{2})-(\d{1,2})[:.](\d{2})/);
+    if (!m) return null;
+    const sh = Number(m[1]), eh = Number(m[3]);
+
+    // Gece: 00:00 başlangıç veya akşam başlayıp ertesi sabah biten vardiya.
+    if (sh === 0 || (sh >= 18 && eh <= 8)) return SHIFTS.GECE;
+    if (sh >= 6 && sh <= 8) return SHIFTS.SABAH;
+    if (sh >= 9 && sh <= 11) return SHIFTS.GUNDUZ;
+    if (sh >= 12 && sh <= 14) return SHIFTS.OGLEN;
+    if (sh >= 15 && sh <= 23) return SHIFTS.AKSAM;
+    return null;
+}
+
+function v63ExcelCleanPersonName(value) {
+    let s = v63ExcelNormalizeText(value).toLocaleUpperCase('tr-TR');
+    if (!s) return '';
+    s = s
+        .replace(/\(?\s*\d{1,2}[:.]\d{2}\s*[-–—]\s*\d{1,2}[:.]\d{2}\s*\)?/g, ' ')
+        .replace(/Y\s*I\s*L\s*L\s*I\s*K\s*İ?\s*Z\s*İ\s*N/gi, ' ')
+        .replace(/İ\s*Z\s*İ\s*N\s*L\s*İ/gi, ' ')
+        .replace(/İ\s*Z\s*İ\s*N/gi, ' ')
+        .replace(/I\s*Z\s*I\s*N/gi, ' ')
+        .replace(/R\s*A\s*P\s*O\s*R\s*L\s*U/gi, ' ')
+        .replace(/R\s*A\s*P\s*O\s*R/gi, ' ')
+        .replace(/\*+/g, ' ')
+        .replace(/-{2,}/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return s;
+}
+
+function v63ExcelFindPerson(value) {
+    const cleaned = v63ExcelCleanPersonName(value);
+    if (!cleaned) return null;
+    const ck = v63ExcelKey(cleaned);
+    let p = (state.personeller || []).find(x => v63ExcelKey(x.ad) === ck);
+    if (p) return p;
+
+    // Kontrollü tolerans: yalnız tek bir aday kapsama eşleşiyorsa kabul edilir.
+    const candidates = (state.personeller || []).filter(x => {
+        const pk = v63ExcelKey(x.ad);
+        return pk.length >= 5 && ck.length >= 5 && (pk.includes(ck) || ck.includes(pk));
+    });
+    return candidates.length === 1 ? candidates[0] : null;
+}
+
+function v63ExcelDateFromCell(value) {
+    if (value instanceof Date && !isNaN(value.getTime())) {
+        return new Date(value.getFullYear(), value.getMonth(), value.getDate(), 12, 0, 0, 0);
+    }
+    if (typeof value === 'number' && Number.isFinite(value) && window.XLSX && XLSX.SSF && typeof XLSX.SSF.parse_date_code === 'function') {
+        const p = XLSX.SSF.parse_date_code(value);
+        if (p && p.y && p.m && p.d) return new Date(p.y, p.m - 1, p.d, 12, 0, 0, 0);
+    }
+    if (typeof value === 'string') {
+        const s = value.trim();
+        let m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/);
+        if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), 12, 0, 0, 0);
+        m = s.match(/^(\d{4})[.\/-](\d{1,2})[.\/-](\d{1,2})$/);
+        if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0, 0);
+    }
+    return null;
+}
+
+function v63ExcelDetectDateColumns(rows) {
+    let best = null;
+    const limit = Math.min(rows.length, 30);
+    for (let r = 0; r < limit; r++) {
+        const dates = [];
+        for (let c = 1; c <= 7; c++) dates.push(v63ExcelDateFromCell((rows[r] || [])[c]));
+        const valid = dates.filter(Boolean).length;
+        if (valid >= 5 && (!best || valid > best.valid)) best = { rowIndex: r, dates, valid };
+    }
+    return best;
+}
+
+function v63ExcelSheetScore(sheetName, rows, fileName) {
+    const nameKey = v63ExcelKey(sheetName);
+    let score = 0;
+    if (nameKey.includes('HAFTASI') || nameKey.includes('HAFTA')) score += 30;
+    if (nameKey.includes('ULASTIRMA')) score -= 40;
+    if (nameKey === 'DATA') score -= 60;
+    if (v63ExcelDetectDateColumns(rows)) score += 40;
+    let headers = 0;
+    rows.forEach(row => {
+        const u = v63ExcelUnitFromText((row || [])[0]);
+        if (u) headers++;
+    });
+    score += headers * 12;
+    if (rows.length > 30) score += 8;
+    if (v63ExcelUnitFromText(fileName)) score += 5;
+    return score;
+}
+
+function v63ExcelMarkExternalUnitWeek(unit, hKey) {
+    if (!unit || unit === '__MIXED_PLAYOUT_KJ__') return;
+    if (window.SchedulerV2 && typeof window.SchedulerV2.markExternalUnitWeek === 'function') {
+        window.SchedulerV2.markExternalUnitWeek(unit, hKey);
+        return;
+    }
+    if (!state.schedulerV2) state.schedulerV2 = {};
+    if (!state.schedulerV2.externalUnitWeeks) state.schedulerV2.externalUnitWeeks = {};
+    if (!state.schedulerV2.externalUnitWeeks[hKey]) state.schedulerV2.externalUnitWeeks[hKey] = {};
+    state.schedulerV2.externalUnitWeeks[hKey][unit] = true;
+}
+
 function exceldenVardiyaYukle() {
     const fileInput = document.getElementById('excelUploadInput');
-    if (!fileInput.files.length) { showToast("Lütfen bir Excel dosyası seçin!", "warning"); return; }
-    
-    saveStateToHistory(); 
+    if (!fileInput || !fileInput.files.length) {
+        showToast('Lütfen bir Excel dosyası seçin!', 'warning');
+        return;
+    }
+
+    if (typeof window.v63Snapshot === 'function') window.v63Snapshot('Excel içe aktarma öncesi');
+    else if (typeof saveStateToHistory === 'function') saveStateToHistory();
+
     const file = fileInput.files[0];
+    const fileUnit = v63ExcelUnitFromText(file.name);
     const reader = new FileReader();
 
     reader.onload = function(e) {
         try {
             const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-            
-            const hKey = getDateKey(currentMonday);
+            const workbook = XLSX.read(data, { type: 'array', cellDates: false });
+            if (!workbook.SheetNames || !workbook.SheetNames.length) throw new Error('Excel içinde çalışma sayfası bulunamadı.');
+
+            const candidates = workbook.SheetNames.map(name => {
+                const ws = workbook.Sheets[name];
+                const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+                return { name, ws, rows, score: v63ExcelSheetScore(name, rows, file.name) };
+            }).sort((a,b) => b.score - a.score);
+
+            const chosen = candidates[0];
+            const jsonData = chosen.rows;
+            const dateInfo = v63ExcelDetectDateColumns(jsonData);
+            const dateByCol = {};
+            if (dateInfo) {
+                for (let c = 1; c <= 7; c++) if (dateInfo.dates[c-1]) dateByCol[c] = dateInfo.dates[c-1];
+            }
+
+            let currentUnit = fileUnit || null;
+            let currentSection = fileUnit || null;
             let islenenSayisi = 0;
             const excelBirimleri = new Set();
+            const importedWeeks = new Set();
+            const unmatched = new Set();
+            const skippedSections = new Set();
+            const ignoredRows = new Set();
 
-            jsonData.forEach(row => {
-                if (!row || row.length < 2) return; 
+            jsonData.forEach((row, rowIndex) => {
+                if (!row || !row.length) return;
+                const first = v63ExcelNormalizeText(row[0]);
+                if (!first) return;
 
-                let satirBasligi = row[0];
-                if(!satirBasligi || typeof satirBasligi !== 'string') return;
-                
-                let bosluksuzBaslikTR = satirBasligi.replace(/\s+/g, '').toLocaleUpperCase('tr-TR');
-                let bosluksuzBaslikEN = satirBasligi.replace(/\s+/g, '').toUpperCase(); 
-                
-                let atanacakVardiya = null;
-
-                if (bosluksuzBaslikTR.includes("İZİN") || bosluksuzBaslikEN.includes("IZIN") || bosluksuzBaslikEN.includes("OFF")) {
-                    atanacakVardiya = SHIFTS.IZIN;
-                } else if (bosluksuzBaslikTR.includes("YILLIK") || bosluksuzBaslikEN.includes("YILLIK")) {
-                    atanacakVardiya = SHIFTS.YILLIK;
-                } else if (bosluksuzBaslikTR.includes("RAPOR") || bosluksuzBaslikEN.includes("RAPOR")) {
-                    atanacakVardiya = SHIFTS.RAPOR;
-                } else {
-                    let checkStr = satirBasligi.replace(/[:\-\s]/g, "");
-                    atanacakVardiya = state.saatler.find(s => s.replace(/[:\-\s]/g, "").includes(checkStr));
-                    
-                    if(!atanacakVardiya) {
-                        if(bosluksuzBaslikTR.startsWith("00") || bosluksuzBaslikTR.startsWith("24") || bosluksuzBaslikTR.includes("GECE")) {
-                            atanacakVardiya = SHIFTS.GECE;
-                        }
-                        else if(bosluksuzBaslikTR.includes("06") || bosluksuzBaslikTR.includes("07")) {
-                            atanacakVardiya = SHIFTS.SABAH;
-                        }
-                        else if(bosluksuzBaslikTR.includes("09") || bosluksuzBaslikTR.includes("10")) {
-                            atanacakVardiya = SHIFTS.GUNDUZ;
-                        }
-                        else if(bosluksuzBaslikTR.includes("12") || bosluksuzBaslikTR.includes("13")) {
-                            atanacakVardiya = SHIFTS.OGLEN;
-                        }
-                        else if(bosluksuzBaslikTR.includes("16") || bosluksuzBaslikTR.includes("15") || bosluksuzBaslikTR.includes("14")) {
-                            atanacakVardiya = SHIFTS.AKSAM;
-                        }
-                    }
+                const detectedUnit = v63ExcelUnitFromText(first);
+                if (detectedUnit) {
+                    currentUnit = detectedUnit;
+                    currentSection = first;
+                    return;
                 }
 
-                for (let i = 1; i <= 7; i++) {
-                    let hucreVerisi = row[i];
-                    if (hucreVerisi && typeof hucreVerisi === 'string') {
-                        
-                        let upCell = hucreVerisi.toLocaleUpperCase('tr-TR');
-                        let cellVardiya = atanacakVardiya;
-                        
-                        let bosluksuzHucre = upCell.replace(/\s+/g, '');
-                        if (bosluksuzHucre.includes("YILLIK")) cellVardiya = SHIFTS.YILLIK;
-                        else if (bosluksuzHucre.includes("RAPOR")) cellVardiya = SHIFTS.RAPOR;
-                        else if (bosluksuzHucre.includes("İZİN") || bosluksuzHucre.includes("IZIN") || bosluksuzHucre.includes("OFF")) cellVardiya = SHIFTS.IZIN;
-                        
-                        if (!cellVardiya) continue;
+                if (v63ExcelLooksLikeSectionHeader(row)) {
+                    // Tanımsız bölüm başladıysa önceki bölümün yanlış taşınmasına izin verme.
+                    currentUnit = null;
+                    currentSection = first;
+                    skippedSections.add(first);
+                    return;
+                }
 
-                        let temizIsim = upCell
-                            .replace(/İ\s*Z\s*İ\s*N\s*L\s*İ/g, '')
-                            .replace(/İ\s*Z\s*İ\s*N/g, '')
-                            .replace(/I\s*Z\s*I\s*N/g, '')
-                            .replace(/Y\s*I\s*L\s*L\s*I\s*K/g, '')
-                            .replace(/R\s*A\s*P\s*O\s*R\s*L\s*U/g, '')
-                            .replace(/R\s*A\s*P\s*O\s*R/g, '')
-                            .replace(/O\s*F\s*F/g, '')
-                            .split('*')[0] 
-                            .split('-')[0] 
-                            .replace(/[\d\(\)\.]/g, '') 
-                            .trim();
+                const rowShift = v63ExcelShiftFromText(first);
+                if (!rowShift) {
+                    // DIŞ YAYIN vb. programda karşılığı olmayan satırlar bilinçli olarak atlanır.
+                    if (row.slice(1,8).some(v => v63ExcelNormalizeText(v))) ignoredRows.add(first);
+                    return;
+                }
 
-                        let personel = state.personeller.find(p => p.ad === temizIsim);
-                        
-                        if (!personel && temizIsim.length > 2) {
-                            personel = state.personeller.find(p => p.ad.replace(/\s/g,'').includes(temizIsim.replace(/\s/g,'')) || temizIsim.replace(/\s/g,'').includes(p.ad.replace(/\s/g,'')));
-                        }
-                        
-                        if (personel) {
-                            let gunIdx = i - 1;
-                            state.manuelAtamalar[`${hKey}_${personel.ad}_${gunIdx}`] = cellVardiya;
-                            excelBirimleri.add(personel.birim);
-                            // Excel'den gelen birim yalnız BU HAFTA V62 otomasyonundan korunur.
-                            // Sonraki hafta tekrar algoritmayla üretilebilir veya yeni Excel yeniden işaretler.
-                            if (window.SchedulerV2 && typeof window.SchedulerV2.markExternalUnitWeek === 'function') {
-                                window.SchedulerV2.markExternalUnitWeek(personel.birim, hKey);
-                            } else {
-                                if (!state.schedulerV2) state.schedulerV2 = {};
-                                if (!state.schedulerV2.externalUnitWeeks) state.schedulerV2.externalUnitWeeks = {};
-                                if (!state.schedulerV2.externalUnitWeeks[hKey]) state.schedulerV2.externalUnitWeeks[hKey] = {};
-                                state.schedulerV2.externalUnitWeeks[hKey][personel.birim] = true;
-                            }
-                            islenenSayisi++;
-                        }
+                for (let c = 1; c <= 7; c++) {
+                    const cell = row[c];
+                    if (cell === null || cell === undefined || v63ExcelNormalizeText(cell) === '') continue;
+                    const personel = v63ExcelFindPerson(cell);
+                    if (!personel) {
+                        const cleaned = v63ExcelCleanPersonName(cell);
+                        if (cleaned) unmatched.add(cleaned);
+                        continue;
                     }
+
+                    let cellShift = rowShift;
+                    const cellText = v63ExcelNormalizeText(cell);
+                    const cellShiftOverride = v63ExcelShiftFromText(cellText);
+                    if (cellShiftOverride && /YILLIK|RAPOR|İ\s*Z\s*İ\s*N|IZIN|OFF/i.test(cellText)) cellShift = cellShiftOverride;
+
+                    let dateObj = dateByCol[c] ? new Date(dateByCol[c]) : new Date(currentMonday);
+                    if (!dateByCol[c]) dateObj.setDate(dateObj.getDate() + (c - 1));
+                    dateObj.setHours(12,0,0,0);
+                    const monday = getMonday(dateObj);
+                    monday.setHours(12,0,0,0);
+                    const hKey = getDateKey(monday);
+                    const gunIdx = (dateObj.getDay() + 6) % 7;
+                    const dateKey = getDateKey(dateObj);
+
+                    let assignmentUnit = currentUnit;
+                    if (assignmentUnit === '__MIXED_PLAYOUT_KJ__') {
+                        assignmentUnit = (personel.birim === UNITS.PLAYOUT || personel.birim === UNITS.KJ) ? personel.birim : null;
+                    }
+                    if (!assignmentUnit) assignmentUnit = fileUnit || null;
+                    if (!assignmentUnit && !currentSection) assignmentUnit = personel.birim;
+                    if (!assignmentUnit) continue; // Tanımsız bölümde güvenli şekilde atla.
+
+                    const mKey = `${hKey}_${personel.ad}_${gunIdx}`;
+                    state.manuelAtamalar[mKey] = cellShift;
+
+                    // KRİTİK: Excel'deki bölüm o tarihteki görev birimidir. Ana birim DEĞİŞMEZ.
+                    if (!state.geciciGorevler) state.geciciGorevler = {};
+                    state.geciciGorevler[`${dateKey}_${personel.ad}`] = assignmentUnit;
+
+                    v63ExcelMarkExternalUnitWeek(assignmentUnit, hKey);
+                    excelBirimleri.add(assignmentUnit);
+                    importedWeeks.add(hKey);
+                    islenenSayisi++;
                 }
             });
 
-            if (islenenSayisi > 0) {
-                save();
-                tabloyuOlustur();
-                alert(`✅ Excel Başarıyla İşlendi!\n\nToplam ${islenenSayisi} hücre sisteme aktarıldı.\n\nBu hafta V62 tarafından korunacak birimler:\n${Array.from(excelBirimleri).join('\n')}`);
-                logKoy(`Excel yüklendi (${islenenSayisi} atama) / korunan birimler: ${Array.from(excelBirimleri).join(', ')}`);
-            } else {
-                showToast("⚠️ Excel okundu ancak eşleşen veri bulunamadı. Formatı veya isimleri kontrol edin.", "warning");
+            if (!islenenSayisi) {
+                showToast('⚠️ Excel okundu ancak eşleşen vardiya bulunamadı. Dosya formatını / personel adlarını kontrol edin.', 'warning');
+                return;
             }
 
+            // Excel tarih satırı varsa ekranda dosyanın haftasını aç.
+            if (importedWeeks.size) {
+                const firstWeek = Array.from(importedWeeks).sort()[0];
+                currentMonday = new Date(`${firstWeek}T12:00:00`);
+            }
+
+            save();
+            tabloyuOlustur();
+            if (isAdmin) refreshUI();
+
+            const unitLines = Array.from(excelBirimleri).sort((a,b)=>a.localeCompare(b,'tr'));
+            const unmatchedList = Array.from(unmatched).slice(0,12);
+            const skippedList = Array.from(skippedSections).slice(0,8);
+            const ignoredList = Array.from(ignoredRows).slice(0,8);
+            const summary = [
+                '✅ Excel başarıyla işlendi.',
+                '',
+                `Sayfa: ${chosen.name}`,
+                `Aktarılan hücre: ${islenenSayisi}`,
+                `Hafta: ${Array.from(importedWeeks).sort().join(', ')}`,
+                '',
+                'Excel görev birimleri:',
+                ...unitLines.map(x => `• ${x}`),
+                '',
+                'Not: Personelin ana birimi değiştirilmedi; Excel bölümüne göre günlük görev birimi işlendi.'
+            ];
+            if (unmatchedList.length) summary.push('', `Eşleşmeyen personel (${unmatched.size}):`, ...unmatchedList.map(x=>`• ${x}`));
+            if (skippedList.length) summary.push('', `Programda tanımlı olmadığı için atlanan bölüm (${skippedSections.size}):`, ...skippedList.map(x=>`• ${x}`));
+            if (ignoredList.length) summary.push('', `Karşılığı olmayan satır (${ignoredRows.size}):`, ...ignoredList.map(x=>`• ${x}`));
+
+            alert(summary.join('\n'));
+            logKoy(`V63 Excel içe aktarma: ${islenenSayisi} atama / ${unitLines.join(', ')} / sayfa=${chosen.name}`);
+            if (typeof window.v63Audit === 'function') window.v63Audit(`Excel işlendi: ${file.name} / ${islenenSayisi} atama`, 'EXCEL');
         } catch (err) {
-            console.error(err);
-            showToast("Dosya okuma hatası: " + err.message, "error");
+            console.error('V63 Excel import error:', err);
+            showToast('Dosya okuma hatası: ' + (err.message || err), 'error');
         }
     };
+
     reader.readAsArrayBuffer(file);
 }
 
@@ -2344,3 +2569,296 @@ window.onload = async () => {
     anlikSenkronizasyonBaslat();
     talepleriYukle(); 
 };
+
+// ============================================================
+// V63 SAFE UPGRADE LAYER
+// Tek dosyalık, geriye uyumlu yönetim katmanı.
+// FIX10/FIX11 scheduler-v2.js DEĞİŞMEZ.
+// ============================================================
+(function V63SafeUpgrade(global){
+    'use strict';
+
+    const V63_VERSION = 'V63-SAFE-UPGRADE-EXCEL1';
+    const BACKUP_KEY = 'V63_SAFE_BACKUPS';
+    const MAX_BACKUPS = 6;
+
+    global.V63 = global.V63 || {};
+    global.V63.version = V63_VERSION;
+
+    function clone(obj) {
+        return JSON.parse(JSON.stringify(obj));
+    }
+
+    function safeParse(raw, fallback) {
+        try { return JSON.parse(raw); } catch(e) { return fallback; }
+    }
+
+    function getBackups() {
+        return safeParse(localStorage.getItem(BACKUP_KEY) || '[]', []);
+    }
+
+    function setBackups(list) {
+        try { localStorage.setItem(BACKUP_KEY, JSON.stringify(list.slice(0, MAX_BACKUPS))); } catch(e) { console.warn('V63 backup save:', e); }
+    }
+
+    function snapshot(reason) {
+        try {
+            if (typeof state === 'undefined' || !state) return false;
+            const backups = getBackups();
+            backups.unshift({
+                ts: new Date().toISOString(),
+                reason: reason || 'Manuel yedek',
+                week: (typeof currentMonday !== 'undefined' && typeof getDateKey === 'function') ? getDateKey(currentMonday) : '',
+                state: clone(state)
+            });
+            setBackups(backups);
+            return true;
+        } catch(e) {
+            console.warn('V63 snapshot error:', e);
+            return false;
+        }
+    }
+    global.v63Snapshot = snapshot;
+
+    function audit(message, type='INFO') {
+        try {
+            if (typeof logKoy === 'function') logKoy(`[${V63_VERSION}/${type}] ${message}`);
+        } catch(e) { console.warn(e); }
+    }
+    global.v63Audit = audit;
+
+    global.v63SonYedegiGeriAl = function() {
+        const backups = getBackups();
+        if (!backups.length) {
+            if (typeof showToast === 'function') showToast('Geri alınacak V63 yedeği yok.', 'warning');
+            return false;
+        }
+        const last = backups[0];
+        if (!confirm(`Son yedeğe dönülsün mü?\n\n${last.reason}\n${new Date(last.ts).toLocaleString('tr-TR')}\n\nMevcut yerel durum değişecektir.`)) return false;
+        try {
+            state = clone(last.state);
+            if (typeof verileriGuvenliHaleGetir === 'function') verileriGuvenliHaleGetir();
+            if (typeof save === 'function') save();
+            if (typeof tumArayuzuCiz === 'function') tumArayuzuCiz();
+            audit(`Yerel durum geri alındı: ${last.reason}`, 'ROLLBACK');
+            if (typeof showToast === 'function') showToast('✅ Son V63 yedeği geri yüklendi. Canlıya yazmak için ayrıca Buluta Kaydet gerekir.', 'success');
+            return true;
+        } catch(e) {
+            console.error(e);
+            if (typeof showToast === 'function') showToast('Yedek geri yüklenemedi: ' + e.message, 'error');
+            return false;
+        }
+    };
+
+    function workShift(v) {
+        return !!v && ![SHIFTS.IZIN, SHIFTS.BOS, SHIFTS.YILLIK, SHIFTS.RAPOR].includes(v);
+    }
+
+    function currentWeekRows() {
+        const hKey = getDateKey(currentMonday);
+        const rows = [];
+        (state.personeller || []).forEach(p => {
+            let workDays = 0;
+            for (let g=0; g<7; g++) {
+                const shift = (state.manuelAtamalar || {})[`${hKey}_${p.ad}_${g}`] || null;
+                if (workShift(shift)) workDays++;
+            }
+            rows.push({p, workDays});
+        });
+        return rows;
+    }
+
+    function smartWarnings() {
+        const out = [];
+        const hKey = getDateKey(currentMonday);
+        currentWeekRows().forEach(({p,workDays}) => {
+            if (workDays >= 6) out.push(`${p.ad}: ${workDays} gün çalışma`);
+            for (let g=0; g<7; g++) {
+                const shift = (state.manuelAtamalar || {})[`${hKey}_${p.ad}_${g}`] || null;
+                if (workShift(shift) && typeof checkVisualConflict === 'function' && checkVisualConflict(p.ad,g,shift)) {
+                    out.push(`${p.ad} / ${GUNLER[g]}: dinlenme uyarısı (${shift})`);
+                }
+            }
+        });
+        return Array.from(new Set(out));
+    }
+
+    async function healthData() {
+        const data = {
+            online: navigator.onLine,
+            firebase: false,
+            annual: false,
+            annualCount: Array.isArray(global.hariciIzinler) ? global.hariciIzinler.length : (typeof hariciIzinler !== 'undefined' && Array.isArray(hariciIzinler) ? hariciIzinler.length : 0),
+            scheduler: global.SchedulerV2 ? global.SchedulerV2.version : 'YÜKLENMEDİ',
+            week: getDateKey(currentMonday),
+            excelUnits: [],
+            warnings: smartWarnings()
+        };
+        try {
+            const snap = await database.ref('.info/connected').once('value');
+            data.firebase = snap.val() === true || navigator.onLine;
+        } catch(e) { data.firebase = false; }
+        try {
+            if (typeof dbIzin !== 'undefined' && dbIzin) {
+                await dbIzin.collection('izinler').limit(1).get();
+                data.annual = true;
+            }
+        } catch(e) { data.annual = false; }
+        try {
+            const ext = state.schedulerV2 && state.schedulerV2.externalUnitWeeks && state.schedulerV2.externalUnitWeeks[data.week];
+            data.excelUnits = ext ? Object.keys(ext).filter(k => ext[k]) : [];
+        } catch(e) {}
+        return data;
+    }
+
+    global.v63SistemSagligi = async function() {
+        const box = document.getElementById('v63HealthOutput');
+        if (box) box.innerHTML = '<div style="padding:8px;">Kontrol ediliyor...</div>';
+        const h = await healthData();
+        const lines = [
+            `İnternet: ${h.online ? '✅' : '❌'}`,
+            `Firebase RTDB: ${h.firebase ? '✅' : '❌'}`,
+            `Yıllık izin kaynağı: ${h.annual ? '✅' : '❌'} (${h.annualCount} kayıt bellekte)`,
+            `Scheduler: ${h.scheduler ? '✅ ' + h.scheduler : '❌'}`,
+            `Hafta: ${h.week}`,
+            `Excel korumalı birimler: ${h.excelUnits.length ? h.excelUnits.join(', ') : 'Yok'}`,
+            `Akıllı uyarı: ${h.warnings.length ? h.warnings.length : '0'}`
+        ];
+        if (box) {
+            box.innerHTML = `<pre style="white-space:pre-wrap; margin:0; font-family:inherit; font-size:10px; line-height:1.55;">${lines.join('\n')}</pre>` +
+                (h.warnings.length ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:10px;">${h.warnings.slice(0,12).map(x=>'⚠️ '+x).join('<br>')}</div>` : '');
+        }
+        return h;
+    };
+
+    global.v63HaftaRaporuIndir = function() {
+        if (!global.XLSX) {
+            showToast('Excel kütüphanesi yüklenmedi.', 'error');
+            return;
+        }
+        const hKey = getDateKey(currentMonday);
+        const rows = [['PERSONEL','ANA BİRİM',...GUNLER.map((g,i)=>{
+            const d = new Date(currentMonday); d.setDate(d.getDate()+i); return `${g} ${getDateKey(d)}`;
+        })]];
+        [...(state.personeller || [])].sort((a,b)=>a.ad.localeCompare(b.ad,'tr')).forEach(p => {
+            const r = [p.ad,p.birim];
+            for (let g=0;g<7;g++) {
+                const d = new Date(currentMonday); d.setDate(d.getDate()+g);
+                const shift = (state.manuelAtamalar || {})[`${hKey}_${p.ad}_${g}`] || '';
+                const unit = (state.geciciGorevler || {})[`${getDateKey(d)}_${p.ad}`] || p.birim;
+                r.push(shift ? `${shift} | ${unit}` : '');
+            }
+            rows.push(r);
+        });
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb,ws,'Hafta Raporu');
+        XLSX.writeFile(wb,`TURKMEDYA-${hKey}-V63-RAPOR.xlsx`);
+        audit(`Hafta raporu indirildi: ${hKey}`, 'RAPOR');
+    };
+
+    // Talep Merkezi V2: bekleyenlerin yanında geçmiş durumları da gösterir.
+    global.talepleriYukle = function() {
+        database.ref('talepler').on('value', snap => {
+            const liste = document.getElementById('gelenTaleplerListesi');
+            if (!liste) return;
+            const items = [];
+            if (snap.exists()) snap.forEach(item => items.push(item.val()));
+            items.sort((a,b) => String(b.id || '').localeCompare(String(a.id || '')));
+            const counts = {bekliyor:0,isleniyor:0,onaylandi:0,reddedildi:0,hata:0};
+            items.forEach(t => { const s=String(t.durum||'bekliyor').toLocaleLowerCase('tr-TR'); counts[s]=(counts[s]||0)+1; });
+            let html = `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:10px;font-size:9px;text-align:center;">
+                <div style="padding:6px;border:1px solid var(--border);border-radius:6px;">⏳ ${counts.bekliyor||0}<br>Bekliyor</div>
+                <div style="padding:6px;border:1px solid var(--border);border-radius:6px;">⚙️ ${counts.isleniyor||0}<br>İşleniyor</div>
+                <div style="padding:6px;border:1px solid var(--border);border-radius:6px;">✅ ${counts.onaylandi||0}<br>Onay</div>
+                <div style="padding:6px;border:1px solid var(--border);border-radius:6px;">❌ ${counts.reddedildi||0}<br>Red</div>
+                <div style="padding:6px;border:1px solid var(--border);border-radius:6px;">⚠️ ${counts.hata||0}<br>Hata</div>
+            </div>`;
+            if (!items.length) {
+                liste.innerHTML = html + `<p style="text-align:center;padding:20px;opacity:.5;color:var(--text);">Talep bulunmuyor.</p>`;
+                return;
+            }
+            const statusColor = s => s==='onaylandi'?'var(--success)':s==='reddedildi'?'var(--danger)':s==='hata'?'var(--danger)':s==='isleniyor'?'var(--blue)':'var(--warning)';
+            items.slice(0,100).forEach(t => {
+                const s = String(t.durum || 'bekliyor').toLocaleLowerCase('tr-TR');
+                html += `<div style="background:var(--card-bg);border:1px solid var(--border);border-left:5px solid ${statusColor(s)};padding:10px;border-radius:8px;margin-bottom:8px;">
+                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+                        <div style="font-weight:800;color:var(--primary);font-size:11px;">${t.ad || '-'}</div>
+                        <span style="font-size:8px;font-weight:900;padding:3px 6px;border-radius:10px;background:${statusColor(s)};color:white;">${String(t.durum||'bekliyor').toUpperCase()}</span>
+                    </div>
+                    <div style="font-size:10px;color:var(--text);margin-top:5px;">📅 ${t.tarih || '-'} · 📝 <b>${t.tur || '-'}</b></div>
+                    ${t.error ? `<div style="font-size:9px;color:var(--danger);margin-top:4px;">${t.error}</div>` : ''}
+                    ${s==='bekliyor' ? `<div style="display:flex;gap:6px;margin-top:8px;"><button onclick="talepIslem('${t.id}','onay')" style="flex:1;background:var(--success);color:#fff;border:none;border-radius:6px;padding:7px;cursor:pointer;font-weight:700;font-size:9px;">ONAYLA</button><button onclick="talepIslem('${t.id}','red')" style="flex:1;background:var(--danger);color:#fff;border:none;border-radius:6px;padding:7px;cursor:pointer;font-weight:700;font-size:9px;">REDDET</button></div>` : ''}
+                </div>`;
+            });
+            liste.innerHTML = html;
+        });
+    };
+
+    function injectUI() {
+        try {
+            const sys = document.getElementById('tab-sistem');
+            if (sys && !document.getElementById('v63SafePanel')) {
+                const div = document.createElement('div');
+                div.id = 'v63SafePanel';
+                div.style.cssText = 'margin-bottom:15px;border:1px solid var(--blue);padding:10px;border-radius:8px;background:var(--card-bg);';
+                div.innerHTML = `<strong style="color:var(--text);">🛡️ ${V63_VERSION}</strong>
+                    <div style="font-size:9px;color:var(--text);opacity:.75;margin:5px 0 8px 0;">FIX10/FIX11 scheduler çekirdeğine dokunmadan Excel, yedek, sağlık ve raporlama katmanı.</div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;">
+                        <button onclick="v63SistemSagligi()" class="btn-main-action" style="background:var(--blue);font-size:9px;">SİSTEM SAĞLIĞI</button>
+                        <button onclick="v63HaftaRaporuIndir()" class="btn-main-action" style="background:var(--success);font-size:9px;">HAFTA RAPORU</button>
+                        <button onclick="v63SonYedegiGeriAl()" class="btn-main-action" style="background:var(--warning);color:#111;font-size:9px;">SON YEDEĞE DÖN</button>
+                    </div>
+                    <div id="v63HealthOutput" style="margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:10px;">Sağlık kontrolü için butona basın.</div>`;
+                sys.prepend(div);
+            }
+
+            const inp = document.getElementById('excelUploadInput');
+            if (inp && !document.getElementById('v63ExcelHint')) {
+                const hint = document.createElement('div');
+                hint.id = 'v63ExcelHint';
+                hint.style.cssText='font-size:9px;color:var(--text);opacity:.8;margin:4px 0 7px 0;line-height:1.4;';
+                hint.innerHTML='✅ <b>V63 Excel:</b> Komple haftalık kurum dosyası veya PLAYOUT.xlsx / KJ.xlsx gibi tek-birim dosyası kabul edilir. Excel bölüm başlığı günlük görev birimidir; personelin ana birimi değişmez.';
+                inp.parentNode.insertBefore(hint, inp);
+            }
+        } catch(e) { console.warn('V63 UI inject:',e); }
+    }
+
+    function installLateWrappers() {
+        if (global.__V63_LATE_WRAPPED) return;
+        global.__V63_LATE_WRAPPED = true;
+
+        // V62 üretiminden önce kullanıcı geri dönüş noktası.
+        if (typeof global.vardiyaUretVeKaydet === 'function') {
+            const oldGenerate = global.vardiyaUretVeKaydet;
+            global.vardiyaUretVeKaydet = function() {
+                snapshot('Otomatik vardiya üretimi öncesi');
+                audit('Otomatik vardiya üretimi başlatıldı', 'SCHEDULER');
+                return oldGenerate.apply(this, arguments);
+            };
+        }
+
+        // Canlı Firebase yazımından önce otomatik yedek. Var olan yayın mantığını değiştirmez.
+        if (typeof global.bulutaKaydet === 'function') {
+            const oldCloudSave = global.bulutaKaydet;
+            global.bulutaKaydet = function() {
+                snapshot('Canlı Firebase yayını öncesi');
+                audit('Canlı vardiya_data yayını başlatıldı', 'PUBLISH');
+                return oldCloudSave.apply(this, arguments);
+            };
+        }
+    }
+
+    global.V63.snapshot = snapshot;
+    global.V63.health = healthData;
+    global.V63.warnings = smartWarnings;
+
+    setTimeout(injectUI, 50);
+    setTimeout(installLateWrappers, 1600); // scheduler-v2.js override'ları tamamlandıktan sonra
+    window.addEventListener('load', () => {
+        setTimeout(injectUI, 250);
+        setTimeout(installLateWrappers, 1800);
+    });
+
+    console.log(`[V63] ${V63_VERSION} loaded. FIX10/FIX11 scheduler untouched.`);
+})(window);
