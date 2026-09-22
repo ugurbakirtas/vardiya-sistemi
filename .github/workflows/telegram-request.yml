@@ -2,8 +2,21 @@ name: TurkMedya Telegram Request Approval FREE
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '2-57/5 * * * *'
+    inputs:
+      mode:
+        description: "Calisma modu"
+        required: true
+        default: "notify"
+        type: choice
+        options:
+          - notify
+          - apply
+
+      request_id:
+        description: "Onaylanan talep ID - sadece apply modunda"
+        required: false
+        default: ""
+        type: string
 
 concurrency:
   group: turkmedya-telegram-request-free
@@ -13,11 +26,199 @@ permissions:
   contents: read
 
 jobs:
-  telegram-request:
+
+  notify:
+    if: ${{ inputs.mode == 'notify' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Send pending Firebase requests to Telegram
+        env:
+          VARDIYA_TELEGRAM_BOT_TOKEN: ${{ secrets.VARDIYA_TELEGRAM_BOT_TOKEN }}
+          VARDIYA_TELEGRAM_CHAT_ID: ${{ secrets.VARDIYA_TELEGRAM_CHAT_ID }}
+
+        shell: bash
+        run: |
+          node <<'NODE'
+          const DB =
+            'https://teknik-vardiya-listesi-default-rtdb.europe-west1.firebasedatabase.app';
+
+          const TOKEN =
+            String(process.env.VARDIYA_TELEGRAM_BOT_TOKEN || '').trim();
+
+          const CHAT_ID =
+            String(process.env.VARDIYA_TELEGRAM_CHAT_ID || '').trim();
+
+          if (!TOKEN) {
+            throw new Error('VARDIYA_TELEGRAM_BOT_TOKEN eksik.');
+          }
+
+          if (!CHAT_ID) {
+            throw new Error('VARDIYA_TELEGRAM_CHAT_ID eksik.');
+          }
+
+          async function jfetch(url, options = {}) {
+            const response = await fetch(url, options);
+            const text = await response.text();
+
+            let data = null;
+
+            try {
+              data = text ? JSON.parse(text) : null;
+            } catch {
+              data = text;
+            }
+
+            if (!response.ok) {
+              throw new Error(
+                `${response.status} ${response.statusText}: ${
+                  typeof data === 'string'
+                    ? data
+                    : JSON.stringify(data)
+                }`
+              );
+            }
+
+            return data;
+          }
+
+          async function dbGet(path) {
+            return jfetch(`${DB}/${path}.json`);
+          }
+
+          async function dbPatch(path, value) {
+            return jfetch(`${DB}/${path}.json`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(value)
+            });
+          }
+
+          async function telegram(method, body) {
+            const data = await jfetch(
+              `https://api.telegram.org/bot${TOKEN}/${method}`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+              }
+            );
+
+            if (!data?.ok) {
+              throw new Error(
+                `Telegram ${method}: ${JSON.stringify(data)}`
+              );
+            }
+
+            return data.result;
+          }
+
+          function requestText(id, r) {
+            return [
+              '🟡 YENİ VARDİYA TALEBİ',
+              '',
+              `👤 Personel: ${r.ad || '-'}`,
+              `📅 Tarih: ${r.tarih || '-'}`,
+              `📝 Talep: ${r.tur || '-'}`,
+              `🏢 Birim: ${r.birim || '-'}`,
+              `🆔 Talep: ${id}`,
+              '',
+              'ONAYLA veya REDDET butonunu kullanabilirsiniz.'
+            ].join('\n');
+          }
+
+          const requests =
+            (await dbGet('talepler')) || {};
+
+          let sentCount = 0;
+
+          for (const [id, raw] of Object.entries(requests)) {
+
+            const r = raw || {};
+
+            const status =
+              String(r.durum || '')
+                .toLocaleLowerCase('tr-TR');
+
+            if (status !== 'bekliyor') {
+              continue;
+            }
+
+            if (r.telegramMessageId) {
+              continue;
+            }
+
+            const sent = await telegram(
+              'sendMessage',
+              {
+                chat_id: CHAT_ID,
+
+                text: requestText(id, r),
+
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      {
+                        text: '✅ ONAYLA',
+                        callback_data: `rq:a:${id}`
+                      },
+                      {
+                        text: '❌ REDDET',
+                        callback_data: `rq:r:${id}`
+                      }
+                    ]
+                  ]
+                }
+              }
+            );
+
+            await dbPatch(
+              `talepler/${encodeURIComponent(id)}`,
+              {
+                telegramChatId:
+                  String(sent.chat.id),
+
+                telegramMessageId:
+                  sent.message_id,
+
+                telegramNotifiedAt:
+                  Date.now(),
+
+                telegramNotifiedBy:
+                  'github-cloudflare-notify'
+              }
+            );
+
+            sentCount++;
+
+            console.log(
+              `Telegram bildirimi gonderildi: ${id}`
+            );
+          }
+
+          console.log(
+            `Yeni Telegram bildirimi: ${sentCount}`
+          );
+          NODE
+
+
+  apply:
+    if: ${{ inputs.mode == 'apply' && inputs.request_id != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     steps:
-      - name: Checkout accepted FIX10 branch
+      - name: Checkout accepted production automation branch
         uses: actions/checkout@v4
         with:
           ref: v62-weekly-auto-test
@@ -27,52 +228,42 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Poll Firebase requests and Telegram buttons
-        id: poll
-        working-directory: automation
-        env:
-          VARDIYA_TELEGRAM_BOT_TOKEN: ${{ secrets.VARDIYA_TELEGRAM_BOT_TOKEN }}
-          VARDIYA_TELEGRAM_CHAT_ID: ${{ secrets.VARDIYA_TELEGRAM_CHAT_ID }}
-        run: node telegram-poll.mjs
-
       - name: Install automation dependencies
-        if: steps.poll.outputs.has_approved == 'true'
         working-directory: automation
         run: npm install --no-audit --no-fund
 
       - name: Install Chromium
-        if: steps.poll.outputs.has_approved == 'true'
         working-directory: automation
         run: npx playwright install --with-deps chromium
 
-      - name: Apply approved requests with accepted FIX10
-        if: steps.poll.outputs.has_approved == 'true'
+      - name: Apply approved request
         working-directory: automation
-        env:
-          APPROVED_IDS: ${{ steps.poll.outputs.approved_ids }}
-          VARDIYA_ADMIN_EMAIL: ${{ secrets.VARDIYA_ADMIN_EMAIL }}
-          VARDIYA_ADMIN_PASSWORD: ${{ secrets.VARDIYA_ADMIN_PASSWORD }}
-          VARDIYA_TELEGRAM_BOT_TOKEN: ${{ secrets.VARDIYA_TELEGRAM_BOT_TOKEN }}
-          VARDIYA_TELEGRAM_CHAT_ID: ${{ secrets.VARDIYA_TELEGRAM_CHAT_ID }}
-        shell: bash
-        run: |
-          set +e
-          rc=0
-          IFS=',' read -ra IDS <<< "$APPROVED_IDS"
-          for REQUEST_ID in "${IDS[@]}"; do
-            [ -z "$REQUEST_ID" ] && continue
-            echo "Applying request: $REQUEST_ID"
-            REQUEST_ID="$REQUEST_ID" node request-runner.mjs || rc=1
-          done
-          exit $rc
 
-      - name: Upload Telegram poll report
+        env:
+          REQUEST_ID: ${{ inputs.request_id }}
+
+          VARDIYA_ADMIN_EMAIL:
+            ${{ secrets.VARDIYA_ADMIN_EMAIL }}
+
+          VARDIYA_ADMIN_PASSWORD:
+            ${{ secrets.VARDIYA_ADMIN_PASSWORD }}
+
+          VARDIYA_TELEGRAM_BOT_TOKEN:
+            ${{ secrets.VARDIYA_TELEGRAM_BOT_TOKEN }}
+
+          VARDIYA_TELEGRAM_CHAT_ID:
+            ${{ secrets.VARDIYA_TELEGRAM_CHAT_ID }}
+
+        run: node request-runner.mjs
+
+      - name: Upload request report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: telegram-free-poll-${{ github.run_number }}
+          name: telegram-request-${{ inputs.request_id }}-${{ github.run_number }}
+
           path: |
-            automation/telegram-poll-output.json
             automation/request-output.json
+
           if-no-files-found: warn
           retention-days: 14
