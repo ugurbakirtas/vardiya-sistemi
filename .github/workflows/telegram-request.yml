@@ -3,8 +3,7 @@ name: TurkMedya Telegram Request Approval FREE
 on:
   workflow_dispatch:
   schedule:
-    # GitHub'un ücretsiz zamanlayıcısı: her 5 dakikada bir kontrol.
-    - cron: '*/5 * * * *'
+    - cron: '2-57/5 * * * *'
 
 concurrency:
   group: turkmedya-telegram-request-free
