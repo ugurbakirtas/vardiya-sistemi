@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
   <title>TURKMEDYA TEKNiK VARDiYA LiSTESi | Pro_Ugr</title>
   
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260922-final-live4-taleplerim-fix2">
   
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -13,7 +13,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-  <script src="[https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js](https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js)"></script>
 </head>
 <body>
   
@@ -22,7 +21,7 @@
       <div style="margin-top:15px; font-weight:700; color:var(--primary); font-size: 14px;">Sistem Hazırlanıyor...</div>
   </div>
 
-  <div id="loginOverlay"><div class="login-card"><img src="logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'"><h2 style="margin:0 0 20px 0; color:var(--primary)">Sistem Girişi</h2><button onclick="enterSystem('personel')" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button><button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button><p style="font-size: 10px; color: var(--text); opacity: 0.7; margin-top: 20px;">TURKMEDYA TEKNİK V61</p></div></div>
+  <div id="loginOverlay"><div class="login-card"><img src="logo.png?v=20260922-final-live4-taleplerim-fix2" alt="Logo" class="login-logo" onerror="this.style.display='none'"><h2 style="margin:0 0 20px 0; color:var(--primary)">Sistem Girişi</h2><button onclick="enterSystem('personel')" class="login-btn btn-user">👤 PERSONEL GİRİŞİ</button><button onclick="enterSystem('admin')" class="login-btn btn-admin">⚙️ YÖNETİCİ GİRİŞİ</button><p style="font-size: 10px; color: var(--text); opacity: 0.7; margin-top: 20px;">TURKMEDYA TEKNİK V61</p></div></div>
   
   <div id="talepModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10001; display:none; align-items:center; justify-content:center;">
     <div class="login-card" style="width: 320px; border: 2px solid var(--blue);">
@@ -64,7 +63,7 @@
     
     <header class="main-header no-print">
       <div style="display: flex; align-items: center; gap: 15px;">
-          <img src="logo.png" alt="Logo" style="max-height: 40px; max-width: 160px; object-fit: contain;">
+          <img src="logo.png?v=20260922-final-live4-taleplerim-fix2" alt="Logo" style="max-height: 40px; max-width: 160px; object-fit: contain;">
           <div>
               <h1 style="margin:0; font-size:16px; white-space: nowrap;">TEKNiK EKİP ÇALIŞMA LİSTESİ V61</h1>
               <p id="tarihAraligi" style="margin:0; opacity:0.8; font-size:10px;"></p>
@@ -139,9 +138,10 @@
             <button id="btn-tab-loglar" class="tab-btn" onclick="tabDegistir('loglar')"><i>🕵️</i>Loglar</button>
         </div>
         
-        <div id="tab-personel" class="tab-content"><div style="background:var(--card-bg); padding:15px; border-radius:12px; border:1px solid var(--border); box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:15px;"><input type="text" id="yeniPersInp" placeholder="Ad Soyad Giriniz" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);"><select id="yeniPersBirimSec" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);"></select><button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success); padding:12px;">+ YENİ PERSONEL EKLE</button></div><div id="persListesiAdmin"></div></div>
+        <div id="tab-personel" class="tab-content"><div style="background:var(--card-bg); padding:15px; border-radius:12px; border:1px solid var(--border); box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:15px;"><input type="text" id="yeniPersInp" placeholder="Ad Soyad Giriniz" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);"><select id="yeniPersBirimSec" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);"></select><button onclick="personelEkle()" class="btn-main-action" style="width:100%; background:var(--success); padding:12px;">+ YENİ PERSONEL EKLE</button></div><div class="v63-admin-search" style="margin:0 0 10px 0;"><input type="text" id="v63PersonSearch" oninput="V63Addons.applyAdminSearchFilters()" placeholder="🔍 Personel / uzmanlık için isim ara..." style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:11px;box-sizing:border-box;"></div><div id="persListesiAdmin"></div></div>
         
         <div id="tab-transfer" class="tab-content hidden">
+            <div class="v63-admin-search" style="margin:0 0 10px 0;"><input type="text" id="v63TransferSearch" oninput="V63Addons.applyAdminSearchFilters()" placeholder="🔍 Birim değişimi için personel ara..." style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:11px;box-sizing:border-box;"></div>
             <div class="swap-container" style="border-color:var(--warning); margin-bottom: 20px;">
                 <div class="swap-header" style="color:var(--warning);">🔀 İKİ PERSONELİ KARŞILIKLI TAKAS ET</div>
                 <div style="font-size:10px; color:var(--text); opacity:0.8; margin-bottom:15px; text-align:center;">İki personelin BİRİMLERİ ve O HAFTAKİ VARDİYALARI yer değiştirir. (Süresizdir, eski haline getirene kadar kalıcıdır).</div>
@@ -171,16 +171,17 @@
         </div>
 
         <div id="tab-degisim" class="tab-content hidden">
+            <div class="v63-admin-search" style="margin:0 0 10px 0;"><input type="text" id="v63SwapSearch" oninput="V63Addons.applyAdminSearchFilters()" placeholder="🔍 Günlük swap için personel ara..." style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:11px;box-sizing:border-box;"></div>
             <div class="swap-container"><div class="swap-header">⚡ GÜNLÜK PERSONEL DEĞİŞİMİ / SWAP</div><div class="swap-row"><label class="swap-label">MEVCUT BİRİMİ KULLANILACAK OLAN (AYRILAN):</label><select id="swapKaynakPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row"><label class="swap-label">⬇️ YERİNE GEÇECEK (İZİNCİ KİŞİ) ⬇️</label><select id="swapHedefPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row"><label class="swap-label">HANGİ GÜNLER?</label><div class="swap-days"><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="0"> Pzt</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="1"> Sal</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="2"> Çar</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="3"> Per</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="4"> Cum</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="5"> Cmt</label><label class="swap-day-item"><input type="checkbox" class="swap-day-cb" value="6"> Paz</label></div></div><button onclick="degisimiUygula()" class="btn-main-action" style="background:var(--blue); width:100%; padding:12px; margin-top:10px;">DEĞİŞİMİ UYGULA</button></div>
             <div id="aktifDegisimlerListesi" style="margin-top:20px;"></div><button onclick="tumDegisimleriTemizle()" class="btn-main-action" style="background:var(--danger); width:100%; margin-top:20px;">🗑️ TÜM DEĞİŞİMLERİ SİL</button>
         </div>
 
         <div id="tab-birimler" class="tab-content hidden"><div id="birimListesiAdmin"></div></div>
         <div id="tab-saatler" class="tab-content hidden"><div id="saatListesiAdmin"></div></div>
-        <div id="tab-sabitle" class="tab-content hidden"><div id="sabitListeAdmin"></div></div>
+        <div id="tab-sabitle" class="tab-content hidden"><div class="v63-admin-search" style="margin:0 0 10px 0;"><input type="text" id="v63FixedSearch" oninput="V63Addons.applyAdminSearchFilters()" placeholder="🔍 Sabitler içinde personel ara..." style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:11px;box-sizing:border-box;"></div><div id="sabitListeAdmin"></div></div>
         <div id="tab-kapasite" class="tab-content hidden"><div id="kapasiteTable"></div></div>
         
-        <div id="tab-yillik" class="tab-content hidden"><div class="swap-container" style="border-color:var(--yillik-izin); background:var(--card-bg);"><div class="swap-header" style="color:var(--yillik-izin);">🏖️ TOPLU YILLIK İZİN İŞLEME</div><div class="swap-row"><label class="swap-label">PERSONEL SEÇİN:</label><select id="yillikIzinPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row"><div style="flex:1;"><label class="swap-label">BAŞLANGIÇ:</label><input type="date" id="yillikBaslangic" class="swap-select"></div><div style="flex:1;"><label class="swap-label">BİTİŞ (Dahil):</label><input type="date" id="yillikBitis" class="swap-select"></div></div><button onclick="yillikIzinIsle()" class="btn-main-action" style="background:var(--yillik-izin); width:100%; padding:12px; margin-top:10px;">İZİNLERİ İŞLE</button><div style="margin-top:10px; font-size:10px; color:var(--text); opacity:0.7; text-align:center;">* Seçilen tarih aralığına "YILLIK İZİN" yazılacak ve sistem gerektiğinde yerine başkasını atayacaktır.</div></div></div>
+        <div id="tab-yillik" class="tab-content hidden"><div class="v63-admin-search" style="margin:0 0 10px 0;"><input type="text" id="v63AnnualSearch" oninput="V63Addons.applyAdminSearchFilters()" placeholder="🔍 Yıllık izin için personel ara..." style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:11px;box-sizing:border-box;"></div><div class="swap-container" style="border-color:var(--yillik-izin); background:var(--card-bg);"><div class="swap-header" style="color:var(--yillik-izin);">🏖️ TOPLU YILLIK İZİN İŞLEME</div><div class="swap-row"><label class="swap-label">PERSONEL SEÇİN:</label><select id="yillikIzinPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row"><div style="flex:1;"><label class="swap-label">BAŞLANGIÇ:</label><input type="date" id="yillikBaslangic" class="swap-select"></div><div style="flex:1;"><label class="swap-label">BİTİŞ (Dahil):</label><input type="date" id="yillikBitis" class="swap-select"></div></div><button onclick="yillikIzinIsle()" class="btn-main-action" style="background:var(--yillik-izin); width:100%; padding:12px; margin-top:10px;">İZİNLERİ İŞLE</button><div style="margin-top:10px; font-size:10px; color:var(--text); opacity:0.7; text-align:center;">* Seçilen tarih aralığına "YILLIK İZİN" yazılacak ve sistem gerektiğinde yerine başkasını atayacaktır.</div></div></div>
 
         <div id="tab-izintakvim" class="tab-content hidden"><div class="swap-container" style="border-color:var(--success); background:var(--card-bg);"><div class="swap-header" style="color:var(--success);">📅 AKTİF VE ONAYLI İZİNLER</div><div style="padding: 10px;"><h4 style="margin-top:0; margin-bottom:10px; color:var(--danger);">Şu An İzinde Olanlar</h4><ul id="activeLeavesList" style="list-style: none; padding: 0; margin: 0 0 20px 0; font-weight: bold; font-size:12px;"></ul><h4 style="margin-top:0; margin-bottom:10px; color:var(--blue);">Gelecek İzinler</h4><div id="upcomingLeavesList" style="font-size:12px;"></div></div></div></div>
         
@@ -276,8 +277,9 @@
   </div>
 
   <script>var undoStack = []; var saveTimeout = null;</script>
-  <script src="app.js"></script>
-  <script src="scheduler-v2.js"></script>
+  <script src="app.js?v=20260929-core-reservation-fix7"></script>
+  <script src="scheduler-v2.js?v=20260929-core-reservation-fix7"></script>
+  <script src="v63-enhancements.js?v=20260929-core-reservation-fix7"></script>
 </body>
 
 </html>

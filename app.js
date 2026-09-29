@@ -59,7 +59,11 @@ const firebaseConfigIzin = {
 const appIzin = firebase.initializeApp(firebaseConfigIzin, "yillikIzinApp");
 const dbIzin = appIzin.firestore();
 
-const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = ""; 
+const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]; const PREFIX = "";
+
+// FIX16-FIX1: Local güvenli test modu.
+// Localhost'ta canlı veri başlangıçta sadece okunur; local test değişiklikleri anlık senkronla ezilmez.
+const LOCAL_SAFE_TEST = (location.hostname === "127.0.0.1" || location.hostname === "localhost"); 
 const BIRIM_RENKLERI = { 
     [UNITS.YONETMEN]: "#2563eb", [UNITS.SES]: "#7c3aed", [UNITS.KJ]: "#db2777", 
     [UNITS.PLAYOUT]: "#059669", [UNITS.REJI]: "#d97706", [UNITS.MCR24]: "#9333ea", 
@@ -81,6 +85,7 @@ var state = {
     kapasite: JSON.parse(localStorage.getItem(PREFIX + "kapasite")) || {}, 
     manuelAtamalar: JSON.parse(localStorage.getItem(PREFIX + "manuelAtamalar")) || {}, 
     haftaIciSabitler: JSON.parse(localStorage.getItem(PREFIX + "haftaIciSabitler")) || {}, 
+    haftaIciSabitGorevYerleri: JSON.parse(localStorage.getItem(PREFIX + "haftaIciSabitGorevYerleri")) || {}, 
     haftaSonuYedekler: JSON.parse(localStorage.getItem(PREFIX + "haftaSonuYedekler")) || {}, 
     mcrAyarlari: JSON.parse(localStorage.getItem(PREFIX + "mcrAyarlari")) || { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} }, 
     geciciGorevler: JSON.parse(localStorage.getItem(PREFIX + "geciciGorevler")) || {},
@@ -181,6 +186,7 @@ function verileriGuvenliHaleGetir() {
     if(!state.geciciGorevler) state.geciciGorevler = {};
     if(!state.kapasite) state.kapasite = {};
     if(!state.haftaIciSabitler) state.haftaIciSabitler = {};
+    if(!state.haftaIciSabitGorevYerleri) state.haftaIciSabitGorevYerleri = {};
     if(!state.haftaSonuYedekler) state.haftaSonuYedekler = {};
 
     if(!state.mcrAyarlari) state.mcrAyarlari = { baslangicTarihi: new Date().toISOString().split('T')[0], ofsetler: {} };
@@ -256,7 +262,12 @@ function izinMetinNormalize(v) {
     return String(v ?? '').trim().replace(/\s+/g,' ');
 }
 function izinKimlikNormalize(v) {
-    return izinMetinNormalize(v).toLocaleUpperCase('tr-TR');
+    // Harici izin uygulamasi ile vardiya personel adlari arasindaki
+    // bosluk/noktalama farklarini kimlik eslesmesinde yok say.
+    // Ornek: "YUSUF ALPKILIÇ" == "YUSUF ALP KILIÇ"
+    return izinMetinNormalize(v)
+        .toLocaleUpperCase('tr-TR')
+        .replace(/[^A-ZÇĞİÖŞÜ0-9]+/g,'');
 }
 function izinDurumOnayli(v) {
     if (v === true || v === 1 || v === '1') return true;
@@ -309,12 +320,15 @@ function otomatikIzinleriTabloyaIsle() {
             const hKey = getDateKey(getMonday(current));
             let jsDay = current.getDay();
             let gunIdx = (jsDay + 6) % 7;
-            const mKey = `${hKey}_${izin.personel_adi}_${gunIdx}`;
-
             let p = state.personeller.find(x => izinKimlikNormalize(x.ad) === izinKimlikNormalize(izin.personel_adi));
-            if (p && state.manuelAtamalar[mKey] !== SHIFTS.YILLIK) {
-                state.manuelAtamalar[mKey] = SHIFTS.YILLIK;
-                degisiklikVar = true;
+            if (p) {
+                // Anahtar her zaman vardiya sistemindeki KANONIK personel adi ile uretilir.
+                // Harici sistemdeki yazim farki state anahtarina tasinmaz.
+                const mKey = `${hKey}_${p.ad}_${gunIdx}`;
+                if (state.manuelAtamalar[mKey] !== SHIFTS.YILLIK) {
+                    state.manuelAtamalar[mKey] = SHIFTS.YILLIK;
+                    degisiklikVar = true;
+                }
             }
             current.setDate(current.getDate() + 1);
             loops++;
@@ -485,6 +499,173 @@ function getBirimColor(birim) {
 }
 function getGecerliBirim(p, g) { let d = new Date(currentMonday); d.setDate(d.getDate() + g); const dateKey = getDateKey(d); const key = `${dateKey}_${p.ad}`; return state.geciciGorevler[key] || p.birim; }
 
+
+// ============================================================
+// 360TV GÖREV YERİ ETİKETİ — RESTORED ACCEPTED BEHAVIOR / 2026-09-28
+// Bu katman gerçek scheduler birimini değiştirmez. Yönetici tarafından hafta içi
+// sabit personele verilen görev-yeri etiketi masaüstü ve mobilde gösterilir.
+// Günlük geçici/Excel görev yeri her zaman en yüksek gösterim önceliğidir.
+// ============================================================
+function gorevYeriBirimEtiketi(birim) {
+    const b = String(birim || '').trim();
+    if(!b) return '';
+    if(b === UNITS.MCR24) return '24TV MCR';
+    if(b === UNITS.MCR360) return '360TV MCR';
+    if(b === UNITS.PLAYOUT) return 'PLAYOUT';
+    if(b === UNITS.KJ) return 'KJ';
+    if(b === UNITS.INGEST) return 'INGEST';
+    if(b === UNITS.REJI) return 'REJİ';
+    if(b === UNITS.SES) return 'SES';
+    if(b === UNITS.YONETMEN) return 'TEKNİK YÖNETMEN';
+    return b.replace(/\s+OPERATÖRÜ$/u, '').trim();
+}
+
+function sabitGorevYeriUzmanlikEtiketleri(personel) {
+    const p = personel || {};
+    const values = [];
+    const add = (v) => { if(v && !values.includes(v)) values.push(v); };
+    if(p.birim === UNITS.PLAYOUT) { add('PLAYOUT'); add('360TV PLAYOUT'); }
+    else if(p.birim === UNITS.KJ) { add('KJ'); add('360TV KJ'); }
+    else if(p.birim === UNITS.REJI) { add('REJİ'); add('24TV REJİ'); add('360TV REJİ'); }
+    else add(gorevYeriBirimEtiketi(p.birim));
+
+    const specs = Array.isArray(p.uzmanlik) ? p.uzmanlik : [];
+    specs.forEach(spec => {
+        const u = String(spec || '').trim().toUpperCase();
+        if(u === 'PLAYOUT') { add('PLAYOUT'); add('360TV PLAYOUT'); }
+        else if(u === 'KJ') { add('KJ'); add('360TV KJ'); }
+        else if(u === '24 MCR') add('24TV MCR');
+        else if(u === '360 MCR') add('360TV MCR');
+        else if(u === 'INGEST') add('INGEST');
+    });
+    return values;
+}
+
+function sabitGorevYeriSecenekleri(personel, seciliDeger) {
+    const p = personel || {};
+    const mevcut = String(seciliDeger || '').trim();
+    const varsayilan = gorevYeriBirimEtiketi(p.birim) || 'BİRİM';
+    const secenekler = sabitGorevYeriUzmanlikEtiketleri(p);
+    if(mevcut && !secenekler.includes(mevcut)) secenekler.push(mevcut);
+    return `<option value="" ${!mevcut?'selected':''}>Otomatik (${varsayilan})</option>` +
+        secenekler.map(v => `<option value="${v}" ${mevcut === v ? 'selected' : ''}>${v}</option>`).join('');
+}
+
+function sabitGorevYeriUzmanlikOzeti(personel) {
+    const p = personel || {};
+    const specs = Array.isArray(p.uzmanlik) ? p.uzmanlik.filter(Boolean) : [];
+    const ana = gorevYeriBirimEtiketi(p.birim) || p.birim || '-';
+    return specs.length ? `${ana} | Uzmanlık: ${specs.join(', ')}` : `${ana} | Ek uzmanlık tanımlı değil`;
+}
+
+function haftalikSabahciPlaninaUyuyor(personel, unit) {
+    if(!personel || personel.birim !== unit) return false;
+    const hKey = getDateKey(currentMonday);
+    for(let d=0; d<5; d++) {
+        const key = `${hKey}_${personel.ad}_${d}`;
+        const vardiya = state.manuelAtamalar && state.manuelAtamalar[key];
+        if(vardiya !== SHIFTS.SABAH) return false;
+        if(getGecerliBirim(personel, d) !== unit) return false;
+    }
+    // DYNAMIC ROLE FIX3: 360TV sabah rolü bir PERSONELe değil haftalık ROLE aittir.
+    // Hafta sonu normal izin, yıllık izin, rapor veya boş olabilir; önemli olan kişinin
+    // Pzt-Cum aynı 06:30 rolünü taşımasıdır. Böylece yıllık izne denk gelen Cmt/Paz
+    // yüzünden 360TV etiketi kaybolmaz ve rol o hafta kimdeyse onu takip eder.
+    const offValues = [null, undefined, '', SHIFTS.IZIN, SHIFTS.BOS, SHIFTS.YILLIK, SHIFTS.RAPOR, 'İZİNLİ', 'YILLIK İZİN', 'RAPORLU'];
+    for(let d=5; d<7; d++) {
+        const key = `${hKey}_${personel.ad}_${d}`;
+        const vardiya = state.manuelAtamalar && state.manuelAtamalar[key];
+        if(!offValues.includes(vardiya)) return false;
+    }
+    return true;
+}
+
+function haftalikOtomatikSabahciKisi(unit) {
+    if(unit !== UNITS.PLAYOUT && unit !== UNITS.KJ) return null;
+    const hKey = getDateKey(currentMonday);
+    const scheduler = state.schedulerV2 || {};
+    const weekAnchors = scheduler.weeklyMorningAnchors && scheduler.weeklyMorningAnchors[hKey];
+    const persisted = weekAnchors && weekAnchors[unit];
+    const report = scheduler.lastReport && scheduler.lastReport.week === hKey && scheduler.lastReport.weeklyMorningAnchors
+        ? scheduler.lastReport.weeklyMorningAnchors[unit] : null;
+    const byName = (name) => (state.personeller || []).find(x => x && x.ad === name && x.birim === unit);
+    const validRecorded = [persisted, report].find(rec => {
+        const person = rec && rec.person ? byName(rec.person) : null;
+        return person && haftalikSabahciPlaninaUyuyor(person, unit);
+    });
+    if(validRecorded && validRecorded.person) return validRecorded.person;
+
+    const candidates = (state.personeller || []).filter(p => haftalikSabahciPlaninaUyuyor(p, unit));
+    if(!candidates.length) return null;
+    const sourceCandidates = candidates.filter(p => {
+        for(let d=0; d<5; d++) {
+            const key = `${hKey}_${p.ad}_${d}`;
+            if(scheduler.assignmentSource && scheduler.assignmentSource[key] === 'AUTO_V62_WEEKLY_MORNING_ANCHOR') return true;
+        }
+        return false;
+    });
+    if(sourceCandidates.length === 1) return sourceCandidates[0].ad;
+
+    // DYNAMIC ROLE FIX3: Görünür planda Pzt-Cum 06:30 çalışan tek kişi varsa,
+    // kişinin adı/sabit ayarı ne olursa olsun o haftanın 360TV rol sahibidir.
+    // Bu, etiketi SENA/KADIR gibi isimlere sabitlemez; rol kimdeyse etiket ondadır.
+    if(candidates.length === 1) return candidates[0].ad;
+
+    const autoCandidates = candidates.filter(p => !(state.haftaIciSabitler && state.haftaIciSabitler[p.ad]));
+    if(autoCandidates.length === 1) return autoCandidates[0].ad;
+    const hadRecordedAnchor = !!((persisted && persisted.person) || (report && report.person));
+    if(hadRecordedAnchor && candidates.length === 1) return candidates[0].ad;
+    return null;
+}
+
+function mobilGorevYeriEtiketi(isim, gunIndex, vardiya) {
+    const v = String(vardiya || '').trim();
+    if(!v || [SHIFTS.IZIN, SHIFTS.BOS, SHIFTS.YILLIK, SHIFTS.RAPOR, 'İZİNLİ', 'YILLIK İZİN', 'RAPORLU'].includes(v)) return '';
+    const p = (state.personeller || []).find(x => x && x.ad === isim);
+    if(!p) return '';
+
+    const d = new Date(currentMonday);
+    d.setDate(d.getDate() + gunIndex);
+    const tarihKey = getDateKey(d);
+    const hKey = getDateKey(currentMonday);
+    const tempKey = `${tarihKey}_${p.ad}`;
+    const assignmentKey = `${hKey}_${p.ad}_${gunIndex}`;
+    const gecici = state.geciciGorevler && state.geciciGorevler[tempKey];
+    const scheduler = state.schedulerV2 || {};
+
+    // Gerçek birim değişikliği her görünüm etiketinden üstündür.
+    // Excel'in aynı ana birimi tekrar yazması (KJ->KJ / PLAYOUT->PLAYOUT) bir değişiklik değildir.
+    if(gecici && String(gecici || '').trim() !== String(p.birim || '').trim()) {
+        return gorevYeriBirimEtiketi(gecici);
+    }
+
+    // Excel'deki 360TV SLOT'u kişi adına değil hücrenin/rolün kendisine bağlanır.
+    // Aynı hafta bu rol başka bir personele verilirse etiket otomatik olarak onun kartına geçer.
+    const exactRole = scheduler.assignmentRoleLabels && scheduler.assignmentRoleLabels[assignmentKey];
+    if(v === SHIFTS.SABAH && exactRole) return String(exactRole);
+
+    // Yönetici açıkça sabit görev-yeri etiketi verdiyse bunu koru. Bu bir isim hard-code'u değil,
+    // mevcut yönetim ayarıdır; kişi değiştirilirse yeni rol metadata'sı aşağıdaki haftalık çözümden gelir.
+    const haftaIciSabit = gunIndex < 5 && state.haftaIciSabitler && state.haftaIciSabitler[p.ad];
+    if(haftaIciSabit) {
+        const manuelEtiket = state.haftaIciSabitGorevYerleri && state.haftaIciSabitGorevYerleri[p.ad];
+        if(manuelEtiket) return String(manuelEtiket);
+    }
+
+    const effectiveUnit = getGecerliBirim(p, gunIndex);
+    if(gunIndex < 5 && v === SHIFTS.SABAH) {
+        if(effectiveUnit === UNITS.PLAYOUT && haftalikOtomatikSabahciKisi(UNITS.PLAYOUT) === p.ad) return '360TV PLAYOUT';
+        if(effectiveUnit === UNITS.KJ && haftalikOtomatikSabahciKisi(UNITS.KJ) === p.ad) return '360TV KJ';
+    }
+    return gorevYeriBirimEtiketi(effectiveUnit);
+}
+
+function getGorevYeriGosterim(p, g, vardiya) {
+    if(!p) return '';
+    const v = vardiya || vardiyaBul(p.ad, g);
+    return mobilGorevYeriEtiketi(p.ad, g, v);
+}
+
 function logKoy(mesaj) {
     if(!state.logs) state.logs = [];
     const zaman = new Date().toLocaleString('tr-TR');
@@ -598,11 +779,25 @@ function v62YedekBilgisi(pAd, gIdx) {
             ? state.schedulerV2.mcrReplacements[hKey]
             : null;
         if (!reps) return null;
+
+        // EXCEL AUTHORITY FIX1:
+        // Eski bir AUTO yedek kaydı state'te kalsa bile kartta ancak hücrenin HALEN
+        // gerçek V62 MCR/INGEST yedeği olduğu kanıtlanırsa "X YERİNE" rozeti göster.
+        // Excel / manuel görev yeri değişikliği artık eski yedek rozetini taşıyamaz.
+        const aKey = `${hKey}_${pAd}_${gIdx}`;
+        const currentShift = state.manuelAtamalar ? state.manuelAtamalar[aKey] : null;
+        const source = v62AtamaKaynagi(pAd, gIdx);
+        const person = (state.personeller || []).find(p => p.ad === pAd);
+        const currentUnit = person ? getGecerliBirim(person, gIdx) : null;
+        if (source !== 'AUTO_V62_MCR_YEDEK') return null;
+
         for (const k of Object.keys(reps)) {
             const r = reps[k];
             if (!r || r.substitute !== pAd) continue;
             const job = Array.isArray(r.jobs) ? r.jobs.find(j => Number(j.day) === Number(gIdx)) : null;
             if (!job) continue;
+            if (currentShift !== job.shift) continue;
+            if (currentUnit !== r.unit) continue;
             return { absent:r.absent, substitute:r.substitute, unit:r.unit, shift:job.shift };
         }
     } catch(e) {}
@@ -686,10 +881,12 @@ function tabloyuOlustur() {
                     : "";
                 // Excel / geçici görev varsa kartta o günün GERÇEK görev birimini göster.
                 // Personelin kayıtlı ana birimi ve FIX10 uzmanlık verisi değişmez.
-                const kartBirim = gecerliBirim || sanalBirim;
-                const kartRenk = getBirimColor(kartBirim);
+                // 360TV sabit ekip etiketi yalnız GÖRÜNÜM içindir. Renk/sıralama/solver
+                // gerçek etkin birim (gecerliBirim) üzerinden çalışmaya devam eder.
+                const kartBirim = getGorevYeriGosterim(p, g, s) || gecerliBirim || sanalBirim;
+                const kartRenk = getBirimColor(gecerliBirim || sanalBirim);
                 if (gecerliBirim && (gecerliBirim.includes("PLAYOUT") || gecerliBirim.includes("KJ"))) masaRozeti = "";
-                let searchMeta = `${p.ad} ${gecerliBirim || ''} ${sanalBirim || ''} ${s || ''} ${v62Rep ? v62Rep.absent + ' vekil yedek' : ''}`;
+                let searchMeta = `${p.ad} ${kartBirim || ''} ${gecerliBirim || ''} ${sanalBirim || ''} ${s || ''} ${v62Rep ? v62Rep.absent + ' vekil yedek' : ''}`;
 
                 cellContent += `<div class="birim-card ${ayiriciClass}" data-search="${searchMeta.replace(/"/g,'&quot;')}" style="border-left-color:${kartRenk}; background-color:${kartRenk}15;" ${dragAttr} ${clickAttr}>
                     <span class="birim-tag" style="background:${kartRenk}">${kartBirim}</span>
@@ -1376,7 +1573,15 @@ function toggleAdminPanel() {
 
 function tabDegistir(t) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + t).classList.remove('hidden'); document.getElementById('btn-tab-' + t).classList.add('active'); refreshUI(); }
 
-function bulutaKaydet() { database.ref('vardiya_data').set(state).then(() => showToast("Buluta başarıyla kaydedildi.", "success")).catch(e => showToast("Kayıt Hatası: " + e.message, "error")); }
+function bulutaKaydet() {
+    if (LOCAL_SAFE_TEST) {
+        showToast("🛡️ LOCAL TEST: Buluta yazma kapalı. Production verisi değiştirilmedi.", "warning");
+        return Promise.resolve(false);
+    }
+    return database.ref('vardiya_data').set(state)
+        .then(() => { showToast("Buluta başarıyla kaydedildi.", "success"); return true; })
+        .catch(e => { showToast("Kayıt Hatası: " + e.message, "error"); return false; });
+}
 function buluttanYukle() { 
     if(!isAdmin) return;
     showLoading();
@@ -1517,7 +1722,7 @@ function refreshUI() {
             </div>
         </div>`;
 
-        return `<div style="background:var(--card-bg); border:1px solid var(--border); padding:10px; border-radius:8px; margin-bottom:5px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+        return `<div data-v63-person-card="1" style="background:var(--card-bg); border:1px solid var(--border); padding:10px; border-radius:8px; margin-bottom:5px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span><strong style="color:var(--text);">${p.ad}</strong> <small style="color:var(--text); opacity:0.6;">(${p.birim})</small></span>
                 <button onclick="state.personeller.splice(${i},1); save(); refreshUI(); tabloyuOlustur(); showToast('Personel silindi', 'info');" style="color:var(--danger); border:none; background:none; cursor:pointer;">Sil</button>
@@ -1597,13 +1802,19 @@ function refreshUI() {
     document.getElementById("sabitListeAdmin").innerHTML = mcrSistemHtml + `
         <div style="font-size:10px; line-height:1.45; margin:8px 0 10px; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text);">
             <b>Hafta içi sabit personel:</b> Pzt-Cum seçilen sabit saatte çalışır; Cmt-Paz varsayılan olarak HARD İZİNLİDİR.<br>
+            <b>Görev yeri etiketi:</b> Mobil programda ve takvim kartında görünür. 360TV KJ / 360TV PLAYOUT seçimi gerçek scheduler birimini değiştirmez.<br>
+            <b>Haftalık otomatik sabah rotasyonu:</b> 06:30 sabit + 360TV etiketi verilmiş kişi o haftanın manuel 360TV sabahçısı kabul edilir; motor ikinci bir 360TV sabahçı üretmez.<br>
             <b>Hafta sonu kapasite yedeği</b> işaretli olanlar sadece normal uygun personelle kapasite dolmuyorsa son çare olarak kullanılabilir.
         </div>` + state.personeller.filter(p => p.birim && !p.birim.includes("MCR") && !p.birim.includes("INGEST")).map(p => {
         const sabit = !!state.haftaIciSabitler[p.ad];
         const yedek = !!state.haftaSonuYedekler[p.ad];
-        return `<div style="display:grid; grid-template-columns:minmax(180px,1fr) minmax(130px,180px); gap:6px 10px; align-items:center; margin-bottom:5px; background:var(--card-bg); padding:8px; border-radius:5px; border:1px solid var(--border);">
+        const gorevYeri = (state.haftaIciSabitGorevYerleri && state.haftaIciSabitGorevYerleri[p.ad]) || '';
+        return `<div data-v63-fixed-row="1" style="display:grid; grid-template-columns:minmax(180px,1fr) minmax(130px,180px); gap:6px 10px; align-items:center; margin-bottom:5px; background:var(--card-bg); padding:8px; border-radius:5px; border:1px solid var(--border);">
             <label style="color:var(--text);"><input type="checkbox" ${sabit?'checked':''} onchange="sabitTetikle('${p.ad}')"> ${p.ad}</label>
             <select onchange="sabitSaatGuncelle('${p.ad}', this.value)" ${!sabit?'disabled':''}>${state.saatler.map(s => `<option value="${s}" ${state.haftaIciSabitler[p.ad] === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+            <div style="grid-column:1 / -1; font-size:9px; color:var(--text); opacity:0.68;">🎓 ${sabitGorevYeriUzmanlikOzeti(p)}</div>
+            <label style="font-size:10px; font-weight:800; color:var(--text); opacity:${sabit?'1':'0.45'};">📍 Görev yeri etiketi</label>
+            <select onchange="sabitGorevYeriGuncelle('${p.ad}', this.value)" ${!sabit?'disabled':''}>${sabitGorevYeriSecenekleri(p, gorevYeri)}</select>
             <label style="grid-column:1 / -1; font-size:10px; color:var(--text); opacity:${sabit?'1':'0.45'};"><input type="checkbox" ${yedek?'checked':''} ${!sabit?'disabled':''} onchange="haftaSonuYedekTetikle('${p.ad}', this.checked)"> Cmt/Paz kapasite yedeği olabilir (son çare)</label>
         </div>`;
     }).join('');
@@ -2035,6 +2246,7 @@ if (confirm("Sistem verileri GitHub üzerindeki yedekle değiştirilecek. Onayl�
 function sabitTetikle(ad) {
     if(state.haftaIciSabitler[ad]) {
         delete state.haftaIciSabitler[ad];
+        if(state.haftaIciSabitGorevYerleri) delete state.haftaIciSabitGorevYerleri[ad];
         if(state.haftaSonuYedekler) delete state.haftaSonuYedekler[ad];
     } else {
         state.haftaIciSabitler[ad] = state.saatler[0];
@@ -2042,6 +2254,21 @@ function sabitTetikle(ad) {
     save(); refreshUI(); showToast("Sabit değiştirildi.", "info");
 }
 function sabitSaatGuncelle(ad, saat) { state.haftaIciSabitler[ad] = saat; save(); }
+function sabitGorevYeriGuncelle(ad, etiket) {
+    if(!state.haftaIciSabitGorevYerleri) state.haftaIciSabitGorevYerleri = {};
+    if(!state.haftaIciSabitler[ad]) {
+        delete state.haftaIciSabitGorevYerleri[ad];
+        refreshUI();
+        return;
+    }
+    const temiz = String(etiket || '').trim();
+    if(temiz) state.haftaIciSabitGorevYerleri[ad] = temiz;
+    else delete state.haftaIciSabitGorevYerleri[ad];
+    save();
+    tabloyuOlustur();
+    mobilListeyiGuncelle();
+    showToast(temiz ? `Görev yeri etiketi: ${temiz}` : "Görev yeri etiketi otomatik birime döndü.", "info");
+}
 function haftaSonuYedekTetikle(ad, aktif) {
     if(!state.haftaSonuYedekler) state.haftaSonuYedekler = {};
     if(!state.haftaIciSabitler[ad]) { delete state.haftaSonuYedekler[ad]; refreshUI(); return; }
@@ -2049,13 +2276,27 @@ function haftaSonuYedekTetikle(ad, aktif) {
     save(); refreshUI(); showToast(aktif ? "Hafta sonu kapasite yedeği açıldı." : "Hafta sonu kapasite yedeği kapatıldı.", "info");
 }
 
+let sabitGorevYeriIlkSenkronMigrasyonuYapildi = false;
 function anlikSenkronizasyonBaslat() {
     database.ref('vardiya_data').on('value', (snap) => {
         try {
+            // 2026-09-28 regression recovery: önceki kabul edilmiş sürümde localStorage'da duran
+            // haftaIciSabitGorevYerleri alanı bir ara state şemasından düşmüştü. İlk cloud sync'te
+            // yalnız cloud'da eksik olan sabit-personel etiketlerini bir kez geri birleştir.
+            const yerelEskiEtiketler = !sabitGorevYeriIlkSenkronMigrasyonuYapildi
+                ? Object.assign({}, state.haftaIciSabitGorevYerleri || {}) : {};
             if (snap.exists()) {
                 state = snap.val();
             }
             verileriGuvenliHaleGetir();
+            if(!sabitGorevYeriIlkSenkronMigrasyonuYapildi) {
+                Object.keys(yerelEskiEtiketler).forEach(ad => {
+                    if(state.haftaIciSabitler && state.haftaIciSabitler[ad] && !state.haftaIciSabitGorevYerleri[ad]) {
+                        state.haftaIciSabitGorevYerleri[ad] = yerelEskiEtiketler[ad];
+                    }
+                });
+                sabitGorevYeriIlkSenkronMigrasyonuYapildi = true;
+            }
             if (window.SchedulerV2 && typeof window.SchedulerV2.applyExternalAnnualLocks === 'function') {
                 window.SchedulerV2.applyExternalAnnualLocks(hariciIzinler, {reoptimize:false});
             }
@@ -2122,6 +2363,8 @@ function kisiselProgramiGoster() {
 
     let html = `<div style="text-align:center; margin-bottom:15px;"><span style="font-size:24px;">👋</span><br><strong style="color:var(--primary); font-size:14px;">Hoş geldin, ${isim}</strong></div>`;
 
+    const mobilPersonel = state.personeller.find(p => p.ad === isim);
+
     GUNLER.forEach((gunAdi, index) => {
         let d = new Date(currentMonday);
         d.setDate(d.getDate() + index);
@@ -2130,6 +2373,16 @@ function kisiselProgramiGoster() {
         let vardiya = vardiyaBul(isim, index);
         
         if(!vardiya || vardiya === "BOŞ") vardiya = "İZİNLİ";
+
+        // MOBILE GÖREV YERİ FIX1:
+        // Masaüstü tabloda kullanılan aynı "etkin birim" kaynağını mobil kartta da göster.
+        // Excel / manuel geçici görev yeri state.geciciGorevler içindeyse getGecerliBirim()
+        // bunu ana birimin önüne geçirir. Böylece vardiya saati ile gerçek görev yeri birlikte görünür.
+        const gorevBirimi = mobilPersonel ? getGorevYeriGosterim(mobilPersonel, index, vardiya) : '';
+        const calismaVardiyasi = ![SHIFTS.IZIN, SHIFTS.BOS, SHIFTS.YILLIK, SHIFTS.RAPOR, "İZİNLİ", "YILLIK İZİN", "RAPORLU"].includes(vardiya);
+        const gorevYeriHtml = (calismaVardiyasi && gorevBirimi)
+            ? `<span class="m-duty-unit" style="display:block; margin-top:3px; font-size:9px; font-weight:900; line-height:1.15; opacity:.92; white-space:normal; text-align:right;">📍 ${gorevBirimi}</span>`
+            : '';
 
         let renk = "#eee"; let yaziRengi = "#333"; let ikon = "⚪";
         
@@ -2148,9 +2401,12 @@ function kisiselProgramiGoster() {
                 <span class="m-day-name">${gunAdi}</span>
                 <span class="m-date-text">${tarihStr}</span>
             </div>
-            <div class="m-shift-badge" style="background:${renk}; color:${yaziRengi};">
-                <span style="font-size:16px;">${ikon}</span>
-                <span>${vardiya}</span>
+            <div class="m-shift-badge" style="background:${renk}; color:${yaziRengi}; max-width:67%;">
+                <span style="font-size:16px; flex:0 0 auto;">${ikon}</span>
+                <span style="display:block; min-width:0; text-align:right;">
+                    <span style="display:block; white-space:nowrap;">${vardiya}</span>
+                    ${gorevYeriHtml}
+                </span>
             </div>
         </div>`;
     });
@@ -2354,6 +2610,240 @@ function v63ExcelMarkExternalUnitWeek(unit, hKey) {
     state.schedulerV2.externalUnitWeeks[hKey][unit] = true;
 }
 
+
+const V63_EXCEL_IMPORT_SOURCE = 'EXCEL_IMPORT_V63';
+
+function v63ExcelSchedulerState() {
+    if (!state.schedulerV2 || typeof state.schedulerV2 !== 'object') state.schedulerV2 = {};
+    const x = state.schedulerV2;
+    if (!x.manualLocks) x.manualLocks = {};
+    if (!x.assignmentSource) x.assignmentSource = {};
+    if (!x.manualUnitLocks) x.manualUnitLocks = {};
+    if (!x.tempUnitSource) x.tempUnitSource = {};
+    if (!x.mcrReplacements) x.mcrReplacements = {};
+    if (!x.externalAnnualLocks) x.externalAnnualLocks = {};
+    if (!x.externalUnitWeeks) x.externalUnitWeeks = {};
+    if (!x.weeklyMorningAnchors) x.weeklyMorningAnchors = {};
+    if (!x.assignmentRoleLabels) x.assignmentRoleLabels = {};
+    return x;
+}
+
+function v63ExcelWeekDateKey(hKey, day) {
+    const d = new Date(`${hKey}T12:00:00`);
+    d.setDate(d.getDate() + Number(day || 0));
+    return getDateKey(d);
+}
+
+function v63ExcelIsProtectedAnnualKey(key) {
+    const x = v63ExcelSchedulerState();
+    const src = x.assignmentSource[key] || '';
+    return !!(x.externalAnnualLocks && x.externalAnnualLocks[key]) ||
+        src === 'ANNUAL_EXTERNAL' || src === 'ANNUAL_LOCAL' || src === 'ANNUAL_LEAVE';
+}
+
+function v63ExcelUnitsForWeek(unitsByWeek, hKey) {
+    const raw = unitsByWeek && unitsByWeek[hKey];
+    if (!raw) return new Set();
+    if (raw instanceof Set) return new Set(Array.from(raw));
+    if (Array.isArray(raw)) return new Set(raw);
+    return new Set(Object.keys(raw).filter(k => raw[k]));
+}
+
+function v63Excel360RoleLabelForUnit(unit) {
+    if (unit === UNITS.PLAYOUT) return '360TV PLAYOUT';
+    if (unit === UNITS.KJ) return '360TV KJ';
+    return '';
+}
+
+// Kurumsal tam Excel'de 24 KJ / 24 PLAYOUT bölümündeki ardışık 06:30 satırlarının
+// SON satırı 360TV slotudur. Bu slot PERSONELe değil satıra/role aittir.
+// Böylece o hafta satıra kim yazılmışsa 360TV etiketi onu takip eder.
+function v63ExcelFind360LaneRows(rows, fileUnit) {
+    let currentUnit = fileUnit || null;
+    const morningRowsByUnit = {};
+    const result = {};
+
+    (rows || []).forEach((row, rowIndex) => {
+        if (!row || !row.length) return;
+        const first = v63ExcelNormalizeText(row[0]);
+        if (!first) return;
+
+        const detectedUnit = v63ExcelUnitFromText(first);
+        if (detectedUnit) {
+            currentUnit = detectedUnit;
+            return;
+        }
+        if (v63ExcelLooksLikeSectionHeader(row)) {
+            currentUnit = null;
+            return;
+        }
+
+        const shift = v63ExcelShiftFromText(first);
+        if (!shift) return;
+        if ((currentUnit === UNITS.PLAYOUT || currentUnit === UNITS.KJ) && shift === SHIFTS.SABAH) {
+            if (!morningRowsByUnit[currentUnit]) morningRowsByUnit[currentUnit] = [];
+            morningRowsByUnit[currentUnit].push(rowIndex);
+        }
+    });
+
+    [UNITS.PLAYOUT, UNITS.KJ].forEach(unit => {
+        const list = morningRowsByUnit[unit] || [];
+        // Tek 06:30 satırlı dar birim dosyasını yanlışlıkla 360TV sayma.
+        // Kurumsal şablonda 360TV lane, 24TV sabah satırlarının ardından gelen ek/son satırdır.
+        if (list.length >= 2) result[list[list.length - 1]] = v63Excel360RoleLabelForUnit(unit);
+    });
+    return result;
+}
+
+function v63ExcelSeedWeeklyMorningAnchorsFromApplied(appliedRecords) {
+    const x = v63ExcelSchedulerState();
+    const grouped = {};
+
+    (appliedRecords || []).forEach(rec => {
+        if (!rec || !rec.personel || !rec.displayRoleLabel) return;
+        if (rec.gunIdx < 0 || rec.gunIdx > 4 || rec.cellShift !== SHIFTS.SABAH) return;
+        if (rec.assignmentUnit !== UNITS.PLAYOUT && rec.assignmentUnit !== UNITS.KJ) return;
+        const gk = `${rec.hKey}|||${rec.assignmentUnit}`;
+        if (!grouped[gk]) grouped[gk] = {};
+        const name = rec.personel.ad;
+        if (!grouped[gk][name]) grouped[gk][name] = new Set();
+        grouped[gk][name].add(rec.gunIdx);
+    });
+
+    Object.keys(grouped).forEach(gk => {
+        const split = gk.split('|||');
+        const hKey = split[0], unit = split[1];
+        const complete = Object.keys(grouped[gk]).filter(name => {
+            const days = grouped[gk][name];
+            return [0,1,2,3,4].every(d => days.has(d));
+        });
+        if (complete.length !== 1) return;
+        if (!x.weeklyMorningAnchors[hKey]) x.weeklyMorningAnchors[hKey] = {};
+        x.weeklyMorningAnchors[hKey][unit] = {
+            person: complete[0],
+            shift: SHIFTS.SABAH,
+            workDays: [0,1,2,3,4],
+            offDays: [5,6],
+            week: hKey,
+            source: V63_EXCEL_IMPORT_SOURCE,
+            importedRole: true
+        };
+    });
+}
+
+function v63ExcelPruneReplacementMetadata(hKey, units, fullWorkbook) {
+    const x = v63ExcelSchedulerState();
+    const unitSet = units instanceof Set ? units : new Set(units || []);
+
+    if (x.mcrReplacements && x.mcrReplacements[hKey]) {
+        if (fullWorkbook) {
+            delete x.mcrReplacements[hKey];
+        } else {
+            const kept = {};
+            Object.keys(x.mcrReplacements[hKey]).forEach(k => {
+                const r = x.mcrReplacements[hKey][k];
+                if (!r || !unitSet.has(r.unit)) kept[k] = r;
+            });
+            if (Object.keys(kept).length) x.mcrReplacements[hKey] = kept;
+            else delete x.mcrReplacements[hKey];
+        }
+    }
+
+    if (x.weeklyMorningAnchors && x.weeklyMorningAnchors[hKey]) {
+        if (fullWorkbook) {
+            delete x.weeklyMorningAnchors[hKey];
+        } else {
+            unitSet.forEach(u => delete x.weeklyMorningAnchors[hKey][u]);
+            if (!Object.keys(x.weeklyMorningAnchors[hKey]).length) delete x.weeklyMorningAnchors[hKey];
+        }
+    }
+
+    if (x.lastReport && x.lastReport.week === hKey) x.lastReport = null;
+}
+
+function v63ExcelPrepareAuthoritativeImport(importedWeeks, unitsByWeek, fullWorkbook) {
+    const x = v63ExcelSchedulerState();
+    if (!state.manuelAtamalar) state.manuelAtamalar = {};
+    if (!state.geciciGorevler) state.geciciGorevler = {};
+
+    (importedWeeks || []).forEach(hKey => {
+        const units = v63ExcelUnitsForWeek(unitsByWeek, hKey);
+
+        (state.personeller || []).forEach(p => {
+            for (let day = 0; day < 7; day++) {
+                const aKey = `${hKey}_${p.ad}_${day}`;
+                const dateKey = v63ExcelWeekDateKey(hKey, day);
+                const tKey = `${dateKey}_${p.ad}`;
+                const effective = state.geciciGorevler[tKey] || p.birim;
+                const inScope = !!fullWorkbook || units.has(effective) || units.has(p.birim);
+                if (!inScope) continue;
+
+                // Rol etiketi kişiye değil haftanın hücresine bağlıdır; Excel yeniden yüklenirken
+                // aynı kapsamın eski 360TV rol metadatası mutlaka temizlenir.
+                delete x.assignmentRoleLabels[aKey];
+
+                // Yönetici onaylı yıllık izin Excel'den daha üst hard lock'tur.
+                if (!v63ExcelIsProtectedAnnualKey(aKey)) {
+                    delete state.manuelAtamalar[aKey];
+                    delete x.manualLocks[aKey];
+                    delete x.assignmentSource[aKey];
+                    delete state.geciciGorevler[tKey];
+                    delete x.manualUnitLocks[tKey];
+                    delete x.tempUnitSource[tKey];
+                }
+            }
+        });
+
+        // Eski AUTO yedek/haftalık sabah metadatası Excel kartlarına taşınmasın.
+        v63ExcelPruneReplacementMetadata(hKey, units, !!fullWorkbook);
+
+        if (fullWorkbook) {
+            delete x.externalUnitWeeks[hKey];
+        } else if (x.externalUnitWeeks[hKey]) {
+            units.forEach(u => delete x.externalUnitWeeks[hKey][u]);
+            if (!Object.keys(x.externalUnitWeeks[hKey]).length) delete x.externalUnitWeeks[hKey];
+        }
+    });
+}
+
+function v63ExcelApplyPendingAssignments(pending) {
+    const x = v63ExcelSchedulerState();
+    if (!state.manuelAtamalar) state.manuelAtamalar = {};
+    if (!state.geciciGorevler) state.geciciGorevler = {};
+    let applied = 0;
+    const hardAnnualConflicts = [];
+    const appliedRecords = [];
+
+    (pending || []).forEach(rec => {
+        if (!rec || !rec.personel) return;
+        const aKey = rec.mKey;
+        const tKey = `${rec.dateKey}_${rec.personel.ad}`;
+
+        if (v63ExcelIsProtectedAnnualKey(aKey) && rec.cellShift !== SHIFTS.YILLIK) {
+            hardAnnualConflicts.push(`${rec.personel.ad} / ${rec.dateKey}`);
+            return;
+        }
+
+        state.manuelAtamalar[aKey] = rec.cellShift;
+        x.manualLocks[aKey] = true;
+        x.assignmentSource[aKey] = V63_EXCEL_IMPORT_SOURCE;
+
+        state.geciciGorevler[tKey] = rec.assignmentUnit;
+        x.manualUnitLocks[tKey] = true;
+        x.tempUnitSource[tKey] = V63_EXCEL_IMPORT_SOURCE;
+        if (rec.displayRoleLabel && rec.cellShift === SHIFTS.SABAH) {
+            x.assignmentRoleLabels[aKey] = rec.displayRoleLabel;
+        }
+        appliedRecords.push(rec);
+        applied++;
+    });
+
+    // Excel'deki 360TV lane Pzt-Cum aynı kişideyse, bunu haftalık anchor geçmişine de yaz.
+    // Scheduler algoritması değişmez; yalnız bir sonraki hafta mevcut geçmişi doğru okuyabilir.
+    v63ExcelSeedWeeklyMorningAnchorsFromApplied(appliedRecords);
+    return { applied, hardAnnualConflicts, appliedRecords };
+}
+
 function exceldenVardiyaYukle() {
     const fileInput = document.getElementById('excelUploadInput');
     if (!fileInput || !fileInput.files.length) {
@@ -2382,6 +2872,7 @@ function exceldenVardiyaYukle() {
             const chosen = candidates[0];
             const jsonData = chosen.rows;
             const dateInfo = v63ExcelDetectDateColumns(jsonData);
+            const excel360LaneRows = v63ExcelFind360LaneRows(jsonData, fileUnit);
             const dateByCol = {};
             if (dateInfo) {
                 for (let c = 1; c <= 7; c++) if (dateInfo.dates[c-1]) dateByCol[c] = dateInfo.dates[c-1];
@@ -2389,13 +2880,17 @@ function exceldenVardiyaYukle() {
 
             let currentUnit = fileUnit || null;
             let currentSection = fileUnit || null;
-            let islenenSayisi = 0;
+            const pending = [];
+            const sectionUnits = new Set();
             const excelBirimleri = new Set();
             const importedWeeks = new Set();
             const unmatched = new Set();
             const skippedSections = new Set();
             const ignoredRows = new Set();
 
+            if (fileUnit && fileUnit !== '__MIXED_PLAYOUT_KJ__') sectionUnits.add(fileUnit);
+
+            // PASS 1: Dosyayı yalnızca oku; henüz canlı state'i değiştirme.
             jsonData.forEach((row, rowIndex) => {
                 if (!row || !row.length) return;
                 const first = v63ExcelNormalizeText(row[0]);
@@ -2405,11 +2900,11 @@ function exceldenVardiyaYukle() {
                 if (detectedUnit) {
                     currentUnit = detectedUnit;
                     currentSection = first;
+                    if (detectedUnit !== '__MIXED_PLAYOUT_KJ__') sectionUnits.add(detectedUnit);
                     return;
                 }
 
                 if (v63ExcelLooksLikeSectionHeader(row)) {
-                    // Tanımsız bölüm başladıysa önceki bölümün yanlış taşınmasına izin verme.
                     currentUnit = null;
                     currentSection = first;
                     skippedSections.add(first);
@@ -2418,7 +2913,6 @@ function exceldenVardiyaYukle() {
 
                 const rowShift = v63ExcelShiftFromText(first);
                 if (!rowShift) {
-                    // DIŞ YAYIN vb. programda karşılığı olmayan satırlar bilinçli olarak atlanır.
                     if (row.slice(1,8).some(v => v63ExcelNormalizeText(v))) ignoredRows.add(first);
                     return;
                 }
@@ -2453,31 +2947,60 @@ function exceldenVardiyaYukle() {
                     }
                     if (!assignmentUnit) assignmentUnit = fileUnit || null;
                     if (!assignmentUnit && !currentSection) assignmentUnit = personel.birim;
-                    if (!assignmentUnit) continue; // Tanımsız bölümde güvenli şekilde atla.
+                    if (!assignmentUnit) continue;
 
                     const mKey = `${hKey}_${personel.ad}_${gunIdx}`;
-                    state.manuelAtamalar[mKey] = cellShift;
-
-                    // KRİTİK: Excel'deki bölüm o tarihteki görev birimidir. Ana birim DEĞİŞMEZ.
-                    if (!state.geciciGorevler) state.geciciGorevler = {};
-                    state.geciciGorevler[`${dateKey}_${personel.ad}`] = assignmentUnit;
-
-                    v63ExcelMarkExternalUnitWeek(assignmentUnit, hKey);
+                    let displayRoleLabel = '';
+                    if (cellShift === SHIFTS.SABAH) {
+                        if (currentUnit === '__MIXED_PLAYOUT_KJ__') {
+                            displayRoleLabel = v63Excel360RoleLabelForUnit(assignmentUnit);
+                        } else if (excel360LaneRows[rowIndex]) {
+                            displayRoleLabel = excel360LaneRows[rowIndex];
+                        }
+                    }
+                    pending.push({ personel, cellShift, assignmentUnit, hKey, gunIdx, dateKey, mKey, displayRoleLabel });
                     excelBirimleri.add(assignmentUnit);
                     importedWeeks.add(hKey);
-                    islenenSayisi++;
                 }
             });
 
-            if (!islenenSayisi) {
+            if (!pending.length) {
                 showToast('⚠️ Excel okundu ancak eşleşen vardiya bulunamadı. Dosya formatını / personel adlarını kontrol edin.', 'warning');
                 return;
             }
+
+            // Dosya adından tek birim anlaşılmıyor ve sayfada birden fazla bölüm varsa bu TAM HAFTA Excel'idir.
+            const fullWorkbook = !fileUnit && sectionUnits.size >= 2;
+            const unitsByWeek = {};
+            pending.forEach(rec => {
+                if (!unitsByWeek[rec.hKey]) unitsByWeek[rec.hKey] = new Set();
+                unitsByWeek[rec.hKey].add(rec.assignmentUnit);
+            });
+            if (fullWorkbook) {
+                importedWeeks.forEach(hKey => {
+                    if (!unitsByWeek[hKey]) unitsByWeek[hKey] = new Set();
+                    sectionUnits.forEach(u => unitsByWeek[hKey].add(u));
+                });
+            }
+
+            // PASS 2: Excel'i bu hafta için yönetici otoritesi olarak uygula.
+            // Tam dosyada önce eski AUTO/Excel kalıntıları temizlenir; böylece Excel'de olmayan
+            // Yusuf vb. eski yedekler dosyanın üzerine taşınamaz.
+            v63ExcelPrepareAuthoritativeImport(Array.from(importedWeeks), unitsByWeek, fullWorkbook);
+            const appliedResult = v63ExcelApplyPendingAssignments(pending);
+
+            // İçe alınan bütün bölümleri (MCR/INGEST dahil) NORMAL OTO'dan koru.
+            Object.keys(unitsByWeek).forEach(hKey => {
+                v63ExcelUnitsForWeek(unitsByWeek, hKey).forEach(unit => v63ExcelMarkExternalUnitWeek(unit, hKey));
+            });
 
             // Excel tarih satırı varsa ekranda dosyanın haftasını aç.
             if (importedWeeks.size) {
                 const firstWeek = Array.from(importedWeeks).sort()[0];
                 currentMonday = new Date(`${firstWeek}T12:00:00`);
+                try {
+                    importedWeeks.forEach(w => sessionStorage.setItem(`v63_excel_imported_week_${w}`, '1'));
+                } catch(e) {}
             }
 
             save();
@@ -2491,21 +3014,26 @@ function exceldenVardiyaYukle() {
             const summary = [
                 '✅ Excel başarıyla işlendi.',
                 '',
+                `Mod: ${fullWorkbook ? 'TAM HAFTA — Excel birebir otorite' : 'TEK / SINIRLI BİRİM'}`,
                 `Sayfa: ${chosen.name}`,
-                `Aktarılan hücre: ${islenenSayisi}`,
+                `Aktarılan hücre: ${appliedResult.applied}`,
                 `Hafta: ${Array.from(importedWeeks).sort().join(', ')}`,
                 '',
                 'Excel görev birimleri:',
                 ...unitLines.map(x => `• ${x}`),
                 '',
-                'Not: Personelin ana birimi değiştirilmedi; Excel bölümüne göre günlük görev birimi işlendi.'
+                'Excel hücreleri ve görev yerleri kilitlendi; NORMAL OTO bunları değiştirmez.',
+                'TAM OTO seçilirse Excel otoritesi bilinçli olarak kaldırılır ve motor listeyi yeniden üretir.',
+                'Eski MCR/INGEST yedek rozetleri ve eski otomatik hafta kalıntıları temizlendi.',
+                'Gelecek hafta otomasyonu bu haftayı baz alacaksa, kontrolden sonra BULUTA KAYDET ile bu haftayı yayınlayın.'
             ];
+            if (appliedResult.hardAnnualConflicts.length) summary.push('', `Yıllık izin HARD LOCK nedeniyle Excel'den çalışmaya çevrilmeyen hücre (${appliedResult.hardAnnualConflicts.length}):`, ...appliedResult.hardAnnualConflicts.slice(0,12).map(x=>`• ${x}`));
             if (unmatchedList.length) summary.push('', `Eşleşmeyen personel (${unmatched.size}):`, ...unmatchedList.map(x=>`• ${x}`));
             if (skippedList.length) summary.push('', `Programda tanımlı olmadığı için atlanan bölüm (${skippedSections.size}):`, ...skippedList.map(x=>`• ${x}`));
             if (ignoredList.length) summary.push('', `Karşılığı olmayan satır (${ignoredRows.size}):`, ...ignoredList.map(x=>`• ${x}`));
 
             alert(summary.join('\n'));
-            logKoy(`Excel uyumlu içe aktarma: ${islenenSayisi} atama / ${unitLines.join(', ')} / sayfa=${chosen.name}`);
+            logKoy(`Excel otorite içe aktarma: ${appliedResult.applied} atama / ${unitLines.join(', ')} / sayfa=${chosen.name} / full=${fullWorkbook}`);
         } catch (err) {
             console.error('Excel import error:', err);
             showToast('Dosya okuma hatası: ' + (err.message || err), 'error');
@@ -2612,28 +3140,43 @@ window.onload = async () => {
     }
 
     showLoading(); 
-    await hassasAyarlariYukle(); 
+    await hassasAyarlariYukle();
 
-    firebase.auth().onAuthStateChanged(function(user) {
+    firebase.auth().onAuthStateChanged(async function(user) {
         if (user) {
             console.log("Oturum açık:", user.email);
             isAdmin = true;
 
             document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
             document.getElementById('persTalepArea').style.display = 'none';
-
             document.getElementById('loginOverlay').style.display = 'none';
-            document.getElementById('appMain').style.display = 'block'; 
+            document.getElementById('appMain').style.display = 'block';
 
-            checkUrlActions();
-            veriyiBuluttanYukleVeCiz();
-            // Sayfa açıldığında otomatik 1 kez çekiyoruz
-            izinleriGuncelleVeCek();
+            try {
+                checkUrlActions();
+
+                // Önce güncel vardiya/personel/uzmanlık verisini al.
+                // Sonra yıllık izin hard-locklarını uygula.
+                // Böylece localhost'taki yarış durumu MCR yedeğini yanlışlıkla kaybetmez.
+                await veriyiBuluttanYukleVeCiz();
+                await izinleriGuncelleVeCek();
+
+                if (!LOCAL_SAFE_TEST) {
+                    anlikSenkronizasyonBaslat();
+                } else {
+                    console.log("[LOCAL SAFE TEST] RTDB anlık senkron kapalı.");
+                    showToast("🛡️ LOCAL TEST: Canlı veri okundu. Buluta yazma ve anlık overwrite kapalı.", "info");
+                }
+
+                talepleriYukle();
+            } catch (e) {
+                console.error("Başlangıç sıralı yükleme hatası:", e);
+                showToast("Başlangıç yükleme hatası: " + (e.message || e), "error");
+            } finally {
+                hideLoading();
+            }
         } else {
-            hideLoading(); 
+            hideLoading();
         }
     });
-
-    anlikSenkronizasyonBaslat();
-    talepleriYukle(); 
 };
