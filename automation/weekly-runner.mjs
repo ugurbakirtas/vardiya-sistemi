@@ -1,6 +1,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { positiveWeeksAhead } from './schedule-utils.mjs';
@@ -122,6 +123,8 @@ async function writeSummary(result) {
       `- Güvenli minimum atama eşiği: **${result.minimumExpectedAssignments ?? '-'}**`,
       `- Personel sayısı: **${result.personCount ?? '-'}**`,
       `- Preflight otomasyon birimi: **${result.preflightManagedUnitCount ?? '-'}**`,
+      `- Audit hedef matris SHA256: **${result.audit?.targetMatrixSha256 || '-'}**`,
+      `- Audit kişi-gün satırı: **${result.audit?.rows?.length ?? '-'}**`,
       '',
       result.message || ''
     ];
@@ -235,6 +238,40 @@ try {
     const prefix = `${targetWeek}_`;
     const targetEntries = Object.entries(state.manuelAtamalar || {}).filter(([k]) => k.startsWith(prefix));
 
+    // AUDIT-ONLY: DRY-RUN/PUBLISH öncesi üretilen hedef haftanın kişi-gün matrisi
+    // automation-output.json içine eklenir. Scheduler/state üzerinde hiçbir değişiklik yapmaz.
+    const assignmentSources = (state.schedulerV2 && state.schedulerV2.assignmentSource) || {};
+    const tempSources = (state.schedulerV2 && state.schedulerV2.tempUnitSource) || {};
+    const targetAudit = [];
+    for (const p of (state.personeller || [])) {
+      for (let day=0; day<7; day++) {
+        const date = new Date(currentMonday);
+        date.setDate(date.getDate() + day);
+        const dateKey = getDateKey(date);
+        const aKey = `${targetWeek}_${p.ad}_${day}`;
+        const tKey = `${dateKey}_${p.ad}`;
+        const shift = (state.manuelAtamalar || {})[aKey];
+        const tempUnit = (state.geciciGorevler || {})[tKey] || null;
+        targetAudit.push({
+          person: p.ad,
+          homeUnit: p.birim || null,
+          day,
+          date: dateKey,
+          shift: shift ?? null,
+          effectiveUnit: tempUnit || p.birim || null,
+          tempUnit,
+          source: assignmentSources[aKey] || null,
+          tempSource: tempSources[tKey] || null
+        });
+      }
+    }
+
+    const audit = {
+      targetWeek,
+      rows: targetAudit,
+      weeklyMorningAnchors: (state.schedulerV2 && state.schedulerV2.weeklyMorningAnchors && state.schedulerV2.weeklyMorningAnchors[targetWeek]) || null
+    };
+
     // Fail-safe: Tam haftalık üretim birkaç kayıtla PASS sayılamaz. Normal V62 full generate
     // her personel için çalışma/izin/yıllık izin hücrelerini üretir. MIN5 alt sınırı, olası
     // legacy/destek istisnalarına rağmen güvenli bir sanity eşiğidir.
@@ -258,6 +295,7 @@ try {
       preflightManagedUnitCount: preflight && Array.isArray(preflight.managed) ? preflight.managed.length : null,
       annualRecordCount: Array.isArray(hariciIzinler) ? hariciIzinler.length : 0,
       errors,
+      audit,
       generatedState: (ok && countOk) ? state : null
     };
   }, weeksAhead);
@@ -271,6 +309,12 @@ try {
   result.personCount = generation.personCount;
   result.preflightManagedUnitCount = generation.preflightManagedUnitCount;
   result.annualRecordCount = generation.annualRecordCount;
+  if (generation.audit) {
+    result.audit = generation.audit;
+    result.audit.targetMatrixSha256 = crypto.createHash('sha256')
+      .update(JSON.stringify(generation.audit.rows || []))
+      .digest('hex');
+  }
 
   if (!generation.ok || !generation.generatedState) {
     result.message = `Algoritma liste oluşturamadı. ${(generation.errors || []).join(' | ')}`;
