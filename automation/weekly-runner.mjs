@@ -119,6 +119,9 @@ async function writeSummary(result) {
       `- Önceki hafta atama kaydı: **${result.baselineAssignmentCount ?? '-'}**`,
       `- Önceki hafta Excel kaynaklı hücre: **${result.baselineExcelAssignmentCount ?? '-'}**`,
       `- Hedef haftadaki atama kaydı: **${result.targetAssignmentCount ?? '-'}**`,
+      `- Güvenli minimum atama eşiği: **${result.minimumExpectedAssignments ?? '-'}**`,
+      `- Personel sayısı: **${result.personCount ?? '-'}**`,
+      `- Preflight otomasyon birimi: **${result.preflightManagedUnitCount ?? '-'}**`,
       '',
       result.message || ''
     ];
@@ -201,21 +204,61 @@ try {
     }
 
     try { tabloyuOlustur(); } catch (_) {}
-    const ok = vardiyaUretVeKaydet() === true;
+
+    // UI'deki OTO VARDİYA, V63 tarafından queueAutoRun() ile asenkron bir wrapper'a sarılır.
+    // Otomasyon wrapper'ı çağırırsa wrapper hemen true döner, fakat gerçek scheduler 80 ms sonra
+    // başlayacağı için headless run yalancı PASS verebilir. UI ile aynı preflight'ı çalıştırıp
+    // ardından kabul edilmiş senkron scheduler core'unu doğrudan çağırıyoruz.
+    let preflight = null;
+    if (window.V63Addons && typeof window.V63Addons.smartAutoPreflight === 'function') {
+      preflight = window.V63Addons.smartAutoPreflight();
+    }
+    const action = window.vardiyaUretVeKaydet;
+    const core = (typeof action === 'function' && typeof action.__v63core === 'function')
+      ? action.__v63core
+      : action;
+    if (typeof core !== 'function') {
+      return {
+        ok:false,
+        targetWeek,
+        baselineWeek,
+        baselineAssignmentCount: baselineEntries.length,
+        baselineExcelAssignmentCount,
+        assignmentCount:0,
+        annualRecordCount:Array.isArray(hariciIzinler) ? hariciIzinler.length : 0,
+        errors:['Vardiya scheduler core bulunamadı.'],
+        generatedState:null
+      };
+    }
+
+    const ok = core.call(window) === true;
     const prefix = `${targetWeek}_`;
     const targetEntries = Object.entries(state.manuelAtamalar || {}).filter(([k]) => k.startsWith(prefix));
+
+    // Fail-safe: Tam haftalık üretim birkaç kayıtla PASS sayılamaz. Normal V62 full generate
+    // her personel için çalışma/izin/yıllık izin hücrelerini üretir. MIN5 alt sınırı, olası
+    // legacy/destek istisnalarına rağmen güvenli bir sanity eşiğidir.
+    const personCount = Array.isArray(state.personeller) ? state.personeller.length : 0;
+    const minimumExpectedAssignments = Math.max(1, personCount * 5);
+    const countOk = targetEntries.length >= minimumExpectedAssignments;
+    const schedulerErrors = (window.__V62_LAST_REOPT_ERRORS || []).slice(0,20);
+    const errors = [];
+    if (!ok) errors.push(...(schedulerErrors.length ? schedulerErrors : ['Vardiya scheduler core false döndü.']));
+    if (ok && !countOk) errors.push(`Hedef hafta eksik üretildi: ${targetEntries.length} kayıt; güvenli alt sınır ${minimumExpectedAssignments}.`);
+
     return {
-      ok: ok && targetEntries.length > 0,
+      ok: ok && countOk,
       targetWeek,
       baselineWeek,
       baselineAssignmentCount: baselineEntries.length,
       baselineExcelAssignmentCount,
       assignmentCount: targetEntries.length,
+      minimumExpectedAssignments,
+      personCount,
+      preflightManagedUnitCount: preflight && Array.isArray(preflight.managed) ? preflight.managed.length : null,
       annualRecordCount: Array.isArray(hariciIzinler) ? hariciIzinler.length : 0,
-      errors: targetEntries.length > 0
-        ? (window.__V62_LAST_REOPT_ERRORS || []).slice(0,20)
-        : ['Motor true döndü fakat hedef haftada atama kaydı oluşmadı.'],
-      generatedState: (ok && targetEntries.length > 0) ? state : null
+      errors,
+      generatedState: (ok && countOk) ? state : null
     };
   }, weeksAhead);
 
@@ -224,6 +267,9 @@ try {
   result.baselineAssignmentCount = generation.baselineAssignmentCount;
   result.baselineExcelAssignmentCount = generation.baselineExcelAssignmentCount;
   result.targetAssignmentCount = generation.assignmentCount;
+  result.minimumExpectedAssignments = generation.minimumExpectedAssignments;
+  result.personCount = generation.personCount;
+  result.preflightManagedUnitCount = generation.preflightManagedUnitCount;
   result.annualRecordCount = generation.annualRecordCount;
 
   if (!generation.ok || !generation.generatedState) {
