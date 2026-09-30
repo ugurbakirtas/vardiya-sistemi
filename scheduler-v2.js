@@ -20,7 +20,7 @@
 (function (global) {
     'use strict';
 
-    const SCHEDULER_VERSION = 'V62-FINAL-MIN5-FORWARD-CHECK-FIX10-20260930';
+    const SCHEDULER_VERSION = 'V62-FINAL-FUTURE-CAPACITY-RESERVE-FIX12-20260930';
     const OFF_VALUES = new Set([null, undefined, '', SHIFTS.IZIN, SHIFTS.BOS, SHIFTS.YILLIK, SHIFTS.RAPOR]);
     const AUTO_SOURCE = 'AUTO_V62';
     const AUTO_MCR_SOURCE = 'AUTO_V62_MCR_YEDEK';
@@ -1617,6 +1617,116 @@
     }
 
     // Küçük ve bağımsız min-cost max-flow; günlük kapasite atamasını TAM olarak çözer.
+    // FIX12: Gelecek kapasite rezervi / ortak work-day budget forward check.
+    // Sorun: Gunluk min-cost cozum, hafta sonuna kadar 5 gununu doldurup Pazar icin
+    // tek uygun kalan personelleri tuketebiliyordu. O gun geldiginde aday=0 gorunuyor,
+    // halbuki hafta basindaki baska bir kombinasyon cozum verebiliyordu.
+    //
+    // Bu kontrol kalan gunleri sadece tek tek degil, tum gun alt-kumeleri icin de inceler:
+    // kalan slot talebi <= adaylarin kalan calisma-gunu butcesi olmak zorundadir.
+    // Boylece ayni 4 kisinin hem Cmt hem Paz gerekli oldugu durumda kisi-gun butcesi
+    // hafta icinde erken tuketilemez. Hard izin, uzmanlik, dinlenme, off-pair,
+    // cross-unit rezerv ve maxWorkDays candidateAllowed icinde aynen korunur.
+    function futureCapacityBudgetCheck(work, unit, days, phase, offPairs, attempt) {
+        const activeDays = [];
+        const availability = new Map(); // day -> Set(personName)
+
+        for (const day of (days || [])) {
+            const nr = dailyNeedsForUnit(work,unit,day);
+            if (!nr.ok) return {ok:false, reason:nr.reason};
+            const needShifts = Object.keys(nr.needs).filter(s => (nr.needs[s] || 0) > 0);
+            const demand = needShifts.reduce((n,s) => n + (nr.needs[s] || 0), 0);
+            if (!demand) continue;
+
+            // Vardiya-bazli matching de gercekten mumkun olmali. Bu, sadece toplam aday
+            // sayisina bakip sabah/aksam dagilimini kacirmamizi engeller.
+            const dayVariants = enumerateDailyAssignments(
+                work, unit, day, nr.needs, phase, offPairs,
+                attempt + day * 131, 1, null
+            );
+            if (!dayVariants.length) {
+                return {ok:false, reason:`${GUNLER[day]}: ${unit} gelecek kapasite rezervinde gunluk matching bulunamadi.`};
+            }
+
+            const set = new Set();
+            for (const p of state.personeller) {
+                if (!work.matrix[p.ad] || work.matrix[p.ad][day] !== null) continue;
+                if (!isQualifiedForUnit(p,unit)) continue;
+                let can = false;
+                for (const shift of needShifts) {
+                    if (candidateAllowed(work,p,unit,day,shift,phase,offPairs)) { can = true; break; }
+                }
+                if (can) set.add(p.ad);
+            }
+            availability.set(day,set);
+            activeDays.push({day,demand});
+        }
+
+        // En fazla 7 gun oldugu icin 2^7-1 = 127 alt-kume ucuz ve deterministiktir.
+        const n = activeDays.length;
+        for (let mask=1; mask < (1<<n); mask++) {
+            let demand = 0;
+            const subsetDays = [];
+            for (let i=0; i<n; i++) {
+                if (!(mask & (1<<i))) continue;
+                demand += activeDays[i].demand;
+                subsetDays.push(activeDays[i].day);
+            }
+
+            let supply = 0;
+            for (const p of state.personeller) {
+                const budget = Math.max(0, phase.maxWorkDays - countWorkDays(work,p.ad));
+                if (!budget) continue;
+                let canDays = 0;
+                for (const d of subsetDays) {
+                    const set = availability.get(d);
+                    if (set && set.has(p.ad)) canDays++;
+                }
+                if (canDays) supply += Math.min(budget,canDays);
+            }
+
+            if (supply < demand) {
+                return {
+                    ok:false,
+                    reason:`${unit}: gelecek kapasite rezervi yetersiz (${subsetDays.map(d=>GUNLER[d]).join('+')}: ${demand} slot, kalan kisi-gun butcesi ${supply}).`
+                };
+            }
+        }
+        return {ok:true};
+    }
+
+    function chooseDailyAssignmentWithFutureReserve(work, unit, day, needs, phase, offPairs, attempt) {
+        const first = minCostDailyAssignment(work,unit,day,needs,phase,offPairs,attempt);
+        if (!first.ok) return first;
+
+        const futureDays = [];
+        for (let d=day+1; d<7; d++) futureDays.push(d);
+        if (!futureDays.length) return first;
+
+        const probe = cloneWork(work);
+        applyDailyAssignments(probe,unit,day,first.assignments);
+        let future = futureCapacityBudgetCheck(probe,unit,futureDays,phase,offPairs,attempt + 5003);
+        if (future.ok) return first;
+
+        // Ilk min-cost secimi gelecegi kilitliyorsa ayni gunun baska kombinasyonlarini
+        // maliyet sirasiyla dene. Ilk uygun alternatif bulununca devam et.
+        const variants = enumerateDailyAssignments(work,unit,day,needs,phase,offPairs,attempt + 7001,320,null);
+        for (const variant of variants) {
+            const next = cloneWork(work);
+            applyDailyAssignments(next,unit,day,variant.assignments);
+            const chk = futureCapacityBudgetCheck(next,unit,futureDays,phase,offPairs,attempt + 9001);
+            if (chk.ok) {
+                return {ok:true, assignments:variant.assignments, cost:variant.cost, futureReserveAlternative:true};
+            }
+            future = chk;
+        }
+
+        return {
+            ok:false,
+            reason:`${unit} / ${GUNLER[day]}: ilk secim gelecekte kapasiteyi kilitledi; ${variants.length} gunluk alternatif denendi. ${future.reason}`
+        };
+    }
+
     function minCostDailyAssignment(work, unit, day, needs, phase, offPairs, attempt) {
         const shifts = Object.keys(needs).filter(s => needs[s] > 0);
         const totalNeed = shifts.reduce((a,s) => a + needs[s], 0);
@@ -2246,6 +2356,12 @@
                 return null;
             }
 
+            const capacityForward = futureCapacityBudgetCheck(work,unit,remaining,phase,offPairs,attempt + nodes * 17);
+            if (!capacityForward.ok) {
+                lastReason = capacityForward.reason;
+                return null;
+            }
+
             let bestDay = null;
             let bestVariants = null;
             for (const day of remaining) {
@@ -2306,7 +2422,7 @@
                 needs[shift] = Math.max(0, target - current);
             }
 
-            const result = minCostDailyAssignment(work,unit,day,needs,phase,offPairs,attempt);
+            const result = chooseDailyAssignmentWithFutureReserve(work,unit,day,needs,phase,offPairs,attempt);
             if (!result.ok) {
                 greedyFailure = result.reason;
                 break;
