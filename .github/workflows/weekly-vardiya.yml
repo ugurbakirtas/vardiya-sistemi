@@ -16,10 +16,10 @@ on:
         type: choice
         options: ['0', '1', '2']
   schedule:
-    # FIX10: GitHub schedule gecikse bile event kabul edilir.
-    # Türkiye saatiyle her Cuma 16:07. GitHub yoğunluğunda gerçek başlangıç gecikebilir.
-    - cron: '7 13 * * 3'
-  timezone: 'Europe/Istanbul'
+    # FIX10A TEST - GitHub schedule UTC cron.
+    # 30 Sep 2026 Wednesday 14:30 Türkiye = 11:30 UTC.
+    # Gate FIX10 schedule event'i gec baslasa bile kabul eder.
+    - cron: '30 11 * * 3'
 
 concurrency:
   group: turkmedya-vardiya-weekly-auto
