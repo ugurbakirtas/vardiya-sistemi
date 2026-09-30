@@ -23,6 +23,8 @@ const weeksAhead = positiveWeeksAhead(process.env.WEEKS_AHEAD, 1);
 const telegramNotify = String(process.env.AUTO_TELEGRAM_NOTIFY || '').toLowerCase() === 'true';
 const telegramToken = process.env.VARDIYA_TELEGRAM_BOT_TOKEN || '';
 const telegramChatId = process.env.VARDIYA_TELEGRAM_CHAT_ID || '';
+const runTrigger = process.env.RUN_TRIGGER || '';
+const scheduledRun = runTrigger === 'schedule';
 const outPath = path.join(__dirname, 'automation-output.json');
 
 if (!email || !password) {
@@ -114,6 +116,8 @@ async function writeSummary(result) {
       `- Sonuç: **${result.ok ? 'PASS' : 'FAIL'}**`,
       `- Hedef hafta: **${result.targetWeek || '-'}**`,
       `- Mod: **${result.publish ? 'PUBLISH' : 'DRY-RUN'}**`,
+      `- Trigger: **${result.runTrigger || '-'}**`,
+      `- Scheduled guard: **${result.skipped ? 'SKIP' : 'DEVAM'}**`,
       `- Firebase yazma: **${result.published ? 'YAPILDI' : 'YAPILMADI'}**`,
       `- Yıllık izin kaydı: **${result.annualRecordCount ?? '-'}**`,
       `- Baz alınan önceki hafta: **${result.baselineWeek || '-'}**`,
@@ -134,7 +138,7 @@ async function writeSummary(result) {
 
 let server;
 let browser;
-let result = { ok:false, publish, published:false, weeksAhead };
+let result = { ok:false, publish, published:false, weeksAhead, runTrigger, skipped:false };
 try {
   server = await startServer();
   browser = await chromium.launch({headless:true});
@@ -176,11 +180,38 @@ try {
     snap.forEach(doc => hariciIzinler.push(doc.data()));
   }, initialCloud);
 
-  const generation = await page.evaluate((weeksAhead) => {
+  const generation = await page.evaluate(({weeksAhead, scheduledRun}) => {
     currentMonday = getMonday(new Date());
     currentMonday.setHours(12,0,0,0);
     currentMonday.setDate(currentMonday.getDate() + (7 * weeksAhead));
     const targetWeek = getDateKey(currentMonday);
+    const targetPrefix = `${targetWeek}_`;
+    const personCount = Array.isArray(state.personeller) ? state.personeller.length : 0;
+    const minimumExpectedAssignments = Math.max(1, personCount * 5);
+    const existingTargetEntries = Object.entries(state.manuelAtamalar || {}).filter(([k]) => k.startsWith(targetPrefix));
+    const weeklyAutomation = (state.schedulerV2 && state.schedulerV2.weeklyAutomation) || {};
+
+    // FIX11: GitHub schedule best-effort'tur; aynı pencere içinde birden fazla cron denemesi olabilir.
+    // İlk başarılı yayın sonrası marker veya zaten tam hedef hafta varsa sonraki scheduled run'lar
+    // üretim/publish yapmadan PASS-SKIP olur. Manuel workflow_dispatch bu guard'ı atlar.
+    if (scheduledRun && weeklyAutomation.lastPublishedWeek === targetWeek) {
+      return {
+        ok:true, skip:true, targetWeek,
+        assignmentCount: existingTargetEntries.length, minimumExpectedAssignments, personCount,
+        annualRecordCount:Array.isArray(hariciIzinler) ? hariciIzinler.length : 0,
+        errors:[], generatedState:null,
+        skipReason:`Hedef hafta ${targetWeek} bu otomasyon tarafından daha önce başarıyla yayınlanmış.`
+      };
+    }
+    if (scheduledRun && existingTargetEntries.length >= minimumExpectedAssignments) {
+      return {
+        ok:true, skip:true, targetWeek,
+        assignmentCount: existingTargetEntries.length, minimumExpectedAssignments, personCount,
+        annualRecordCount:Array.isArray(hariciIzinler) ? hariciIzinler.length : 0,
+        errors:[], generatedState:null,
+        skipReason:`Hedef hafta ${targetWeek} zaten dolu (${existingTargetEntries.length} kayıt). Scheduled overwrite yapılmadı.`
+      };
+    }
 
     const baselineMonday = new Date(currentMonday);
     baselineMonday.setDate(baselineMonday.getDate() - 7);
@@ -235,7 +266,7 @@ try {
     }
 
     const ok = core.call(window) === true;
-    const prefix = `${targetWeek}_`;
+    const prefix = targetPrefix;
     const targetEntries = Object.entries(state.manuelAtamalar || {}).filter(([k]) => k.startsWith(prefix));
 
     // AUDIT-ONLY: DRY-RUN/PUBLISH öncesi üretilen hedef haftanın kişi-gün matrisi
@@ -275,8 +306,6 @@ try {
     // Fail-safe: Tam haftalık üretim birkaç kayıtla PASS sayılamaz. Normal V62 full generate
     // her personel için çalışma/izin/yıllık izin hücrelerini üretir. MIN5 alt sınırı, olası
     // legacy/destek istisnalarına rağmen güvenli bir sanity eşiğidir.
-    const personCount = Array.isArray(state.personeller) ? state.personeller.length : 0;
-    const minimumExpectedAssignments = Math.max(1, personCount * 5);
     const countOk = targetEntries.length >= minimumExpectedAssignments;
     const schedulerErrors = (window.__V62_LAST_REOPT_ERRORS || []).slice(0,20);
     const errors = [];
@@ -298,7 +327,7 @@ try {
       audit,
       generatedState: (ok && countOk) ? state : null
     };
-  }, weeksAhead);
+  }, {weeksAhead, scheduledRun});
 
   result.targetWeek = generation.targetWeek;
   result.baselineWeek = generation.baselineWeek;
@@ -309,6 +338,7 @@ try {
   result.personCount = generation.personCount;
   result.preflightManagedUnitCount = generation.preflightManagedUnitCount;
   result.annualRecordCount = generation.annualRecordCount;
+  result.skipped = generation.skip === true;
   if (generation.audit) {
     result.audit = generation.audit;
     result.audit.targetMatrixSha256 = crypto.createHash('sha256')
@@ -316,7 +346,11 @@ try {
       .digest('hex');
   }
 
-  if (!generation.ok || !generation.generatedState) {
+  if (generation.skip === true) {
+    result.ok = true;
+    result.message = `Scheduled guard: ${generation.skipReason || 'hedef hafta zaten tamamlanmış'}`;
+    await writeSummary(result);
+  } else if (!generation.ok || !generation.generatedState) {
     result.message = `Algoritma liste oluşturamadı. ${(generation.errors || []).join(' | ')}`;
     await writeSummary(result);
     process.exitCode = 2;
@@ -325,6 +359,15 @@ try {
     result.message = 'DRY-RUN başarılı. Algoritma listeyi oluşturdu; Firebase production verisine yazılmadı.';
     await writeSummary(result);
   } else {
+    // FIX11 persistent success marker: scheduled retry'ların aynı haftayı yeniden yazmasını engeller.
+    generation.generatedState.schedulerV2 = generation.generatedState.schedulerV2 || {};
+    generation.generatedState.schedulerV2.weeklyAutomation = {
+      ...(generation.generatedState.schedulerV2.weeklyAutomation || {}),
+      lastPublishedWeek: generation.targetWeek,
+      lastPublishedAt: new Date().toISOString(),
+      lastTrigger: runTrigger || 'unknown'
+    };
+
     const liveBeforePublish = await page.evaluate(async () => {
       const s = await database.ref('vardiya_data').once('value');
       return s.exists() ? s.val() : null;
