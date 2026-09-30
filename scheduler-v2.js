@@ -20,7 +20,7 @@
 (function (global) {
     'use strict';
 
-    const SCHEDULER_VERSION = 'V62-FINAL-DAILY-CROSS-GATE-FIX9-20260930';
+    const SCHEDULER_VERSION = 'V62-FINAL-MIN5-FORWARD-CHECK-FIX10-20260930';
     const OFF_VALUES = new Set([null, undefined, '', SHIFTS.IZIN, SHIFTS.BOS, SHIFTS.YILLIK, SHIFTS.RAPOR]);
     const AUTO_SOURCE = 'AUTO_V62';
     const AUTO_MCR_SOURCE = 'AUTO_V62_MCR_YEDEK';
@@ -2044,7 +2044,7 @@
         });
     }
 
-    function enumerateDailyAssignments(work, unit, day, needs, phase, offPairs, attempt, maxVariants = 160) {
+    function enumerateDailyAssignments(work, unit, day, needs, phase, offPairs, attempt, maxVariants = 160, mandatoryNames = null) {
         const slots = [];
         Object.keys(needs).forEach(shift => {
             for (let i=0; i<(needs[shift]||0); i++) slots.push(shift);
@@ -2053,6 +2053,13 @@
 
         const candidates = state.personeller.filter(p => work.matrix[p.ad][day] === null && isQualifiedForUnit(p,unit));
         if (candidates.length < slots.length) return [];
+        const mandatorySet = new Set(Array.isArray(mandatoryNames) ? mandatoryNames : (mandatoryNames ? Array.from(mandatoryNames) : []));
+        // FIX10: MIN5 forward-check bir kişiyi bu gün için zorunlu işaretlediyse,
+        // günlük varyant üreticisi o kişiyi içermeyen kombinasyonları hiç toplamaz.
+        // Böylece varyant kırpması gerçek MIN5 çözümünü listeden düşüremez.
+        for (const name of mandatorySet) {
+            if (!candidates.some(p => p.ad === name)) return [];
+        }
 
         // En dar vardiya önce; aynı vardiyalar yan yana kalsın ki gereksiz permütasyonları azaltalım.
         const shiftEligibleCount = {};
@@ -2066,7 +2073,11 @@
             orderedByShift[shift] = candidates
                 .filter(p => candidateAllowed(work,p,unit,day,shift,phase,offPairs))
                 .map(p => ({p,cost:assignmentCost(work,p,unit,day,shift,phase,offPairs,attempt)}))
-                .sort((a,b) => a.cost-b.cost || compareName(a.p,b.p));
+                .sort((a,b) => {
+                    const am = mandatorySet.has(a.p.ad) ? 0 : 1;
+                    const bm = mandatorySet.has(b.p.ad) ? 0 : 1;
+                    return am-bm || a.cost-b.cost || compareName(a.p,b.p);
+                });
         });
         if (slots.some(shift => !orderedByShift[shift].length)) return [];
 
@@ -2088,7 +2099,10 @@
         });
         function rec(i,cost) {
             if (out.size >= maxVariants * 6) return;
+            const mandatoryRemaining = Array.from(mandatorySet).filter(name => !used.has(name)).length;
+            if (mandatoryRemaining > (slots.length - i)) return;
             if (i >= slots.length) {
+                if (mandatoryRemaining > 0) return;
                 const assignments = chosen.map(x => ({person:x.person,shift:x.shift}));
                 const sig = assignments.slice().sort((a,b) => a.shift.localeCompare(b.shift,'tr') || a.person.localeCompare(b.person,'tr'))
                     .map(x => `${x.shift}|${x.person}`).join('~');
@@ -2126,6 +2140,60 @@
             .slice(0,maxVariants);
     }
 
+
+    // FIX10: MIN5 forward checking.
+    // Örnek: Cmt+Paz manuel izinli bir personelin hedefi 5 günse ve yalnız Pzt-Cum
+    // çalışabiliyorsa bu beş gün artık tercih değil matematiksel zorunluluktur.
+    // Eski arama bunu haftanın sonunda 4/5G olduğunda fark edip binlerce gereksiz
+    // dal deniyordu. Bu kontrol her DFS düğümünde kalan gerçek çalışma fırsatlarını
+    // sayar; bütün kalan fırsatlar gerekiyorsa kişiyi o günün varyantlarına zorunlu dahil eder.
+    function minimumForwardCheck(work, unit, remainingDays, phase, offPairs) {
+        const cfg = ensureSchedulerState().config;
+        const mandatoryByDay = new Map();
+        if (!cfg.strictMinimumFive || isCycleUnit(unit)) return {ok:true, mandatoryByDay};
+
+        const own = state.personeller.filter(p => p.birim === unit && !isWeekdayFixedPerson(p));
+        for (const p of own) {
+            const target = minimumTargetDays(work,p,unit);
+            const worked = countWorkDays(work,p.ad);
+            const deficit = Math.max(0,target-worked);
+            if (!deficit) continue;
+
+            const opportunities = [];
+            for (const day of remainingDays) {
+                if (!work.matrix[p.ad] || work.matrix[p.ad][day] !== null) continue;
+                const tk = tempKey(p.ad,day);
+                const forced = work.tempUnits[tk];
+                if (forced && isManualUnitLocked(tk) && forced !== unit) continue;
+                if (phase.enforceOffPair) {
+                    const pair = offPairs && offPairs[p.ad];
+                    if (pair && pair.includes(day)) continue;
+                }
+                if (countWorkDays(work,p.ad) >= phase.maxWorkDays) continue;
+
+                let canWork = false;
+                for (const shift of state.saatler || []) {
+                    if (capacity(unit,shift,day) <= 0) continue;
+                    if (!candidateAllowed(work,p,unit,day,shift,phase,offPairs)) continue;
+                    canWork = true;
+                    break;
+                }
+                if (canWork) opportunities.push(day);
+            }
+
+            if (deficit > opportunities.length) {
+                return {ok:false, mandatoryByDay, reason:`${unit}: ${p.ad} MIN5 forward-check başarısız; ${deficit} gün gerekli, yalnız ${opportunities.length} gerçek çalışma fırsatı kaldı.`};
+            }
+            if (deficit === opportunities.length) {
+                for (const day of opportunities) {
+                    if (!mandatoryByDay.has(day)) mandatoryByDay.set(day,new Set());
+                    mandatoryByDay.get(day).add(p.ad);
+                }
+            }
+        }
+        return {ok:true, mandatoryByDay};
+    }
+
     function solveUnitDaysBacktracking(baseWork, unit, phase, offPairs, attempt) {
         const maxNodes = 12000;
         let nodes = 0;
@@ -2157,15 +2225,25 @@
         }
 
         function dfs(work, remaining) {
-            if (++nodes > maxNodes) return null;
+            if (++nodes > maxNodes) {
+                lastReason = `${unit}: haftalık alternatif arama ${maxNodes} düğüm sınırına ulaştı.`;
+                return null;
+            }
             if (!remaining.length) return acceptLeaf(work);
+
+            const forward = minimumForwardCheck(work,unit,remaining,phase,offPairs);
+            if (!forward.ok) {
+                lastReason = forward.reason;
+                return null;
+            }
 
             let bestDay = null;
             let bestVariants = null;
             for (const day of remaining) {
                 const nr = dailyNeedsForUnit(work,unit,day);
                 if (!nr.ok) { lastReason = nr.reason; return null; }
-                const variants = enumerateDailyAssignments(work,unit,day,nr.needs,phase,offPairs,attempt + day * 17,160);
+                const mandatory = forward.mandatoryByDay.get(day) || new Set();
+                const variants = enumerateDailyAssignments(work,unit,day,nr.needs,phase,offPairs,attempt + day * 17,160,mandatory);
                 if (!variants.length) {
                     const totalNeed = Object.values(nr.needs).reduce((a,b)=>a+b,0);
                     const free = state.personeller.filter(p => work.matrix[p.ad][day] === null && isQualifiedForUnit(p,unit)).length;
