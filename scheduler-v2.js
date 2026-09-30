@@ -20,7 +20,7 @@
 (function (global) {
     'use strict';
 
-    const SCHEDULER_VERSION = 'V62-FINAL-CORE-RESERVATION-FIX7-20260929';
+    const SCHEDULER_VERSION = 'V62-FINAL-WEEKLY-ALTERNATIVE-SEARCH-FIX8-20260930';
     const OFF_VALUES = new Set([null, undefined, '', SHIFTS.IZIN, SHIFTS.BOS, SHIFTS.YILLIK, SHIFTS.RAPOR]);
     const AUTO_SOURCE = 'AUTO_V62';
     const AUTO_MCR_SOURCE = 'AUTO_V62_MCR_YEDEK';
@@ -1183,6 +1183,59 @@
         return Math.max(0,minimumCross-unitCrossAssignmentsCount(work,unit));
     }
 
+    // FIX8: Haftalik toplam potansiyel tek basina yeterli gorunse bile belirli bir gun
+    // manuel izin / dinlenme / max-gun nedeniyle hedef birimin kendi personeli gunluk
+    // kapasiteyi karsilayamayabilir. Bu helper o gunun slotlarini yalniz hedef birimin
+    // kendi personeliyle bipartite matching yaparak en fazla kac slotun kapanabildigini
+    // hesaplar. Cross-unit uzman ancak gercek GUNLUK acik kadar devreye girebilir.
+    function ownDailyCoverCapacity(work, unit, day, needs, phase, offPairs) {
+        const slots = [];
+        Object.keys(needs || {}).forEach(shift => {
+            for (let i=0; i<(needs[shift] || 0); i++) slots.push(shift);
+        });
+        if (!slots.length) return 0;
+
+        const own = state.personeller.filter(p =>
+            p.birim === unit &&
+            work.matrix[p.ad] && work.matrix[p.ad][day] === null &&
+            isQualifiedForUnit(p,unit)
+        );
+        if (!own.length) return 0;
+
+        const eligibleBySlot = slots.map(shift => own.filter(p =>
+            candidateAllowed(work,p,unit,day,shift,phase,offPairs)
+        ));
+        const order = slots.map((_,i)=>i).sort((a,b) =>
+            eligibleBySlot[a].length - eligibleBySlot[b].length || a-b
+        );
+
+        const matchedPersonToSlot = new Map();
+        function augment(slotIndex, seenPeople) {
+            for (const p of eligibleBySlot[slotIndex]) {
+                if (seenPeople.has(p.ad)) continue;
+                seenPeople.add(p.ad);
+                const prevSlot = matchedPersonToSlot.get(p.ad);
+                if (prevSlot === undefined || augment(prevSlot,seenPeople)) {
+                    matchedPersonToSlot.set(p.ad,slotIndex);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        let matched = 0;
+        for (const slotIndex of order) {
+            if (augment(slotIndex,new Set())) matched++;
+        }
+        return matched;
+    }
+
+    function dailyRequiredCrossCount(work, unit, day, needs, phase, offPairs) {
+        const totalNeed = Object.values(needs || {}).reduce((a,b)=>a+(parseInt(b,10)||0),0);
+        if (!totalNeed || isCycleUnit(unit) || isPreservedUnit(unit)) return 0;
+        return Math.max(0,totalNeed-ownDailyCoverCapacity(work,unit,day,needs,phase,offPairs));
+    }
+
     function homeUnitCanSpare(work, person, day, targetUnit) {
         if (!person || person.birim === targetUnit) return true;
         const home = person.birim;
@@ -1586,7 +1639,12 @@
             graph[u].push(a); graph[v].push(b);
             return a;
         }
-        if (crossGate !== null) addEdge(S,crossGate,unitRequiredCrossRemaining(work,unit),0);
+        // FIX8: FIX7'nin haftalik rezerv kapisini koru; buna ek olarak belirli gunun
+        // kendi-personel matching acigi varsa cross-unit uzmana tam o acik kadar izin ver.
+        // Cross adaylar zaten +10000 maliyetli oldugu icin kendi personel yeterliyse secilmez.
+        const dailyCrossNeed = dailyRequiredCrossCount(work,unit,day,needs,phase,offPairs);
+        const crossAllowance = Math.min(totalNeed,Math.max(unitRequiredCrossRemaining(work,unit),dailyCrossNeed));
+        if (crossGate !== null) addEdge(S,crossGate,crossAllowance,0);
         crossHomes.forEach(home => addEdge(crossGate,groupIndex.get(home),Math.min(homeUnitSpareLimit(work,home,day),homeUnitWeeklySpareLimit(work,home)),0));
         candidates.forEach((p,i) => {
             const cNode = candidateBase+i;
@@ -2012,7 +2070,10 @@
         const chosen = [];
         const borrowLimit = {};
         const borrowUsed = {};
-        const totalCrossLimit = unitRequiredCrossRemaining(work,unit);
+        const totalCrossLimit = Math.min(
+            slots.length,
+            Math.max(unitRequiredCrossRemaining(work,unit),dailyRequiredCrossCount(work,unit,day,needs,phase,offPairs))
+        );
         let totalCrossUsed = 0;
         candidates.forEach(p => {
             if (p.birim !== unit && borrowLimit[p.birim] == null) {
@@ -2065,9 +2126,34 @@
         let nodes = 0;
         let lastReason = null;
 
+        // FIX8: Eski geri izleme ilk kapasite-feasible haftada duruyordu. Bu nedenle
+        // tum gunler dolsa bile bir personel 4/5G kaldiginda arama baska haftalik
+        // kombinasyonlara gecmiyordu. Leaf'te MIN5 repair'i deneyip gercek kabul
+        // kriterini saglamayan haftayi reddederek bir sonraki kombinasyona devam et.
+        function acceptLeaf(work) {
+            const cfg = ensureSchedulerState().config;
+            if (!cfg.strictMinimumFive || isCycleUnit(unit)) return work;
+
+            const feasibility = minWorkCapacityFeasible(work,unit);
+            let short = state.personeller.filter(p => p.birim === unit && !isWeekdayFixedPerson(p))
+                .map(p => ({p,days:countWorkDays(work,p.ad),target:minimumTargetDays(work,p,unit)}))
+                .filter(x => x.days < x.target);
+            if (!short.length || !feasibility.feasible) return work;
+
+            const repaired = cloneWork(work);
+            rebalanceMinimumWorkDays(repaired,unit,phase);
+            short = state.personeller.filter(p => p.birim === unit && !isWeekdayFixedPerson(p))
+                .map(p => ({p,days:countWorkDays(repaired,p.ad),target:minimumTargetDays(repaired,p,unit)}))
+                .filter(x => x.days < x.target);
+            if (!short.length) return repaired;
+
+            lastReason = `${unit}: haftalik alternatif aramada MIN5 saglanamadi (${short.map(x=>`${x.p.ad}:${x.days}/${x.target}G`).join(', ')}).`;
+            return null;
+        }
+
         function dfs(work, remaining) {
             if (++nodes > maxNodes) return null;
-            if (!remaining.length) return work;
+            if (!remaining.length) return acceptLeaf(work);
 
             let bestDay = null;
             let bestVariants = null;
@@ -2151,14 +2237,17 @@
             });
         }
 
+        let usedWeeklyBacktracking = false;
         if (greedyFailure) {
             const fallbackSpecialty = requiredSpecialty(unit);
-            const shouldBacktrack = (fallbackSpecialty === 'PLAYOUT' && (phase.name === '5_GUN_CALISMA' || phase.name === 'KAPASITE_ZORUNLU_6_GUN'))
-                || (fallbackSpecialty === 'KJ' && phase.name === 'KAPASITE_ZORUNLU_6_GUN');
+            // FIX8: PLAYOUT/KJ ortak havuzunda 2-izin fazi dahil her faz gercek haftalik
+            // alternatif aramaya girebilir. Hard kurallar aynen candidateAllowed icinde kalir.
+            const shouldBacktrack = fallbackSpecialty === 'PLAYOUT' || fallbackSpecialty === 'KJ';
             if (shouldBacktrack) {
                 const fallback = solveUnitDaysBacktracking(dailySearchBase,unit,phase,offPairs,attempt);
                 if (!fallback.ok) return {ok:false, reasons:[greedyFailure, fallback.reason]};
                 work = fallback.work;
+                usedWeeklyBacktracking = true;
                 work.notes.push(`${unit}: günlük greedy kilitlenmesi haftalık geri izlemeli arama ile çözüldü (${fallback.nodes} düğüm).`);
             } else {
                 return {ok:false, reasons:[greedyFailure]};
@@ -2183,7 +2272,31 @@
                 .map(p => ({p, days:countWorkDays(work,p.ad), target:minimumTargetDays(work,p,unit)}))
                 .filter(x => x.days < x.target);
             if (short.length && feasibility.feasible) {
-                return {ok:false, reasons:[`${unit}: MIN5 hard hedefi sağlanamadı: ${short.map(x=>`${x.p.ad}:${x.days}/${x.target}G`).join(', ')}. Kapasite tabanı korunarak MIN5 ek atama da denenmişti; alternatif çözüm aranacak.`]};
+                const fallbackSpecialty = requiredSpecialty(unit);
+                // FIX8 ana davranis: gunluk kapasite tamamen dolmus olsa bile MIN5 cikmazi
+                // varsa ilk yazilan haftaya saplanma. PLAYOUT/KJ icin sifirdan haftalik
+                // alternatif kombinasyon ara; leaf ancak MIN5 repair sonrasi kabul edilir.
+                if (!usedWeeklyBacktracking && (fallbackSpecialty === 'PLAYOUT' || fallbackSpecialty === 'KJ')) {
+                    const fallback = solveUnitDaysBacktracking(dailySearchBase,unit,phase,offPairs,attempt + 7919);
+                    if (fallback.ok) {
+                        work = fallback.work;
+                        usedWeeklyBacktracking = true;
+                        rebalanceMinimumWorkDays(work,unit,phase);
+                        rebalanceWeeklyFairness(work,unit,phase);
+                        const after = state.personeller.filter(p => p.birim === unit && !isWeekdayFixedPerson(p))
+                            .map(p => ({p,days:countWorkDays(work,p.ad),target:minimumTargetDays(work,p,unit)}))
+                            .filter(x => x.days < x.target);
+                        if (!after.length) {
+                            work.notes.push(`${unit}: ilk kapasite-feasible hafta MIN5'te kilitlendi; alternatif haftalik kombinasyonla cozuldu (${fallback.nodes} dugum).`);
+                        } else {
+                            return {ok:false, reasons:[`${unit}: MIN5 hard hedefi sağlanamadı: ${after.map(x=>`${x.p.ad}:${x.days}/${x.target}G`).join(', ')}. Haftalık alternatif arama da denendi.`]};
+                        }
+                    } else {
+                        return {ok:false, reasons:[`${unit}: MIN5 hard hedefi sağlanamadı: ${short.map(x=>`${x.p.ad}:${x.days}/${x.target}G`).join(', ')}. ${fallback.reason}`]};
+                    }
+                } else {
+                    return {ok:false, reasons:[`${unit}: MIN5 hard hedefi sağlanamadı: ${short.map(x=>`${x.p.ad}:${x.days}/${x.target}G`).join(', ')}. Kapasite tabanı korunarak MIN5 ek atama da denenmişti; alternatif çözüm aranacak.`]};
+                }
             }
         }
 
@@ -2291,7 +2404,10 @@
         const variants = [base];
         const kj = base.findIndex(u => requiredSpecialty(u) === 'KJ');
         const playout = base.findIndex(u => requiredSpecialty(u) === 'PLAYOUT');
-        if (kj >= 0 && playout >= 0 && kj < playout) {
+        // FIX8: hangi birim ana sirada once gelirse gelsin ters sirayi da fallback olarak dene.
+        // Eski kosul yalniz KJ onceyse swap yapiyor, PLAYOUT onceyse KJ-first alternatifi
+        // hic uretmiyordu. Bu asimetri ortak uzman havuzunda gereksiz cikmaz yaratabiliyordu.
+        if (kj >= 0 && playout >= 0 && kj !== playout) {
             const alt = base.slice();
             const t = alt[kj]; alt[kj] = alt[playout]; alt[playout] = t;
             if (alt.join('\u0000') !== base.join('\u0000')) variants.push(alt);
