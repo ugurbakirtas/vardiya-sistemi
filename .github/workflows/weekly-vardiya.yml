@@ -15,12 +15,6 @@ on:
         default: '1'
         type: choice
         options: ['0', '1', '2']
-  schedule:
-    # FIX11 TEMP TEST: Carsamba gunu her 5 dakikada bir dene (UTC gun ayni).
-    # Dakika 00 yerine 03/08/... kullanilir; GitHub saat basi yogunlugundan kacir.
-    # Ilk basarili publish sonrasi weekly-runner scheduled guard sonraki denemeleri SKIP eder.
-    - cron: '3,8,13,18,23,28,33,38,43,48,53,58 * * * 3'
-
 concurrency:
   group: turkmedya-vardiya-weekly-auto
   cancel-in-progress: false
