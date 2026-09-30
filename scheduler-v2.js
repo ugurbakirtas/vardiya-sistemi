@@ -20,7 +20,7 @@
 (function (global) {
     'use strict';
 
-    const SCHEDULER_VERSION = 'V62-FINAL-WEEKLY-ALTERNATIVE-SEARCH-FIX8-20260930';
+    const SCHEDULER_VERSION = 'V62-FINAL-DAILY-CROSS-GATE-FIX9-20260930';
     const OFF_VALUES = new Set([null, undefined, '', SHIFTS.IZIN, SHIFTS.BOS, SHIFTS.YILLIK, SHIFTS.RAPOR]);
     const AUTO_SOURCE = 'AUTO_V62';
     const AUTO_MCR_SOURCE = 'AUTO_V62_MCR_YEDEK';
@@ -1257,7 +1257,12 @@
         // fazında, kendi 6. günleri de açıkken gerçek eksik kalan slotlar için cross-unit kullanılır.
         if (person.birim !== unit && !isCycleUnit(unit) && phase.name !== 'KAPASITE_ZORUNLU_6_GUN') return false;
         if (person.birim !== unit && phase.crossMorningOnly && !isMorningShift(shift)) return false;
-        if (person.birim !== unit && !isCycleUnit(unit) && unitRequiredCrossRemaining(work,unit) <= 0) return false;
+        // FIX9: Cross-unit uzmani burada HAFTALIK toplam ihtiyac sifir diye peşinen eleme.
+        // FIX8 günlük matching ile belirli bir günde gerçek açık olduğunu hesaplıyor; ancak bu eski
+        // global kapı candidateAllowed içinde kalınca günlük açık olsa bile bütün KJ/PLAYOUT yedekleri
+        // daha min-cost/backtracking katmanına ulaşmadan eleniyordu. Cross kullanım miktarı artık
+        // minCostDailyAssignment/enumerateDailyAssignments içindeki crossAllowance/totalCrossLimit ile
+        // sınırlandırılır. Kaynak birimin günlük + haftalık rezervi homeUnitCanSpare ile HARD korunur.
         if (person.birim !== unit && !homeUnitCanSpare(work,person,day,unit)) return false;
 
         // Bu gün için elle başka birime sabitlenmiş personel alınamaz.
