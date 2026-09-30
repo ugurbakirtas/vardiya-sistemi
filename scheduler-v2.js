@@ -1549,6 +1549,15 @@
             for (const receiver of receivers) {
                 if (donor.ad === receiver.ad) continue;
                 if (counts[donor.ad] - counts[receiver.ad] <= 1) continue;
+
+                // FIX11: Haftalık adalet, MIN5 hard hedefini ASLA geri bozamaz.
+                // FIX10 backtracking doğru 5-gün çözümü bulduktan sonra eski fairness
+                // 5 günlük donörden vardiya alıp onu tekrar 4/5G'ye düşürebiliyordu.
+                // Donörün bu transfer SONRASI kendi minimum hedefinin altında kalacağı
+                // hiçbir fairness hamlesi artık aday bile değildir.
+                const donorMinimum = minimumTargetDays(work,donor,unit);
+                if ((counts[donor.ad] - 1) < donorMinimum) continue;
+
                 for (let day=0; day<7; day++) {
                     if (!isTransferableAutoAssignment(work,donor,unit,day)) continue;
                     const shift = work.matrix[donor.ad][day];
