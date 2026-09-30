@@ -18,8 +18,8 @@ on:
   schedule:
     # FIX10: GitHub schedule gecikse bile event kabul edilir.
     # Türkiye saatiyle her Cuma 16:07. GitHub yoğunluğunda gerçek başlangıç gecikebilir.
-    - cron: '7 16 * * 5'
-      timezone: 'Europe/Istanbul'
+    - cron: '7 13 * * 3'
+  timezone: 'Europe/Istanbul'
 
 concurrency:
   group: turkmedya-vardiya-weekly-auto
