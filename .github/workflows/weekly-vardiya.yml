@@ -16,10 +16,10 @@ on:
         type: choice
         options: ['0', '1', '2']
   schedule:
-    # FIX10A TEST - GitHub schedule UTC cron.
-    # 30 Sep 2026 Wednesday 14:30 Türkiye = 11:30 UTC.
-    # Gate FIX10 schedule event'i gec baslasa bile kabul eder.
-    - cron: '30 11 * * 3'
+    # FIX11 TEMP TEST: Carsamba gunu her 5 dakikada bir dene (UTC gun ayni).
+    # Dakika 00 yerine 03/08/... kullanilir; GitHub saat basi yogunlugundan kacir.
+    # Ilk basarili publish sonrasi weekly-runner scheduled guard sonraki denemeleri SKIP eder.
+    - cron: '3,8,13,18,23,28,33,38,43,48,53,58 * * * 3'
 
 concurrency:
   group: turkmedya-vardiya-weekly-auto
@@ -74,6 +74,7 @@ jobs:
           AUTO_TELEGRAM_NOTIFY: ${{ vars.VARDIYA_AUTO_TELEGRAM_NOTIFY }}
           VARDIYA_TELEGRAM_BOT_TOKEN: ${{ secrets.VARDIYA_TELEGRAM_BOT_TOKEN }}
           VARDIYA_TELEGRAM_CHAT_ID: ${{ secrets.VARDIYA_TELEGRAM_CHAT_ID }}
+          RUN_TRIGGER: ${{ github.event_name }}
         run: node weekly-runner.mjs
 
       - name: Upload automation report
