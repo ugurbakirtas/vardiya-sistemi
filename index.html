@@ -181,7 +181,7 @@
         <div id="tab-sabitle" class="tab-content hidden"><div class="v63-admin-search" style="margin:0 0 10px 0;"><input type="text" id="v63FixedSearch" oninput="V63Addons.applyAdminSearchFilters()" placeholder="🔍 Sabitler içinde personel ara..." style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:11px;box-sizing:border-box;"></div><div id="sabitListeAdmin"></div></div>
         <div id="tab-kapasite" class="tab-content hidden"><div id="kapasiteTable"></div></div>
         
-        <div id="tab-yillik" class="tab-content hidden"><div class="v63-admin-search" style="margin:0 0 10px 0;"><input type="text" id="v63AnnualSearch" oninput="V63Addons.applyAdminSearchFilters()" placeholder="🔍 Yıllık izin için personel ara..." style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:11px;box-sizing:border-box;"></div><div class="swap-container" style="border-color:var(--yillik-izin); background:var(--card-bg);"><div class="swap-header" style="color:var(--yillik-izin);">🏖️ TOPLU YILLIK İZİN İŞLEME</div><div class="swap-row"><label class="swap-label">PERSONEL SEÇİN:</label><select id="yillikIzinPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row"><div style="flex:1;"><label class="swap-label">BAŞLANGIÇ:</label><input type="date" id="yillikBaslangic" class="swap-select"></div><div style="flex:1;"><label class="swap-label">BİTİŞ (Dahil):</label><input type="date" id="yillikBitis" class="swap-select"></div></div><button onclick="yillikIzinIsle()" class="btn-main-action" style="background:var(--yillik-izin); width:100%; padding:12px; margin-top:10px;">İZİNLERİ İŞLE</button><div style="margin-top:10px; font-size:10px; color:var(--text); opacity:0.7; text-align:center;">* Seçilen tarih aralığına "YILLIK İZİN" yazılacak ve sistem gerektiğinde yerine başkasını atayacaktır.</div></div></div>
+        <div id="tab-yillik" class="tab-content hidden"><div class="v63-admin-search" style="margin:0 0 10px 0;"><input type="text" id="v63AnnualSearch" oninput="V63Addons.applyAdminSearchFilters()" placeholder="🔍 Yıllık izin için personel ara..." style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:11px;box-sizing:border-box;"></div><div class="swap-container" style="border-color:var(--yillik-izin); background:var(--card-bg);"><div class="swap-header" style="color:var(--yillik-izin);">🏖️ TOPLU YILLIK İZİN İŞLEME</div><div class="swap-row"><label class="swap-label">PERSONEL SEÇİN:</label><select id="yillikIzinPersonel" class="swap-select"><option>Seçiniz...</option></select></div><div class="swap-row"><div style="flex:1;"><label class="swap-label">BAŞLANGIÇ:</label><input type="date" id="yillikBaslangic" class="swap-select"></div><div style="flex:1;"><label class="swap-label">İŞ BAŞI (İzin Bitişi):</label><input type="date" id="yillikBitis" class="swap-select"></div></div><button onclick="yillikIzinIsle()" class="btn-main-action" style="background:var(--yillik-izin); width:100%; padding:12px; margin-top:10px;">İZİNLERİ İŞLE</button><div style="margin-top:10px; font-size:10px; color:var(--text); opacity:0.7; text-align:center;">* Başlangıç günü izinlidir; iş başı tarihi izin dışıdır ve vardiya yazılabilir. Sistem gerektiğinde yerine başkasını atayacaktır.</div></div></div>
 
         <div id="tab-izintakvim" class="tab-content hidden"><div class="swap-container" style="border-color:var(--success); background:var(--card-bg);"><div class="swap-header" style="color:var(--success);">📅 AKTİF VE ONAYLI İZİNLER</div><div style="padding: 10px;"><h4 style="margin-top:0; margin-bottom:10px; color:var(--danger);">Şu An İzinde Olanlar</h4><ul id="activeLeavesList" style="list-style: none; padding: 0; margin: 0 0 20px 0; font-weight: bold; font-size:12px;"></ul><h4 style="margin-top:0; margin-bottom:10px; color:var(--blue);">Gelecek İzinler</h4><div id="upcomingLeavesList" style="font-size:12px;"></div></div></div></div>
         
@@ -277,10 +277,14 @@
   </div>
 
   <script>var undoStack = []; var saveTimeout = null;</script>
-  <script src="app.js?v=20260929-core-reservation-fix7"></script>
-  <script src="scheduler-v2.js?v=20260929-core-reservation-fix7"></script>
+  <script src="app.js?v=20261006-fix2-19-multi-unit-learning"></script>
+  <script src="scheduler-v2.js?v=20261006-fix2-19-multi-unit-learning"></script>
   <script src="v63-enhancements.js?v=20260929-core-reservation-fix7"></script>
-  <script src="personel-secure-mobile.js?v=20261001-personel-secure-mobile-fix1"></script>
+  <script src="personel-secure-mobile.js?v=20261002-personel-secure-mobile-fix2-8-fresh-device-list"></script>
+  <script src="personel-email-pin-fix2-2.js?v=20261002-email-pin-fix2-6-session"></script>
+  <script src="personel-admin-lifecycle-fix2-4.js?v=20261002-lifecycle-fix2-4"></script>
+  <script src="personel-admin-return-fix2-5.js?v=20261002-admin-return-fix2-5"></script>
+  <script src="excel-real-xlsx-fix2-9.js?v=20261006-fix2-19-multi-unit-learning"></script>
 </body>
 
 </html>

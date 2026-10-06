@@ -20,7 +20,7 @@
 (function (global) {
     'use strict';
 
-    const SCHEDULER_VERSION = 'V62-FINAL-FUTURE-CAPACITY-RESERVE-FIX12-20260930';
+    const SCHEDULER_VERSION = 'V62-FINAL-6DAY-HISTORY-FAIRNESS-FIX20-20261006';
     const OFF_VALUES = new Set([null, undefined, '', SHIFTS.IZIN, SHIFTS.BOS, SHIFTS.YILLIK, SHIFTS.RAPOR]);
     const AUTO_SOURCE = 'AUTO_V62';
     const AUTO_MCR_SOURCE = 'AUTO_V62_MCR_YEDEK';
@@ -28,6 +28,7 @@
     const AUTO_MIN5_EXTRA_SOURCE = 'AUTO_V62_MIN5_EXTRA';
     const AUTO_WEEKLY_MORNING_ANCHOR_SOURCE = 'AUTO_V62_WEEKLY_MORNING_ANCHOR';
     const AUTO_INGEST_EMERGENCY_SOURCE = 'AUTO_V62_INGEST_ACIL';
+    const AUTO_TRAINING_SOURCE = 'AUTO_V62_TRAINING';
     const MANUAL_SOURCE = 'MANUAL_V62';
     const REQUEST_SOURCE = 'REQUEST_V62';
     const ANNUAL_SOURCE = 'ANNUAL_LEAVE';
@@ -78,6 +79,10 @@
         s.config.rotateFromPreviousWeek = true;
         s.config.preferWeekendMorningTopUp = true;
         s.config.strictMinimumFive = true;
+        // FIX2.17: MIN5 normal fazlarda hard hedef olarak sonuna kadar denenir.
+        // Tum kapasite/uzmanlik/dinlenme kurallari saglanmisken yalniz MIN5 yuzunden
+        // tum haftayi iptal etmemek icin SON 6-gun fallback fazinda 4/5G kabul edilebilir.
+        s.config.allowFinalMin5Shortfall = true;
         s.config.weeklyMorningAnchorRotation = true;
         s.config.weeklyMorningAnchorUnits = ['PLAYOUT','KJ'];
         s.config.weeklyMorningAnchorShift = '06:30–16:00';
@@ -90,6 +95,19 @@
         s.config.showReplacementIdentity = true;
         s.config.ingestWeeklyRotation = true;
         s.config.ingestEmergencySixOne = true;
+        // FIX2.19: Normal kapasite cozulup iki gunluk izin korunduktan sonra TAM 4 gunde
+        // kalan uygun personel, bilmedigi bir hedef alanda GÖZLEMLEME/ÖĞRENME amaciyla
+        // haftada en fazla 1 gun fazladan yazilabilir. Bu atama kapasiteyi KAPATMAZ,
+        // uzmanlik yetkisi KAZANDIRMAZ ve MCR sabit dongusunun yerine gecmez.
+        s.config.crossTrainingLearningEnabled = true;
+        s.config.crossTrainingMaxDaysPerPerson = 1;
+        s.config.crossTrainingTargetSpecs = ['PLAYOUT','KJ','24 MCR','360 MCR'];
+        // FIX2.20: Zorunlu 6. gun yukunu haftalar arasinda ayni kisilere bindirme.
+        // Once gecen hafta, sonra son 4 haftadaki 6-gun sayisi dikkate alinir.
+        // Bu bir tercih/adalet katmanidir; uygun alternatif yoksa kapasite ve hard kurallar
+        // icin ayni personel yeniden 6 gun calisabilir. MCR/INGEST sabit dongusune uygulanmaz.
+        s.config.rotateSixDayBurden = true;
+        s.config.sixDayHistoryLookbackWeeks = 4;
         s.lastReport = s.lastReport || null;
         return s;
     }
@@ -294,6 +312,19 @@
         return normalizeName(v).replace(/[^A-ZÇĞİÖŞÜ0-9]+/g,'');
     }
 
+    function annualReturnDate(rec) {
+        const n = normalizedAnnualRecord(rec || {});
+        if (global.externalLeaveReturnDate) return global.externalLeaveReturnDate(n);
+        const end = formatTarih(n.bitis_tarihi);
+        if (!end) return '';
+        const sem = String(n.tarih_semantigi || '').trim().toLowerCase();
+        if (sem === 'bitis_is_basi') return end;
+        const d = new Date(`${end}T12:00:00`);
+        if (isNaN(d)) return end;
+        d.setDate(d.getDate() + 1);
+        return getDateKey(d);
+    }
+
     function isPersonOnAnnualLeaveV2(name, dateStr) {
         const wanted = annualIdentityName(name);
         if (!wanted || !dateStr) return false;
@@ -302,8 +333,8 @@
             if (!isApprovedAnnualLeaveRecord(rec)) return false;
             if (annualIdentityName(rec.personel_adi) !== wanted) return false;
             const start = formatTarih(rec.baslangic_tarihi);
-            const end = formatTarih(rec.bitis_tarihi);
-            return !!start && !!end && dateStr >= start && dateStr <= end;
+            const end = annualReturnDate(rec);
+            return !!start && !!end && dateStr >= start && dateStr < end;
         });
     }
     global.isPersonOnAnnualLeave = isPersonOnAnnualLeaveV2;
@@ -470,6 +501,62 @@
     function previousWeekKnownWork(name, day) {
         const v = previousWeekAssignment(name, day);
         return v !== undefined && v !== null && isWorkShift(v);
+    }
+
+    // FIX2.20 - HAFTALAR ARASI 6-GUN YUK ADALETI
+    // Gecmis hafta verisini state.manuelAtamalar'dan okur. Bir haftayi guvenilir tarihce
+    // saymak icin 7 gunun da kaydi bulunmalidir; eksik/eski veri kimseyi haksiz yere
+    // cezalandirmaz. OGRENME dahil gercek calisma vardiyalari is gunu sayilir.
+    function historicalWeekWorkload(name, weekOffset) {
+        const d = new Date(currentMonday);
+        d.setHours(12,0,0,0);
+        d.setDate(d.getDate() - (7 * weekOffset));
+        const hk = getDateKey(d);
+        const map = state.manuelAtamalar || {};
+        let knownDays = 0, workDays = 0;
+        for (let day=0; day<7; day++) {
+            const key = `${hk}_${name}_${day}`;
+            if (!Object.prototype.hasOwnProperty.call(map,key)) continue;
+            knownDays++;
+            if (isWorkShift(map[key])) workDays++;
+        }
+        return {week:hk, knownDays, workDays, complete:knownDays === 7};
+    }
+
+    function historicalSixDayStats(name) {
+        const cfg = ensureSchedulerState().config || {};
+        const lookback = Math.max(1, Math.min(12, parseInt(cfg.sixDayHistoryLookbackWeeks || 4,10) || 4));
+        const rows = [];
+        for (let w=1; w<=lookback; w++) rows.push({...historicalWeekWorkload(name,w), offset:w});
+        const complete = rows.filter(x=>x.complete);
+        const prev = rows[0] && rows[0].complete ? rows[0] : null;
+        let streakSix = 0;
+        for (const row of rows) {
+            if (!row.complete || row.workDays < 6) break;
+            streakSix++;
+        }
+        const sixDayWeeks = complete.filter(x=>x.workDays >= 6).length;
+        const totalWorkDays = complete.reduce((sum,x)=>sum+x.workDays,0);
+        return {
+            lookback, rows, completeWeeks:complete.length,
+            previousWeekWorkDays:prev ? prev.workDays : null,
+            previousWeekSix:!!(prev && prev.workDays >= 6),
+            streakSix, sixDayWeeks, totalWorkDays
+        };
+    }
+
+    function historicalSixDayBurdenScore(name) {
+        const st = historicalSixDayStats(name);
+        if (!st.completeWeeks) return 0;
+        // Gecen hafta 6G en guclu sinyal. Sonra ardisik seri ve son 4 haftadaki toplam 6G.
+        // Puan yalniz tercih icindir; hicbir adayi hard olarak yasaklamaz.
+        let score = 0;
+        if (st.previousWeekSix) score += 70000;
+        score += st.streakSix * 25000;
+        score += st.sixDayWeeks * 12000;
+        // 5 gun/hafta tabaninin uzerindeki tarihsel yuk de esitlik bozucu olsun.
+        score += Math.max(0, st.totalWorkDays - (st.completeWeeks * 5)) * 1500;
+        return score;
     }
 
     function shiftBucket(shift) {
@@ -1076,7 +1163,15 @@
 
         // Haftalık yük dengesi.
         cost += workDays * 450;
-        if (workDays >= 5) cost += 3500; // 6. gün ancak kapasite gerektirirse.
+        if (workDays >= 5) {
+            cost += 3500; // 6. gün ancak kapasite gerektirirse.
+            // FIX2.20: Ayni kisiye arka arkaya 6G bindirme. Gecen hafta 6G calisan veya
+            // son 4 haftada daha cok 6G yuk tasiyan kisi, ayni hard uygunluktaki 5G
+            // alternatiflerden sonra secilir. Alternatif yoksa bu ceza cozumu engellemez.
+            if (ensureSchedulerState().config.rotateSixDayBurden && !isCycleUnit(person.birim)) {
+                cost += historicalSixDayBurdenScore(person.ad);
+            }
+        }
 
         const pair = offPairs && offPairs[person.ad];
         if (pair && pair.includes(day)) cost += 3000;
@@ -1236,12 +1331,44 @@
         return Math.max(0,totalNeed-ownDailyCoverCapacity(work,unit,day,needs,phase,offPairs));
     }
 
+    // FIX14: KJ + PLAYOUT reciprocal uzman havuzu.
+    // Normal source-unit spare kapisi, iki birim arasinda karsilikli uzman takasi gereken
+    // haftalarda matematiksel olarak var olan cozumleri yapay bicimde engelleyebiliyordu.
+    // Bu esneklik yalniz KJ<->PLAYOUT ve yalniz mevcut cross-unit fallback mantigi icinde kullanilir.
+    function isKjPlayoutSharedPoolPair(home, targetUnit) {
+        const a = requiredSpecialty(home);
+        const b = requiredSpecialty(targetUnit);
+        return (a === 'KJ' && b === 'PLAYOUT') || (a === 'PLAYOUT' && b === 'KJ');
+    }
+
+
+    // FIX16: Sirali solver ilk cozdurdugu KJ/PLAYOUT biriminde kalan bos gunleri
+    // AUTO IZIN olarak kapatiyor. Bu AUTO izin hard izin degildir; karsilikli uzman
+    // havuzunun daha sonra cozulmesi gereken diger birimi icin, yalniz max-6 kapasite
+    // fallback fazinda tekrar kullanilabilir. Yillik izin/rapor/manuel/sabit izin ASLA acilmaz.
+    function isSharedPoolBorrowableAutoOff(work, person, day, targetUnit) {
+        if (!person || !targetUnit || !isKjPlayoutSharedPoolPair(person.birim,targetUnit)) return false;
+        const v = work.matrix[person.ad] && work.matrix[person.ad][day];
+        const src = work.source[person.ad] && work.source[person.ad][day];
+        const reason = work.reason[person.ad] && work.reason[person.ad][day];
+        return v === SHIFTS.IZIN && src === AUTO_SOURCE && reason === 'AUTO İZİN';
+    }
+
+    function isCandidateDayOpenForUnit(work, person, day, targetUnit) {
+        const v = work.matrix[person.ad] && work.matrix[person.ad][day];
+        return v === null || isSharedPoolBorrowableAutoOff(work,person,day,targetUnit);
+    }
+
     function homeUnitCanSpare(work, person, day, targetUnit) {
         if (!person || person.birim === targetUnit) return true;
         const home = person.birim;
         if (!home || isPermanentLegacyExternalUnit(home)) return false;
         if (isCycleUnit(home)) return work.matrix[person.ad] && work.matrix[person.ad][day] === null;
         if (isPreservedUnit(home)) return true;
+        // KJ ve PLAYOUT birbirini uzmanlikla karsilikli kapatabilir. Sequential solver'in
+        // "kaynak birimde tek basina spare yok" demesi bu iki birim icin veto olmasin.
+        // Cross atama miktari asagida yine gerçek daily/weekly ihtiyaçla sinirlanir.
+        if (isKjPlayoutSharedPoolPair(home,targetUnit)) return true;
         return homeUnitSpareLimit(work,home,day) >= 1 && homeUnitWeeklySpareLimit(work,home) >= 1;
     }
 
@@ -1249,7 +1376,7 @@
         // Excel ile yönetilen KAMERAMAN personeli otomatik yedek havuzuna alınmaz.
         if (isLegacyExternalUnit(person && person.birim)) return false;
         if (!isQualifiedForUnit(person, unit)) return false;
-        if (work.matrix[person.ad][day] !== null) return false;
+        if (!isCandidateDayOpenForUnit(work,person,day,unit)) return false;
 
         // FIX7: ortak uzman yedek, havuz birimlerinde SON ÇARE fazıdır.
         // 2-gün izin veya 5-gün hedefini korumak uğruna başka birimin personeli tüketilmez.
@@ -1616,6 +1743,281 @@
             .map(p => ({name:p.ad, days:countWorkDays(work,p.ad), consecutiveOff:hasConsecutiveOff(work,p.ad)}));
     }
 
+    function isHistoricalSixDayTransferable(work, person, day) {
+        if (!person || isCycleUnit(person.birim) || isWeekdayFixedPerson(person)) return false;
+        const shift = work.matrix[person.ad] && work.matrix[person.ad][day];
+        if (!isWorkShift(shift)) return false;
+        const src = work.source[person.ad] && work.source[person.ad][day];
+        return src === AUTO_SOURCE || src === AUTO_MIN5_EXTRA_SOURCE;
+    }
+
+    function isHistoricalSixDayReceiverOff(work, person, day) {
+        if (!person || isCycleUnit(person.birim) || isWeekdayFixedPerson(person)) return false;
+        const v = work.matrix[person.ad] && work.matrix[person.ad][day];
+        if (v === null) return true;
+        const src = work.source[person.ad] && work.source[person.ad][day];
+        const reason = String((work.reason[person.ad] && work.reason[person.ad][day]) || '');
+        return v === SHIFTS.IZIN && src === AUTO_SOURCE && reason.indexOf('AUTO İZİN') === 0;
+    }
+
+    function historicalSixDayTransferCandidate(work, managedUnitSet) {
+        const cfg = ensureSchedulerState().config || {};
+        if (!cfg.rotateSixDayBurden) return null;
+        const maxDays = Number(cfg.maxWorkDays || 6);
+        const moves = [];
+
+        const homeUnits = Array.from(new Set((state.personeller || []).map(p=>p && p.birim).filter(Boolean)))
+            .filter(u=>!isCycleUnit(u) && !isPermanentLegacyExternalUnit(u));
+
+        for (const home of homeUnits) {
+            const people = state.personeller.filter(p=>p && p.birim===home && !isWeekdayFixedPerson(p)).slice().sort(compareName);
+            const donors = people.filter(p=>countWorkDays(work,p.ad) >= 6);
+            const receivers = people.filter(p=>countWorkDays(work,p.ad) === 5);
+            if (!donors.length || !receivers.length) continue;
+
+            for (const donor of donors) {
+                const donorBurden = historicalSixDayBurdenScore(donor.ad);
+                if (donorBurden <= 0) continue;
+                for (const receiver of receivers) {
+                    if (receiver.ad === donor.ad) continue;
+                    const receiverBurden = historicalSixDayBurdenScore(receiver.ad);
+                    // Yalniz tarihsel yuku gercekten azaltan devri yap.
+                    if (receiverBurden >= donorBurden) continue;
+                    if (countWorkDays(work,receiver.ad) >= maxDays) continue;
+
+                    for (let day=0; day<7; day++) {
+                        if (!isHistoricalSixDayTransferable(work,donor,day)) continue;
+                        if (!isHistoricalSixDayReceiverOff(work,receiver,day)) continue;
+                        const shift = work.matrix[donor.ad][day];
+                        const targetUnit = effectiveUnit(work,donor,day);
+                        if (!targetUnit || isCycleUnit(targetUnit)) continue; // MCR/INGEST dongusune dokunma.
+                        if (managedUnitSet && managedUnitSet.size && !managedUnitSet.has(targetUnit)) continue;
+                        if (!isQualifiedForUnit(receiver,targetUnit)) continue;
+
+                        const rtk = tempKey(receiver.ad,day);
+                        const forced = work.tempUnits[rtk];
+                        if (forced && forced !== targetUnit) continue;
+                        if (forced && isManualUnitLocked(rtk)) continue;
+
+                        const tmp = cloneWork(work);
+                        tmp.matrix[donor.ad][day] = SHIFTS.IZIN;
+                        tmp.reason[donor.ad][day] = 'AUTO İZİN — 6G ADALET DEVİR';
+                        tmp.source[donor.ad][day] = AUTO_SOURCE;
+                        const dtk = tempKey(donor.ad,day);
+                        if (tmp.tempUnits[dtk] && (tmp.tempSource[dtk] === AUTO_SOURCE || tmp.tempSource[dtk] === AUTO_MIN5_EXTRA_SOURCE)) {
+                            delete tmp.tempUnits[dtk];
+                            delete tmp.tempSource[dtk];
+                        }
+                        tmp.matrix[receiver.ad][day] = shift;
+                        tmp.reason[receiver.ad][day] = `AUTO V62 6G ADALET: ${donor.ad} -> ${receiver.ad}`;
+                        tmp.source[receiver.ad][day] = AUTO_SOURCE;
+                        if (receiver.birim !== targetUnit) {
+                            tmp.tempUnits[rtk] = targetUnit;
+                            tmp.tempSource[rtk] = AUTO_SOURCE;
+                        } else if (tmp.tempUnits[rtk] && !isManualUnitLocked(rtk)) {
+                            delete tmp.tempUnits[rtk];
+                            delete tmp.tempSource[rtk];
+                        }
+                        if (!restAllowed(tmp,receiver.ad,day,shift)) continue;
+
+                        const improvement = donorBurden - receiverBurden;
+                        let score = -improvement;
+                        score += previousWeekRotationPenalty(receiver.ad,day,shift);
+                        score -= Math.min(3000,previousWeekRotationPenalty(donor.ad,day,shift));
+                        score += stableHash(`${hKeyNow()}|6DAY-HISTORY|${home}|${donor.ad}|${receiver.ad}|${day}|${shift}|${targetUnit}`) % 97;
+                        moves.push({donor,receiver,day,shift,targetUnit,score,donorBurden,receiverBurden});
+                    }
+                }
+            }
+        }
+
+        moves.sort((a,b)=>a.score-b.score || compareName(a.donor,b.donor) || compareName(a.receiver,b.receiver) || a.day-b.day || String(a.shift).localeCompare(String(b.shift),'tr'));
+        return moves[0] || null;
+    }
+
+    function rebalanceHistoricalSixDayFairness(work, units) {
+        const managedUnitSet = new Set((units || []).filter(Boolean));
+        const changes = [];
+        for (let guard=0; guard<120; guard++) {
+            const move = historicalSixDayTransferCandidate(work,managedUnitSet);
+            if (!move) break;
+            const {donor,receiver,day,shift,targetUnit} = move;
+            const dtk = tempKey(donor.ad,day);
+            const rtk = tempKey(receiver.ad,day);
+
+            work.matrix[donor.ad][day] = SHIFTS.IZIN;
+            work.reason[donor.ad][day] = 'AUTO İZİN — 6G ADALET DEVİR';
+            work.source[donor.ad][day] = AUTO_SOURCE;
+            if (work.tempUnits[dtk] && (work.tempSource[dtk] === AUTO_SOURCE || work.tempSource[dtk] === AUTO_MIN5_EXTRA_SOURCE)) {
+                delete work.tempUnits[dtk];
+                delete work.tempSource[dtk];
+                work.touchedTempKeys.add(dtk);
+            }
+
+            work.matrix[receiver.ad][day] = shift;
+            work.reason[receiver.ad][day] = `AUTO V62 6G ADALET: ${donor.ad} -> ${receiver.ad}`;
+            work.source[receiver.ad][day] = AUTO_SOURCE;
+            if (receiver.birim !== targetUnit) {
+                work.tempUnits[rtk] = targetUnit;
+                work.tempSource[rtk] = AUTO_SOURCE;
+                work.touchedTempKeys.add(rtk);
+            } else if (work.tempUnits[rtk] && !isManualUnitLocked(rtk)) {
+                delete work.tempUnits[rtk];
+                delete work.tempSource[rtk];
+                work.touchedTempKeys.add(rtk);
+            }
+            work.touchedKeys.add(assignmentKey(donor.ad,day));
+            work.touchedKeys.add(assignmentKey(receiver.ad,day));
+
+            const dHist = historicalSixDayStats(donor.ad);
+            const rHist = historicalSixDayStats(receiver.ad);
+            changes.push({
+                homeUnit:donor.birim, donor:donor.ad, receiver:receiver.ad, day, shift, targetUnit,
+                donorPrev:dHist.previousWeekWorkDays, receiverPrev:rHist.previousWeekWorkDays,
+                donorSixWeeks:dHist.sixDayWeeks, receiverSixWeeks:rHist.sixDayWeeks
+            });
+        }
+        if (changes.length) {
+            work.notes.push(`Haftalar arasi 6-gun adaleti: ${changes.length} vardiya, onceki 4 haftadaki yuk dikkate alinarak devredildi.`);
+        }
+        return changes;
+    }
+
+    // FIX15: KJ + PLAYOUT ileri-kapasite kontrolünü tek bir ortak havuz olarak çöz.
+    // FIX14 aday/spare kapısını açtı; fakat futureCapacityBudgetCheck hâlâ KJ ve PLAYOUT'u
+    // ayrı ayrı değerlendiriyordu. Böylece karşılıklı takasla mümkün olan bir hafta,
+    // örn. KJ için 20 slot / 17 kişi-gün diye erken reddedilebiliyordu.
+    // Bu helper iki birimin kalan slotlarını aynı flow grafiğinde çözer:
+    // - kişi haftalık maxWorkDays bütçesi
+    // - kişi/gün en fazla 1 vardiya
+    // - gerçek unit+day+shift kapasitesi
+    // - uzmanlık, izin, dinlenme, manuel/sabit kayıtlar candidateAllowed üzerinden HARD kalır.
+    function sharedPoolCounterpartUnit(unit) {
+        const spec = requiredSpecialty(unit);
+        if (spec !== 'KJ' && spec !== 'PLAYOUT') return null;
+        const wanted = spec === 'KJ' ? 'PLAYOUT' : 'KJ';
+        const candidates = (state.birimler || []).filter(u =>
+            u && u !== unit && requiredSpecialty(u) === wanted && !isCycleUnit(u) && !isPreservedUnit(u)
+        );
+        if (!candidates.length) return null;
+        // Deterministik seçim: kapasitesi yüksek olan, eşitse ada göre ilk.
+        candidates.sort((a,b) => weeklyCapacity(b)-weeklyCapacity(a) || a.localeCompare(b,'tr'));
+        return candidates[0];
+    }
+
+    function sharedPoolFutureFeasibilityCheck(work, unit, days, phase, offPairs) {
+        const other = sharedPoolCounterpartUnit(unit);
+        if (!other) return null;
+
+        const dayList = Array.from(new Set((days || []).filter(d => d >= 0 && d <= 6))).sort((a,b)=>a-b);
+        if (!dayList.length) return {ok:true, sharedPool:true};
+        const units = [unit, other];
+        const groups = [];
+        let totalDemand = 0;
+
+        for (const d of dayList) {
+            for (const u of units) {
+                const nr = dailyNeedsForUnit(work,u,d);
+                if (!nr.ok) return {ok:false, reason:nr.reason, sharedPool:true};
+                for (const shift of Object.keys(nr.needs || {})) {
+                    const need = parseInt(nr.needs[shift],10) || 0;
+                    if (!need) continue;
+                    groups.push({unit:u, day:d, shift, need});
+                    totalDemand += need;
+                }
+            }
+        }
+        if (!totalDemand) return {ok:true, sharedPool:true};
+
+        // Dinic max-flow. Ağ küçük: ~personel + personel/gün + slot-grupları.
+        const graph = [];
+        function newNode(){ graph.push([]); return graph.length-1; }
+        function addEdge(a,b,cap){
+            const f={to:b, rev:graph[b].length, cap};
+            const r={to:a, rev:graph[a].length, cap:0};
+            graph[a].push(f); graph[b].push(r);
+        }
+        const S = newNode();
+        const T_PLACEHOLDER = -1;
+        const personNode = new Map();
+        const personDayNode = new Map();
+        const groupNode = new Map();
+
+        for (let gi=0; gi<groups.length; gi++) groupNode.set(gi,newNode());
+        const T = newNode();
+        for (let gi=0; gi<groups.length; gi++) addEdge(groupNode.get(gi),T,groups[gi].need);
+
+        for (const p of state.personeller || []) {
+            const budget = Math.max(0, phase.maxWorkDays - countWorkDays(work,p.ad));
+            if (!budget) continue;
+            let pNode = null;
+            for (const d of dayList) {
+                if (!work.matrix[p.ad] || !groups.some(g => g.day === d && isCandidateDayOpenForUnit(work,p,d,g.unit))) continue;
+                const eligibleGroups = [];
+                for (let gi=0; gi<groups.length; gi++) {
+                    const g = groups[gi];
+                    if (g.day !== d) continue;
+                    if (!isQualifiedForUnit(p,g.unit)) continue;
+                    if (!candidateAllowed(work,p,g.unit,d,g.shift,phase,offPairs)) continue;
+                    eligibleGroups.push(gi);
+                }
+                if (!eligibleGroups.length) continue;
+                if (pNode === null) {
+                    pNode = newNode();
+                    personNode.set(p.ad,pNode);
+                    addEdge(S,pNode,budget);
+                }
+                const pdKey = `${p.ad}|${d}`;
+                const pdNode = newNode();
+                personDayNode.set(pdKey,pdNode);
+                addEdge(pNode,pdNode,1);
+                for (const gi of eligibleGroups) addEdge(pdNode,groupNode.get(gi),1);
+            }
+        }
+
+        const level=[];
+        const it=[];
+        function bfs(){
+            level.length=graph.length; level.fill(-1);
+            const q=[S]; level[S]=0;
+            for(let qi=0; qi<q.length; qi++){
+                const v=q[qi];
+                for(const e of graph[v]) if(e.cap>0 && level[e.to]<0){ level[e.to]=level[v]+1; q.push(e.to); }
+            }
+            return level[T]>=0;
+        }
+        function dfs(v,f){
+            if(v===T) return f;
+            for(; it[v]<graph[v].length; it[v]++){
+                const e=graph[v][it[v]];
+                if(e.cap<=0 || level[e.to]!==level[v]+1) continue;
+                const got=dfs(e.to,Math.min(f,e.cap));
+                if(got>0){ e.cap-=got; graph[e.to][e.rev].cap+=got; return got; }
+            }
+            return 0;
+        }
+        let flow=0;
+        while(bfs()){
+            it.length=graph.length; it.fill(0);
+            while(true){
+                const f=dfs(S,1e9);
+                if(!f) break;
+                flow+=f;
+                if(flow>=totalDemand) break;
+            }
+            if(flow>=totalDemand) break;
+        }
+
+        if (flow < totalDemand) {
+            return {
+                ok:false,
+                sharedPool:true,
+                reason:`KJ/PLAYOUT ortak uzman havuzu gelecek kapasiteyi kapatamiyor (${dayList.map(d=>GUNLER[d]).join('+')}: toplam ${totalDemand} slot, ortak havuz en fazla ${flow} slot).`
+            };
+        }
+        return {ok:true, sharedPool:true};
+    }
+
     // Küçük ve bağımsız min-cost max-flow; günlük kapasite atamasını TAM olarak çözer.
     // FIX12: Gelecek kapasite rezervi / ortak work-day budget forward check.
     // Sorun: Gunluk min-cost cozum, hafta sonuna kadar 5 gununu doldurup Pazar icin
@@ -1628,6 +2030,11 @@
     // hafta icinde erken tuketilemez. Hard izin, uzmanlik, dinlenme, off-pair,
     // cross-unit rezerv ve maxWorkDays candidateAllowed icinde aynen korunur.
     function futureCapacityBudgetCheck(work, unit, days, phase, offPairs, attempt) {
+        // FIX15: KJ/PLAYOUT için tek-birim budget kontrolü false-negative üretiyordu.
+        // İki birimi gerçek ortak uzman havuzu olarak birlikte doğrula.
+        const shared = sharedPoolFutureFeasibilityCheck(work,unit,days,phase,offPairs);
+        if (shared) return shared;
+
         const activeDays = [];
         const availability = new Map(); // day -> Set(personName)
 
@@ -1650,7 +2057,7 @@
 
             const set = new Set();
             for (const p of state.personeller) {
-                if (!work.matrix[p.ad] || work.matrix[p.ad][day] !== null) continue;
+                if (!work.matrix[p.ad] || !isCandidateDayOpenForUnit(work,p,day,unit)) continue;
                 if (!isQualifiedForUnit(p,unit)) continue;
                 let can = false;
                 for (const shift of needShifts) {
@@ -1701,11 +2108,14 @@
 
         const futureDays = [];
         for (let d=day+1; d<7; d++) futureDays.push(d);
-        if (!futureDays.length) return first;
+        // FIX15: KJ/PLAYOUT ortak havuzunda bugünkü KJ seçimi aynı gün PLAYOUT'u
+        // kilitleyebilir (ve tersi). Bu yüzden pair forward-check bugünü de içerir.
+        const reserveDays = sharedPoolCounterpartUnit(unit) ? [day, ...futureDays] : futureDays;
+        if (!reserveDays.length) return first;
 
         const probe = cloneWork(work);
         applyDailyAssignments(probe,unit,day,first.assignments);
-        let future = futureCapacityBudgetCheck(probe,unit,futureDays,phase,offPairs,attempt + 5003);
+        let future = futureCapacityBudgetCheck(probe,unit,reserveDays,phase,offPairs,attempt + 5003);
         if (future.ok) return first;
 
         // Ilk min-cost secimi gelecegi kilitliyorsa ayni gunun baska kombinasyonlarini
@@ -1714,7 +2124,7 @@
         for (const variant of variants) {
             const next = cloneWork(work);
             applyDailyAssignments(next,unit,day,variant.assignments);
-            const chk = futureCapacityBudgetCheck(next,unit,futureDays,phase,offPairs,attempt + 9001);
+            const chk = futureCapacityBudgetCheck(next,unit,reserveDays,phase,offPairs,attempt + 9001);
             if (chk.ok) {
                 return {ok:true, assignments:variant.assignments, cost:variant.cost, futureReserveAlternative:true};
             }
@@ -1732,7 +2142,7 @@
         const totalNeed = shifts.reduce((a,s) => a + needs[s], 0);
         if (totalNeed === 0) return { ok: true, assignments: [] };
 
-        const candidates = state.personeller.filter(p => work.matrix[p.ad][day] === null && isQualifiedForUnit(p, unit));
+        const candidates = state.personeller.filter(p => isCandidateDayOpenForUnit(work,p,day,unit) && isQualifiedForUnit(p, unit));
         if (candidates.length < totalNeed) {
             return { ok:false, reason:`${GUNLER[day]}: ${unit} için ${totalNeed} boş slot var, yalnız ${candidates.length} uygun/boş personel var.` };
         }
@@ -1767,9 +2177,21 @@
         // kendi-personel matching acigi varsa cross-unit uzmana tam o acik kadar izin ver.
         // Cross adaylar zaten +10000 maliyetli oldugu icin kendi personel yeterliyse secilmez.
         const dailyCrossNeed = dailyRequiredCrossCount(work,unit,day,needs,phase,offPairs);
-        const crossAllowance = Math.min(totalNeed,Math.max(unitRequiredCrossRemaining(work,unit),dailyCrossNeed));
+        const sharedFallback = phase && phase.name === 'KAPASITE_ZORUNLU_6_GUN' && !!sharedPoolCounterpartUnit(unit);
+        // FIX16: KJ/PLAYOUT ortak havuzunda coarse own-potential hesabı cross ihtiyacini
+        // sifir gosterse bile dinlenme/haftalik butce nedeniyle swap gerekebilir. Cross adaylar
+        // assignmentCost'ta pahali oldugu icin kendi personel varken yine secilmez; sadece
+        // gercek kombinasyon aramasinin önü acilir.
+        const crossAllowance = sharedFallback
+            ? totalNeed
+            : Math.min(totalNeed,Math.max(unitRequiredCrossRemaining(work,unit),dailyCrossNeed));
         if (crossGate !== null) addEdge(S,crossGate,crossAllowance,0);
-        crossHomes.forEach(home => addEdge(crossGate,groupIndex.get(home),Math.min(homeUnitSpareLimit(work,home,day),homeUnitWeeklySpareLimit(work,home)),0));
+        crossHomes.forEach(home => {
+            const limit = isKjPlayoutSharedPoolPair(home,unit)
+                ? crossAllowance
+                : Math.min(homeUnitSpareLimit(work,home,day),homeUnitWeeklySpareLimit(work,home));
+            addEdge(crossGate,groupIndex.get(home),limit,0);
+        });
         candidates.forEach((p,i) => {
             const cNode = candidateBase+i;
             if (p.birim !== unit && groupIndex.has(p.birim)) addEdge(groupIndex.get(p.birim),cNode,1,0);
@@ -2170,7 +2592,7 @@
         });
         if (!slots.length) return [{assignments:[],cost:0}];
 
-        const candidates = state.personeller.filter(p => work.matrix[p.ad][day] === null && isQualifiedForUnit(p,unit));
+        const candidates = state.personeller.filter(p => isCandidateDayOpenForUnit(work,p,day,unit) && isQualifiedForUnit(p,unit));
         if (candidates.length < slots.length) return [];
         const mandatorySet = new Set(Array.isArray(mandatoryNames) ? mandatoryNames : (mandatoryNames ? Array.from(mandatoryNames) : []));
         // FIX10: MIN5 forward-check bir kişiyi bu gün için zorunlu işaretlediyse,
@@ -2205,14 +2627,21 @@
         const chosen = [];
         const borrowLimit = {};
         const borrowUsed = {};
-        const totalCrossLimit = Math.min(
-            slots.length,
-            Math.max(unitRequiredCrossRemaining(work,unit),dailyRequiredCrossCount(work,unit,day,needs,phase,offPairs))
-        );
+        const sharedFallback = phase && phase.name === 'KAPASITE_ZORUNLU_6_GUN' && !!sharedPoolCounterpartUnit(unit);
+        const totalCrossLimit = sharedFallback
+            ? slots.length
+            : Math.min(
+                slots.length,
+                Math.max(unitRequiredCrossRemaining(work,unit),dailyRequiredCrossCount(work,unit,day,needs,phase,offPairs))
+            );
         let totalCrossUsed = 0;
         candidates.forEach(p => {
             if (p.birim !== unit && borrowLimit[p.birim] == null) {
-                borrowLimit[p.birim] = (isCycleUnit(p.birim) || isPreservedUnit(p.birim)) ? 999 : Math.min(homeUnitSpareLimit(work,p.birim,day),homeUnitWeeklySpareLimit(work,p.birim));
+                borrowLimit[p.birim] = (isCycleUnit(p.birim) || isPreservedUnit(p.birim))
+                    ? 999
+                    : (isKjPlayoutSharedPoolPair(p.birim,unit)
+                        ? totalCrossLimit
+                        : Math.min(homeUnitSpareLimit(work,p.birim,day),homeUnitWeeklySpareLimit(work,p.birim)));
                 borrowUsed[p.birim] = 0;
             }
         });
@@ -2269,7 +2698,7 @@
     function minimumForwardCheck(work, unit, remainingDays, phase, offPairs) {
         const cfg = ensureSchedulerState().config;
         const mandatoryByDay = new Map();
-        if (!cfg.strictMinimumFive || isCycleUnit(unit)) return {ok:true, mandatoryByDay};
+        if (!cfg.strictMinimumFive || isCycleUnit(unit) || (phase && phase.allowMin5Shortfall)) return {ok:true, mandatoryByDay};
 
         const own = state.personeller.filter(p => p.birim === unit && !isWeekdayFixedPerson(p));
         for (const p of own) {
@@ -2339,6 +2768,15 @@
                 .filter(x => x.days < x.target);
             if (!short.length) return repaired;
 
+            // FIX2.17: Kapasite/uzmanlik/dinlenme cozulmus, tum MIN5 repair ve alternatif
+            // arama denemeleri tuketilmis SON fallback fazinda yalniz MIN5 nedeniyle
+            // haftayi iptal etme. Kullanici kurali: 5 gun hedef; uygunluk yoksa 4 gun kalabilir.
+            if (phase && phase.allowMin5Shortfall) {
+                const detail = short.map(x=>`${x.p.ad}:${x.days}/${x.target}G`).join(', ');
+                repaired.notes.push(`${unit}: MIN5 son-care soft fallback kabul edildi (${detail}); kapasite ve hard kurallar korundu.`);
+                return repaired;
+            }
+
             lastReason = `${unit}: haftalik alternatif aramada MIN5 saglanamadi (${short.map(x=>`${x.p.ad}:${x.days}/${x.target}G`).join(', ')}).`;
             return null;
         }
@@ -2371,7 +2809,7 @@
                 const variants = enumerateDailyAssignments(work,unit,day,nr.needs,phase,offPairs,attempt + day * 17,160,mandatory);
                 if (!variants.length) {
                     const totalNeed = Object.values(nr.needs).reduce((a,b)=>a+b,0);
-                    const free = state.personeller.filter(p => work.matrix[p.ad][day] === null && isQualifiedForUnit(p,unit)).length;
+                    const free = state.personeller.filter(p => isCandidateDayOpenForUnit(work,p,day,unit) && isQualifiedForUnit(p,unit)).length;
                     lastReason = `${GUNLER[day]}: ${unit} haftalık aramada ${totalNeed} slot için ${free} ham aday kaldı.`;
                     return null;
                 }
@@ -2480,6 +2918,10 @@
                 .map(p => ({p, days:countWorkDays(work,p.ad), target:minimumTargetDays(work,p,unit)}))
                 .filter(x => x.days < x.target);
             if (short.length && feasibility.feasible) {
+                if (phase && phase.allowMin5Shortfall && strictCfg.allowFinalMin5Shortfall) {
+                    const detail = short.map(x=>`${x.p.ad}:${x.days}/${x.target}G`).join(', ');
+                    work.notes.push(`${unit}: MIN5 son-care soft fallback (${detail}); tum hard kurallar ve kapasite korundu.`);
+                } else {
                 const fallbackSpecialty = requiredSpecialty(unit);
                 // FIX8 ana davranis: gunluk kapasite tamamen dolmus olsa bile MIN5 cikmazi
                 // varsa ilk yazilan haftaya saplanma. PLAYOUT/KJ icin sifirdan haftalik
@@ -2504,6 +2946,7 @@
                     }
                 } else {
                     return {ok:false, reasons:[`${unit}: MIN5 hard hedefi sağlanamadı: ${short.map(x=>`${x.p.ad}:${x.days}/${x.target}G`).join(', ')}. Kapasite tabanı korunarak MIN5 ek atama da denenmişti; alternatif çözüm aranacak.`]};
+                }
                 }
             }
         }
@@ -2556,7 +2999,9 @@
         // Son çare-2: sabah-only kombinasyonu matematiksel olarak yetmezse aynı hard kurallarla
         // cross-unit uzmanı diğer vardiyalarda da kullan. Dinlenme kuralı yine candidateAllowed'da hard'dır.
         {
-            const phase = {name:'KAPASITE_ZORUNLU_6_GUN', maxWorkDays:config.maxWorkDays, enforceOffPair:false, crossMorningOnly:false};
+            // FIX2.17: Tum normal 2-izin / 5-gun / 6-gun-sabah denemeleri tukendikten sonra
+            // kapasiteyi ve tum hard kurallari koruyarak MIN5'i soft fallback yap.
+            const phase = {name:'KAPASITE_ZORUNLU_6_GUN', maxWorkDays:config.maxWorkDays, enforceOffPair:false, crossMorningOnly:false, allowMin5Shortfall:true};
             const r = solveUnitOnce(baseWork,unit,phase,0,attempt);
             if (r.ok) return {...r, phase:phase.name};
             failures.push(...(r.reasons || []));
@@ -2621,6 +3066,193 @@
             if (alt.join('\u0000') !== base.join('\u0000')) variants.push(alt);
         }
         return variants;
+    }
+
+    // -----------------------------------------------------------------
+    // FIX2.19 - MULTI-UNIT OGRENME / SHADOW TRAINING
+    // -----------------------------------------------------------------
+    // KURAL SIRASI:
+    // 1) Operasyonel kapasite normal uzman personelle tamamen cozulur.
+    // 2) Hard izin/rapor/manuel/sabit kurallar korunur.
+    // 3) Iki gun ardisik izin korunur.
+    // 4) Kisi TAM 4 calisma gununda kalmissa, bilmedigi alanda 1 gun OGRENME eklenebilir.
+    //
+    // OGRENME hedefleri: PLAYOUT, KJ, 24TV MCR, 360TV MCR.
+    // MCR/PLAYOUT/KJ asli kapasitesini OGRENME personeli KAPATMAZ; hedef vardiyada en az
+    // bir gercek uzman/mentor zaten calisiyor olmalidir. MCR sabit dongusu degismez.
+    // Uzmanlik otomatik eklenmez; yonetici gercek yeterlilik olustugunda manuel isaretler.
+    function trainingSourceFor(work, name, day) {
+        return work.source[name] && work.source[name][day] ? work.source[name][day] : null;
+    }
+
+    function isTrainingAssignment(work, name, day) {
+        return trainingSourceFor(work,name,day) === AUTO_TRAINING_SOURCE;
+    }
+
+    function isTrainingBorrowableAutoOff(work, person, day) {
+        if (!person) return false;
+        const v = work.matrix[person.ad] && work.matrix[person.ad][day];
+        const src = work.source[person.ad] && work.source[person.ad][day];
+        const reason = work.reason[person.ad] && work.reason[person.ad][day];
+        return v === SHIFTS.IZIN && src === AUTO_SOURCE && reason === 'AUTO İZİN';
+    }
+
+    function trainingDayOpen(work, person, day) {
+        if (!person) return false;
+        const current = work.matrix[person.ad] && work.matrix[person.ad][day];
+        if (current === null) return true;
+        return isTrainingBorrowableAutoOff(work,person,day);
+    }
+
+    function operationalMentorCount(work, targetUnit, day, shift) {
+        let n = 0;
+        state.personeller.forEach(q => {
+            if (!q || work.matrix[q.ad][day] !== shift) return;
+            if (effectiveUnit(work,q,day) !== targetUnit) return;
+            if (isTrainingAssignment(work,q.ad,day)) return;
+            if (!isQualifiedForUnit(q,targetUnit)) return;
+            n++;
+        });
+        return n;
+    }
+
+    function hasTwoConsecutiveOff(work, name) {
+        for (let d=0; d<6; d++) {
+            if (isOffValue(work.matrix[name][d]) && isOffValue(work.matrix[name][d+1])) return true;
+        }
+        return false;
+    }
+
+    function keepsTwoDayOffAfterTraining(work, name, trainingDay) {
+        for (let d=0; d<6; d++) {
+            if (d === trainingDay || d+1 === trainingDay) continue;
+            if (isOffValue(work.matrix[name][d]) && isOffValue(work.matrix[name][d+1])) return true;
+        }
+        return false;
+    }
+
+    function trainingKnownSpec(person, spec) {
+        if (!person || !spec) return false;
+        if (requiredSpecialty(person.birim) === spec) return true;
+        return hasSpecialty(person,spec);
+    }
+
+    function trainingTargetCandidates(person, units) {
+        if (!person) return [];
+        const cfg = ensureSchedulerState().config || {};
+        const allowedSpecs = Array.isArray(cfg.crossTrainingTargetSpecs) && cfg.crossTrainingTargetSpecs.length
+            ? cfg.crossTrainingTargetSpecs.slice()
+            : ['PLAYOUT','KJ','24 MCR','360 MCR'];
+        const seen = new Set();
+        const rows = [];
+        (units || []).forEach(unit => {
+            if (!unit || unit === person.birim) return;
+            const spec = requiredSpecialty(unit);
+            if (!spec || !allowedSpecs.includes(spec)) return;
+            if (trainingKnownSpec(person,spec)) return;
+            // Hedef birim normal solver tarafindan yonetiliyor olmali. MCR cycle birimleri
+            // kapasite tablosundan bagimsizdir ama OGRENME icin mentor vardiyasi aranir.
+            if (!isCycleUnit(unit) && isPreservedUnit(unit)) return;
+            const key = `${spec}|${unit}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            rows.push({targetSpec:spec,targetUnit:unit});
+        });
+        // Her hafta ayni alana takilmasin: kisi+hafta bazli deterministik rotasyon.
+        rows.sort((a,b) => String(a.targetUnit).localeCompare(String(b.targetUnit),'tr'));
+        if (rows.length > 1) {
+            const rot = stableHash(`${hKeyNow()}|${person.ad}|LEARNING-TARGET`) % rows.length;
+            return rows.slice(rot).concat(rows.slice(0,rot));
+        }
+        return rows;
+    }
+
+    function addCrossTrainingLearningAssignments(work, units) {
+        const cfg = ensureSchedulerState().config || {};
+        if (!cfg.crossTrainingLearningEnabled) return [];
+        const preferred = Number(cfg.preferredWorkDays || 5);
+        const maxTraining = Math.max(0,Number(cfg.crossTrainingMaxDaysPerPerson || 1));
+        if (!maxTraining) return [];
+
+        const trainingPerTargetDay = {};
+        const added = [];
+        const people = state.personeller.slice().sort((a,b) => compareName(a,b));
+
+        for (const p of people) {
+            if (!p || isWeekdayFixedPerson(p)) continue;
+            if (isPermanentLegacyExternalUnit(p.birim) || isCycleUnit(p.birim)) continue;
+
+            const works = countWorkDays(work,p.ad);
+            // Kullanici kurali: OGRENME yalnız TAM 4G kalan kisi icin 5. gun tamamlamasidir.
+            if (works !== preferred - 1) continue;
+            // Yillik izin/rapor/sabit izin nedeniyle hedef 5'in altina dusuyorsa egitimle kapatma.
+            if (minimumTargetDays(work,p,p.birim) < preferred) continue;
+            // Iki gun ardisik izin daha atama yapilmadan zaten mevcut olmali.
+            if (!hasTwoConsecutiveOff(work,p.ad)) continue;
+
+            const targets = trainingTargetCandidates(p,units);
+            if (!targets.length) continue;
+
+            const candidates = [];
+            for (const target of targets) {
+                for (let day=0; day<7; day++) {
+                    if (!trainingDayOpen(work,p,day)) continue;
+                    if (!keepsTwoDayOffAfterTraining(work,p.ad,day)) continue;
+                    const tk = tempKey(p.ad,day);
+                    const forced = work.tempUnits[tk];
+                    if (forced && forced !== target.targetUnit) continue;
+
+                    for (const shift of state.saatler || []) {
+                        if (!isWorkShift(shift)) continue;
+                        // Havuz birimlerinde gercek kapasite slotu bulunmasi gerekir.
+                        // MCR kapasite tablosundan bagimsiz sabit dongudur; mentor varligi yeterlidir.
+                        if (!isCycleUnit(target.targetUnit) && capacity(target.targetUnit,shift,day) <= 0) continue;
+                        const mentors = operationalMentorCount(work,target.targetUnit,day,shift);
+                        if (mentors <= 0) continue;
+                        if (!restAllowed(work,p.ad,day,shift)) continue;
+
+                        const dayKey = `${target.targetUnit}|${day}`;
+                        const sameDayTraining = trainingPerTargetDay[dayKey] || 0;
+                        const t = shiftTimes(shift);
+                        const start = t.start == null ? 9999 : t.start;
+                        const targetOrder = targets.findIndex(x => x.targetUnit === target.targetUnit);
+                        const rotate = stableHash(`${hKeyNow()}|${p.ad}|${target.targetUnit}|${day}|${shift}`) % 997;
+                        // Once haftalik hedef rotasyonu; sonra ayni gun egitim yigilmamasi; sonra mentor yogunlugu.
+                        const score = targetOrder*1000000 + sameDayTraining*100000 - mentors*100 + start + rotate/10000;
+                        candidates.push({target,day,shift,score,mentors,dayKey});
+                    }
+                }
+            }
+            if (!candidates.length) continue;
+            candidates.sort((a,b)=>a.score-b.score || a.day-b.day || String(a.shift).localeCompare(String(b.shift),'tr'));
+            const pick = candidates[0];
+
+            work.matrix[p.ad][pick.day] = pick.shift;
+            work.reason[p.ad][pick.day] = `ÖĞRENME AMAÇLI — ${pick.target.targetUnit} — ANA: ${p.birim}`;
+            work.source[p.ad][pick.day] = AUTO_TRAINING_SOURCE;
+            work.touchedKeys.add(assignmentKey(p.ad,pick.day));
+
+            const tk = tempKey(p.ad,pick.day);
+            work.tempUnits[tk] = pick.target.targetUnit;
+            work.tempSource[tk] = AUTO_TRAINING_SOURCE;
+            work.touchedTempKeys.add(tk);
+            trainingPerTargetDay[pick.dayKey] = (trainingPerTargetDay[pick.dayKey] || 0) + 1;
+
+            added.push({
+                person:p.ad,
+                sourceUnit:p.birim,
+                targetUnit:pick.target.targetUnit,
+                targetSpec:pick.target.targetSpec,
+                day:pick.day,
+                shift:pick.shift,
+                mentors:pick.mentors
+            });
+        }
+
+        if (added.length) {
+            added.forEach(x => work.notes.push(`${x.person}: ANA ${x.sourceUnit} -> ${x.targetUnit}, ${GUNLER[x.day]} ${x.shift} [ÖĞRENME]. Mentor sayisi: ${x.mentors}. Uzmanlik otomatik kazanilmaz.`));
+        }
+        return added;
     }
 
     function finalizeWork(work, options) {
@@ -2712,7 +3344,11 @@
                     const target = capacity(unit,shift,day);
                     let actual = 0;
                     state.personeller.forEach(p => {
-                        if (work.matrix[p.ad][day] === shift && effectiveUnit(work,p,day) === unit) actual++;
+                        if (work.matrix[p.ad][day] !== shift || effectiveUnit(work,p,day) !== unit) return;
+                        // FIX2.18: OGRENME personeli bilgilendirme/golge vardiyasidir;
+                        // operasyonel minimum kapasiteyi kapatan personel olarak sayilmaz.
+                        if (isTrainingAssignment(work,p.ad,day)) return;
+                        actual++;
                     });
                     if (actual < target) errors.push(`${unit} / ${GUNLER[day]} / ${shift}: minimum kapasite ${target}, atama ${actual}.`);
                 }
@@ -2733,7 +3369,9 @@
                 if (isWorkShift(v)) {
                     works++;
                     const u = effectiveUnit(work,p,d);
-                    if (unitSet.has(u) && !isQualifiedForUnit(p,u)) errors.push(`${p.ad} / ${GUNLER[d]}: ${u} uzmanlığı yok.`);
+                    if (unitSet.has(u) && !isQualifiedForUnit(p,u) && !isTrainingAssignment(work,p.ad,d)) {
+                        errors.push(`${p.ad} / ${GUNLER[d]}: ${u} uzmanlığı yok.`);
+                    }
                     const canonicalCycle = isCycleUnit(u) && p.birim === u && v === cycleExpectedShift(p,u,d);
                     if (!canonicalCycle && !restAllowed(work,p.ad,d,v)) errors.push(`${p.ad} / ${GUNLER[d]}: ${v} dinlenme kuralını ihlal ediyor.`);
                 }
@@ -2767,8 +3405,11 @@
                 .filter(x => x.days < x.target);
             if (short.length) {
                 const detail = short.map(x => `${x.p.ad}:${x.days}/${x.target}G`).join(', ');
-                if (feasibility.feasible) errors.push(`${unit}: minimum çalışma günü sağlanamadı (${detail}). Havuz biriminde kapasite tabanının üstüne MIN5 ek personel izni olmasına rağmen hedef çözülemedi.`);
-                else warnings.push(`${unit}: minimum 5 gün exact döngü kapasitesi nedeniyle mümkün değil (${feasibility.slots} slot / ${feasibility.required} gerekli). ${detail}`);
+                // FIX2.17: MIN5 artik nihai validasyonda tum haftayi iptal eden hard hata degildir.
+                // Solver once tum repair/alternatifleri dener; son fallback'te kapasite + uzmanlik +
+                // izin + dinlenme + max6 saglaniyorsa 4/5G warning olarak kabul edilir.
+                if (feasibility.feasible) warnings.push(`${unit}: MIN5 soft fallback kullanildi (${detail}). Kapasite ve tum hard kurallar korundu.`);
+                else warnings.push(`${unit}: minimum 5 gün kapasite/izin yapisi nedeniyle mümkün değil (${feasibility.slots} slot / ${feasibility.required} gerekli). ${detail}`);
             }
         }
 
@@ -2814,7 +3455,7 @@
                 state.personeller.forEach(p=>{ if (work.matrix[p.ad][day]===shift && effectiveUnit(work,p,day)===unit) actual++; });
                 extraTotal += Math.max(0,actual-capacity(unit,shift,day));
             }
-            if (extraTotal) warnings.push(`${unit}: MIN5 için kapasite tabanının üstünde ${extraTotal} kontrollü ek personel-vardiya kullanıldı.`);
+            if (extraTotal) warnings.push(`${unit}: kapasite tabanının üstünde ${extraTotal} kontrollü ek personel-vardiya (MIN5/ÖĞRENME dahil) kullanıldı.`);
         }
 
         return {ok:errors.length===0, errors, warnings, oneDayOff, noConsecutiveOff};
@@ -2976,8 +3617,18 @@
                     continue;
                 }
 
+                // FIX2.20: Once zorunlu 6. gun yukunu gecmis haftalara bakarak rotasyona sok.
+                // Kapasite ayni vardiya icinde birebir devredilir; MCR/INGEST dongusune dokunulmaz.
+                const sixDayFairnessTransfers = rebalanceHistoricalSixDayFairness(work,units);
+
+                // FIX2.19: Normal kapasite cozulduktan ve 2 gun izin korunduktan sonra
+                // TAM 4G kalan uygun personele PLAYOUT/KJ/24TV MCR/360TV MCR hedeflerinden
+                // bilmedigi birinde 1 gun OGRENME ekle. Kapasiteyi kapatmaz.
+                const trainingAssignments = addCrossTrainingLearningAssignments(work,units);
                 finalizeWork(work,{full,units});
                 const validation = validateFinal(work,units);
+                validation.trainingAssignments = trainingAssignments;
+                validation.sixDayFairnessTransfers = sixDayFairnessTransfers;
                 if (!validation.ok) {
                     bestFailures = validation.errors;
                     continue;
@@ -3023,7 +3674,9 @@
                 'Uzmanlık kontrolü: PASS',
                 'Dinlenme kontrolü: PASS',
                 'Haftalık iş yükü adaleti: PASS / mümkün olan en dengeli dağılım',
-                'Minimum çalışma hedefi: normal rotasyon personeli için 5 gün HARD; yıllık izin/rapor nedeniyle 5 uygun gün yoksa mevcut uygun gün kadar',
+                `6 gün yük rotasyonu: AKTİF — geçen hafta + son ${ensureSchedulerState().config.sixDayHistoryLookbackWeeks || 4} hafta dikkate alınır; uygun alternatif varsa aynı kişi peş peşe 6G seçilmez`,
+                'Minimum çalışma hedefi: önce 5 gün zorlanır; hard kapasite/izin/dinlenme nedeniyle mümkün değilse FIX2.17 soft fallback uygulanır',
+                `Öğrenme/cross-training: ${(result.validation.trainingAssignments || []).length} atama — yalnız 4G kalan uygun personel, PLAYOUT/KJ/24TV MCR/360TV MCR hedeflerinde haftada en fazla 1 gün; kapasiteyi kapatmaz`,
                 'Hafta içi sabitler: Cmt-Paz HARD İZİN; yalnız seçili kapasite yedekleri son çare olarak kullanılabilir',
                 'Yıllık izin: yerel veya harici yönetici onayı HARD LOCK; kapasite için geri alınmaz',
                 'Haftalar arası rotasyon: HAVUZ birimlerinde AKTİF; MCR sabit döngü, INGEST özel haftalık rol rotasyonu kullanır',
@@ -3043,6 +3696,16 @@
             if (skippedAnchors.length) {
                 lines.push('', 'Haftalık sabah rotasyonu uyarısı:');
                 skippedAnchors.forEach(([,a]) => lines.push(`• ${a.reason}`));
+            }
+            const sixDayFairnessTransfers = result.validation.sixDayFairnessTransfers || [];
+            if (sixDayFairnessTransfers.length) {
+                lines.push('', '6 gün yük rotasyonu (geçmiş haftalara göre):');
+                sixDayFairnessTransfers.forEach(x => lines.push(`• ${x.homeUnit}: ${x.donor} → ${x.receiver} | ${GUNLER[x.day]} ${x.shift}${x.targetUnit !== x.homeUnit ? ` | görev: ${x.targetUnit}` : ''} | geçen hafta ${x.donorPrev == null ? '?' : x.donorPrev}G → ${x.receiverPrev == null ? '?' : x.receiverPrev}G`));
+            }
+            const trainingAssignments = result.validation.trainingAssignments || [];
+            if (trainingAssignments.length) {
+                lines.push('', 'Öğrenme atamaları:');
+                trainingAssignments.forEach(x => lines.push(`• ${x.person}: ANA ${x.sourceUnit} → ${x.targetUnit} | ${GUNLER[x.day]} ${x.shift} | ÖĞRENME`));
             }
             if (replacements.length) {
                 lines.push('', 'MCR/INGEST sürekli yedekler:');
@@ -3325,6 +3988,21 @@
         return out;
     }
 
+    // RETURN-DATE-FIX1: bitis_tarihi IS BASI tarihidir; izin araligi [start, end) olarak ele alinir.
+    function dateRangeEndExclusive(startStr,endStr) {
+        const out = [];
+        const start = new Date(`${startStr}T12:00:00`);
+        const end = new Date(`${endStr}T12:00:00`);
+        if (isNaN(start) || isNaN(end) || start >= end) return out;
+        const cur = new Date(start);
+        let guard = 0;
+        while (cur < end && guard++ < 370) {
+            out.push(new Date(cur));
+            cur.setDate(cur.getDate()+1);
+        }
+        return out;
+    }
+
     function actualPersonByExternalName(name) {
         const wanted = annualIdentityName(name);
         return state.personeller.find(p => annualIdentityName(p.ad) === wanted) || null;
@@ -3349,8 +4027,8 @@
             const p = actualPersonByExternalName(rec.personel_adi);
             if (!p) return;
             const start = formatTarih(rec.baslangic_tarihi);
-            const end = formatTarih(rec.bitis_tarihi);
-            dateRangeInclusive(start,end).forEach(dt => {
+            const end = annualReturnDate(rec);
+            dateRangeEndExclusive(start,end).forEach(dt => {
                 const hKey = getDateKey(getMonday(dt));
                 const day = (dt.getDay()+6)%7;
                 const key = assignmentKey(p.ad,day,hKey);
@@ -3448,12 +4126,12 @@
         const end = (document.getElementById('yillikBitis') || {}).value || '';
         const p = personByName(name);
         if (!p || !start || !end) {
-            showSchedulerReport('❌ YILLIK İZİN',[`Personel, başlangıç ve bitiş tarihini eksiksiz seçin.`],'error');
+            showSchedulerReport('❌ YILLIK İZİN',[`Personel, başlangıç ve iş başı tarihini eksiksiz seçin.`],'error');
             return false;
         }
-        const dates = dateRangeInclusive(start,end);
+        const dates = dateRangeEndExclusive(start,end);
         if (!dates.length) {
-            showSchedulerReport('❌ YILLIK İZİN',[`Geçersiz tarih aralığı: ${start} - ${end}`],'error');
+            showSchedulerReport('❌ YILLIK İZİN',[`Geçersiz tarih aralığı: ${start} - ${end}. İş başı tarihi başlangıçtan sonra olmalıdır.`],'error');
             return false;
         }
         const scheduler = ensureSchedulerState();
@@ -3475,7 +4153,7 @@
         if (ok) {
             showSchedulerReport('✅ YILLIK İZİN HARD LOCK',[
                 `${p.ad}: ${start} - ${end}`,
-                'İzin günleri hard lock olarak işlendi.',
+                'İzin günleri hard lock olarak işlendi; bitiş tarihi iş başı günü olarak serbest bırakıldı.',
                 affected.size ? (affectedManaged.length ? `Yalnız etkilenen birim yeniden dengelendi: ${affectedManaged.join(', ')}` : `Excel/legacy birim olduğu için liste yeniden üretilmedi: ${Array.from(affected).join(', ')}`) : 'İzin farklı bir haftaya işlendi; o haftaya geçildiğinde otomatik uygulanacaktır.'
             ],'success');
         } else {

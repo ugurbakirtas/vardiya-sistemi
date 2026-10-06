@@ -299,6 +299,19 @@ function normalizeExternalLeaveRecord(raw) {
 window.normalizeExternalLeaveRecord = normalizeExternalLeaveRecord;
 window.izinDurumOnayli = izinDurumOnayli;
 
+function externalLeaveReturnDate(rec) {
+    const n = normalizeExternalLeaveRecord(rec || {});
+    const end = formatTarih(n.bitis_tarihi);
+    if (!end) return '';
+    const sem = String(n.tarih_semantigi || '').trim().toLowerCase();
+    if (sem === 'bitis_is_basi') return end;
+    const d = new Date(`${end}T12:00:00`);
+    if (isNaN(d)) return end;
+    d.setDate(d.getDate() + 1);
+    return getDateKey(d);
+}
+window.externalLeaveReturnDate = externalLeaveReturnDate;
+
 function otomatikIzinleriTabloyaIsle() {
     let degisiklikVar = false;
     if (!state.personeller || !state.manuelAtamalar) return;
@@ -308,7 +321,7 @@ function otomatikIzinleriTabloyaIsle() {
         if (!izin.__approved) return;
         
         let basTarih = izin.baslangic_tarihi;
-        let bitTarih = izin.bitis_tarihi;
+        let bitTarih = externalLeaveReturnDate(izin);
         
         let current = new Date(basTarih);
         let end = new Date(bitTarih);
@@ -316,7 +329,7 @@ function otomatikIzinleriTabloyaIsle() {
         if (isNaN(current) || isNaN(end)) return;
 
         let loops = 0;
-        while(current <= end && loops < 100) {
+        while(current < end && loops < 100) {
             const hKey = getDateKey(getMonday(current));
             let jsDay = current.getDay();
             let gunIdx = (jsDay + 6) % 7;
@@ -378,13 +391,13 @@ function renderLeaveCalendar() {
         if(!izin.__approved) return;
         
         let basTarih = izin.baslangic_tarihi;
-        let bitTarih = izin.bitis_tarihi;
+        let bitTarih = externalLeaveReturnDate(izin);
         
         const div = document.createElement('li');
         div.style.padding = "8px"; div.style.background = "rgba(128,128,128,0.1)"; div.style.marginBottom = "5px"; div.style.borderRadius = "4px";
-        div.innerHTML = `👤 ${izin.personel_adi} <span style="float:right; font-size:10px; background:#e2e8f0; color:#000; padding:2px 4px; border-radius:3px;">${izin.baslangic_tarihi} / ${izin.bitis_tarihi}</span>`;
+        div.innerHTML = `👤 ${izin.personel_adi} <span style="float:right; font-size:10px; background:#e2e8f0; color:#000; padding:2px 4px; border-radius:3px;">İzin: ${izin.baslangic_tarihi} · İş Başı: ${bitTarih}</span>`;
         
-        if(today >= basTarih && today <= bitTarih) {
+        if(today >= basTarih && today < bitTarih) {
             activeList.appendChild(div); activeCount++;
         } else if (basTarih > today) {
             upcomingList.appendChild(div); upcomingCount++;
@@ -632,6 +645,14 @@ function mobilGorevYeriEtiketi(isim, gunIndex, vardiya) {
     const assignmentKey = `${hKey}_${p.ad}_${gunIndex}`;
     const gecici = state.geciciGorevler && state.geciciGorevler[tempKey];
     const scheduler = state.schedulerV2 || {};
+
+    // FIX2.19: Öğrenme vardiyası normal yetkili cross-unit atamadan
+    // görsel olarak ayrilir. Personel hedef birimde GÖZLEMCİ/ÖĞRENME amacli bulunur;
+    // bu etiket uzmanlik yetkisi kazanildigi anlamina gelmez.
+    const assignmentSource = scheduler.assignmentSource && scheduler.assignmentSource[assignmentKey];
+    if(assignmentSource === 'AUTO_V62_TRAINING' && gecici) {
+        return `${gorevYeriBirimEtiketi(gecici)} • ÖĞRENME • ANA: ${gorevYeriBirimEtiketi(p.birim)}`;
+    }
 
     // Gerçek birim değişikliği her görünüm etiketinden üstündür.
     // Excel'in aynı ana birimi tekrar yazması (KJ->KJ / PLAYOUT->PLAYOUT) bir değişiklik değildir.
