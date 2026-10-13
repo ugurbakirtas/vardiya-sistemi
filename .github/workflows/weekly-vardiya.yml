@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'Firebase productiona yazilsin mi?'
+        description: 'FIX2.33 STAGING: sadece DRY-RUN (Firebase yazma KAPALI)'
         required: true
         default: 'false'
         type: choice
-        options: ['false', 'true']
+        options: ['false']
       weeks_ahead:
         description: 'Kac hafta sonrasini olustursun?'
         required: true
@@ -63,7 +63,7 @@ jobs:
         env:
           VARDIYA_ADMIN_EMAIL: ${{ secrets.VARDIYA_ADMIN_EMAIL }}
           VARDIYA_ADMIN_PASSWORD: ${{ secrets.VARDIYA_ADMIN_PASSWORD }}
-          AUTO_PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.publish || vars.VARDIYA_AUTO_PUBLISH }}
+          AUTO_PUBLISH: 'false'  # STAGING fail-closed; never publish
           WEEKS_AHEAD: ${{ github.event_name == 'workflow_dispatch' && inputs.weeks_ahead || vars.VARDIYA_AUTO_WEEKS_AHEAD }}
           AUTO_TELEGRAM_NOTIFY: ${{ vars.VARDIYA_AUTO_TELEGRAM_NOTIFY }}
           VARDIYA_TELEGRAM_BOT_TOKEN: ${{ secrets.VARDIYA_TELEGRAM_BOT_TOKEN }}
