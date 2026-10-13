@@ -9,7 +9,7 @@
 (function PersonnelSecureMobile(global) {
   'use strict';
 
-  const VERSION = 'V62-PERSONEL-SECURE-MOBILE-FIX1-20261001';
+  const VERSION = 'V62-PERSONEL-SECURE-MOBILE-FIX2.8-FRESH-DEVICE-PERSONNEL-LIST-20261002';
   const AUTH_BASE = 'https://turkmedya-personel-auth.ugurbakirtas.workers.dev';
   const STORAGE_KEY = 'TURKMEDYA_PERSONNEL_AUTH_V1';
   const OFF_VALUES = new Set(['', 'BOŞ', 'İZİNLİ', 'YILLIK İZİN', 'RAPORLU']);
@@ -20,6 +20,7 @@
   let requestTimer = null;
   let requestsCache = [];
   let initialized = false;
+  let personnelDirectoryLoadPromise = null;
 
   const core = {
     enterSystem: global.enterSystem,
@@ -53,6 +54,38 @@
   function getPerson(name) {
     const wanted = norm(name);
     return getPeople().find(p => p && norm(p.ad) === wanted) || null;
+  }
+
+  function normalizePersonnelDirectory(raw) {
+    const arr = Array.isArray(raw) ? raw : Object.values(raw || {});
+    return arr.filter(p => p && typeof p === 'object' && String(p.ad || '').trim());
+  }
+
+  async function ensurePersonnelDirectoryLoaded(force = false) {
+    const current = getPeople().filter(p => p && p.ad);
+    if (!force && current.length) return current;
+    if (personnelDirectoryLoadPromise) return personnelDirectoryLoadPromise;
+
+    personnelDirectoryLoadPromise = (async () => {
+      try {
+        if (!global.firebase?.database) throw new Error('Firebase RTDB hazır değil.');
+        const snap = await global.firebase.database().ref('vardiya_data/personeller').once('value');
+        const people = normalizePersonnelDirectory(snap.val());
+        if (!people.length) throw new Error('Canlı personel listesi boş döndü.');
+
+        state.personeller = people;
+        try { localStorage.setItem('personeller', JSON.stringify(people)); } catch (_) {}
+        return people;
+      } catch (e) {
+        // Daha önce çalışan bir cache varsa ağ kesintisinde onu kullan; cache yoksa gerçek hatayı göster.
+        if (current.length) return current;
+        throw e;
+      } finally {
+        personnelDirectoryLoadPromise = null;
+      }
+    })();
+
+    return personnelDirectoryLoadPromise;
   }
 
   function getCurrentMonday() {
@@ -117,13 +150,35 @@
     return { icon:'🏖️', cls:'izin', label:s || 'İZİNLİ' };
   }
 
+  function mainAdminUser() {
+    try { return global.firebase?.auth?.().currentUser || null; } catch (_) { return null; }
+  }
+
+  function sessionStore() {
+    // FIX2.6: Personel oturumu cihaz/tarayıcıda, kullanıcı açıkça ÇIKIŞ diyene kadar kalıcıdır.
+    return localStorage;
+  }
+
   function saveSession() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(session)); } catch (_) {}
+    const raw = JSON.stringify(session);
+    try {
+      localStorage.setItem(STORAGE_KEY, raw);
+      // Eski FIX2.4 geçici oturum kalıntısını temizle.
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch (_) {}
   }
 
   function loadSession() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      // Önce kalıcı kayıt. Eski sessionStorage kaydı varsa bir defaya mahsus kalıcı alana taşı.
+      let raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        raw = sessionStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          localStorage.setItem(STORAGE_KEY, raw);
+          sessionStorage.removeItem(STORAGE_KEY);
+        }
+      }
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (!parsed || !parsed.token) return null;
@@ -134,9 +189,35 @@
   function clearSession(reload = false) {
     session = { token:'', ad:'', birim:'', expiresAt:0 };
     try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch (_) {}
     stopRequestPolling();
     document.body.classList.remove('secure-personnel-session');
     if (reload) location.reload();
+  }
+
+  async function signOutSecondaryAuth() {
+    try {
+      const app = global.firebase?.app?.('turkmedyaPersonnelEmailAuth');
+      if (app?.auth) await app.auth().signOut();
+    } catch (_) {}
+  }
+
+  async function profileSwitch() {
+    clearSession(false);
+    await signOutSecondaryAuth();
+    setTimeout(showLoginModal, 50);
+  }
+
+  async function personnelLogout() {
+    clearSession(false);
+    await signOutSecondaryAuth();
+    location.reload();
+  }
+
+  async function returnToAdmin() {
+    // Yönetici moduna dönmek personel ÇIKIŞ işlemi değildir; kalıcı personel oturumu korunur.
+    await signOutSecondaryAuth();
+    location.reload();
   }
 
   async function api(path, options = {}, needsAuth = false) {
@@ -167,14 +248,14 @@
       #personnelSecureLoginModal select,#personnelSecureLoginModal input{width:100%;box-sizing:border-box;padding:12px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--text);font:inherit;margin-bottom:10px}
       #personnelSecureLoginModal input{font-size:18px;letter-spacing:3px;text-align:center;font-weight:800}.psm-actions{display:flex;gap:8px}.psm-actions button{flex:1;padding:11px;border:0;border-radius:9px;font-weight:800;cursor:pointer}.psm-primary{background:var(--blue);color:white}.psm-secondary{background:var(--bg);color:var(--text);border:1px solid var(--border)!important}
       .psm-error{min-height:18px;margin-top:9px;font-size:10px;color:var(--danger);font-weight:700;line-height:1.35}
-      .secure-personnel-session #mobilPersonelPanel{border:2px solid rgba(37,99,235,.35)!important;box-shadow:0 8px 24px rgba(15,23,42,.08)}
-      .secure-personnel-session #mobilPersonelPanel>div:first-of-type{display:none!important}.secure-personnel-session #v63MobileMyRequestsPanel,.secure-personnel-session #v63DesktopMyRequestsPanel{display:none!important}
-      .psm-identity{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 11px;background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-bottom:10px}.psm-identity strong{font-size:12px;color:var(--primary)}.psm-identity small{display:block;font-size:9px;opacity:.7;margin-top:2px}.psm-identity-actions{display:flex;gap:5px}.psm-mini{border:1px solid var(--border);background:var(--card-bg);color:var(--text);border-radius:7px;padding:7px 8px;font-size:10px;font-weight:800;cursor:pointer}
+      .secure-personnel-session #mobilPersonelPanel{display:block!important;border:2px solid rgba(37,99,235,.35)!important;box-shadow:0 8px 24px rgba(15,23,42,.08)}
+      .secure-personnel-session #psmLegacySelectorRow{display:none!important}.secure-personnel-session #v63MobileMyRequestsPanel,.secure-personnel-session #v63DesktopMyRequestsPanel{display:none!important}
+      .psm-identity{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 11px;background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-bottom:10px}.psm-identity strong{font-size:12px;color:var(--primary)}.psm-identity small{display:block;font-size:9px;opacity:.7;margin-top:2px}.psm-identity-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.psm-mini{border:1px solid var(--border);background:var(--card-bg);color:var(--text);border-radius:7px;padding:7px 8px;font-size:10px;font-weight:800;cursor:pointer}.psm-logout{background:#dc2626!important;color:#fff!important;border-color:#dc2626!important}
       .psm-week{display:grid;grid-template-columns:repeat(7,minmax(76px,1fr));gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px}.psm-day{min-width:76px;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:9px;padding:8px 6px;cursor:pointer;text-align:center}.psm-day.active{border:2px solid var(--blue);background:rgba(37,99,235,.08)}.psm-day-name{font-weight:900;font-size:10px}.psm-day-date{font-size:8px;opacity:.65;margin:2px 0 5px}.psm-day-shift{font-size:9px;font-weight:800;line-height:1.2}.psm-day-unit{font-size:8px;opacity:.72;margin-top:3px;line-height:1.2}
       .psm-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.psm-card{border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:10px;color:var(--text)}.psm-card.full{grid-column:1/-1}.psm-card h4{margin:0 0 7px;color:var(--primary);font-size:11px}.psm-focus{display:flex;justify-content:space-between;align-items:center;gap:8px}.psm-focus-main{font-size:14px;font-weight:900}.psm-focus-unit{font-size:9px;opacity:.72;margin-top:3px}.psm-pill{border-radius:999px;padding:5px 8px;font-size:9px;font-weight:900;white-space:nowrap}.psm-names{font-size:10px;line-height:1.6}.psm-empty{font-size:9px;opacity:.65;line-height:1.45}.psm-roster-row{display:grid;grid-template-columns:92px 1fr;gap:7px;padding:5px 0;border-top:1px dashed var(--border);font-size:9px;line-height:1.35}.psm-roster-row:first-child{border-top:0}.psm-roster-shift{font-weight:900}.psm-roster-names{font-weight:600}
       .psm-myreq{margin-top:10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);padding:10px}.psm-myreq-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}.psm-myreq-head h4{margin:0;color:var(--primary);font-size:11px}.psm-req-row{border:1px solid var(--border);border-radius:8px;background:var(--card-bg);padding:8px;margin-top:6px;font-size:9px}.psm-req-top{display:flex;justify-content:space-between;gap:8px}.psm-status{font-weight:900}.psm-status.bekliyor{color:#d97706}.psm-status.isleniyor{color:#2563eb}.psm-status.onaylandi{color:#16a34a}.psm-status.reddedildi,.psm-status.hata{color:#dc2626}
       .psm-security-note{font-size:9px;line-height:1.45;padding:8px;border-radius:8px;background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.18);margin-bottom:10px;color:var(--text)}
-      @media(max-width:760px){.psm-detail-grid{grid-template-columns:1fr}.psm-card.full{grid-column:auto}.psm-week{grid-template-columns:repeat(7,82px)}.psm-identity{align-items:flex-start}.psm-roster-row{grid-template-columns:84px 1fr}}
+      @media(max-width:760px){.psm-detail-grid{grid-template-columns:1fr}.psm-card.full{grid-column:auto}.psm-week{grid-template-columns:repeat(7,82px)}.psm-identity{align-items:flex-start;flex-direction:column}.psm-identity-actions{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:6px}.psm-mini{width:100%;min-height:36px}.psm-logout{grid-column:1/-1}.psm-roster-row{grid-template-columns:84px 1fr}}
     `;
     document.head.appendChild(style);
   }
@@ -207,16 +288,34 @@
     if (current && people.some(p => p.ad === current)) sel.value = current;
   }
 
-  function showLoginModal() {
+  async function showLoginModal() {
     ensureLoginModal();
-    fillLoginNames(session.ad || '');
     const modal = document.getElementById('personnelSecureLoginModal');
     const err = document.getElementById('psmLoginError');
     const pin = document.getElementById('psmLoginPin');
+    const sel = document.getElementById('psmLoginName');
+
     if (err) err.textContent = '';
     if (pin) pin.value = '';
+    if (sel && !getPeople().some(p => p && p.ad)) {
+      sel.innerHTML = '<option value="">Personel listesi yükleniyor...</option>';
+      sel.disabled = true;
+    }
     modal.style.display = 'flex';
-    setTimeout(() => pin?.focus(), 50);
+
+    try {
+      await ensurePersonnelDirectoryLoaded(true);
+      fillLoginNames(session.ad || '');
+      if (sel) sel.disabled = false;
+      setTimeout(() => pin?.focus(), 50);
+    } catch (e) {
+      console.error('[PersonnelSecureMobile] Personel listesi yükleme hatası:', e);
+      if (sel) {
+        sel.innerHTML = '<option value="">Personel listesi yüklenemedi</option>';
+        sel.disabled = true;
+      }
+      if (err) err.textContent = "Personel listesi canlı sistemden alınamadı. İnternet bağlantısını kontrol edip Personel Girişi'ni tekrar açın.";
+    }
   }
 
   async function loginFromModal() {
@@ -292,6 +391,8 @@
       select.innerHTML = `<option value="${esc(session.ad)}">${esc(session.ad)}</option>`;
       select.value = session.ad;
       select.disabled = true;
+      const legacyRow = select.parentElement;
+      if (legacyRow && legacyRow.id !== 'psmIdentity') legacyRow.id = 'psmLegacySelectorRow';
     }
 
     let identity = document.getElementById('psmIdentity');
@@ -301,7 +402,10 @@
       identity.className = 'psm-identity';
       if (title?.nextSibling) panel.insertBefore(identity, title.nextSibling); else panel.prepend(identity);
     }
-    identity.innerHTML = `<div><strong>🔒 ${esc(session.ad)}</strong><small>${esc(session.birim || getPerson(session.ad)?.birim || '')} · doğrulanmış profil</small></div><div class="psm-identity-actions"><button class="psm-mini" onclick="PersonnelSecureMobile.refreshAll()">🔄</button><button class="psm-mini" onclick="PersonnelSecureMobile.logout()">PROFİL DEĞİŞTİR</button></div>`;
+    const adminBtn = mainAdminUser()
+      ? `<button class="psm-mini" onclick="PersonnelSecureMobile.returnToAdmin()">🛠️ YÖNETİCİ MODUNA DÖN</button>`
+      : '';
+    identity.innerHTML = `<div><strong>🔒 ${esc(session.ad)}</strong><small>${esc(session.birim || getPerson(session.ad)?.birim || '')} · doğrulanmış profil</small></div><div class="psm-identity-actions"><button class="psm-mini" onclick="PersonnelSecureMobile.refreshAll()">🔄</button>${adminBtn}<button class="psm-mini" onclick="PersonnelSecureMobile.profileSwitch()">👥 PROFİL DEĞİŞTİR</button><button class="psm-mini psm-logout" onclick="PersonnelSecureMobile.logout()">🚪 ÇIKIŞ YAP</button></div>`;
 
     let note = document.getElementById('psmSecurityNote');
     if (!note) {
@@ -513,9 +617,14 @@
   }
 
   function installWrappers() {
-    global.enterSystem = function(role) {
+    global.enterSystem = async function(role) {
       if (role !== 'personel') return typeof core.enterSystem === 'function' ? core.enterSystem.apply(this, arguments) : undefined;
       if (session.token && session.ad) return enterAuthenticatedPersonnel();
+      const stored = loadSession();
+      if (stored?.token) {
+        session = stored;
+        if (await validateStoredSession()) return enterAuthenticatedPersonnel();
+      }
       showLoginModal();
     };
 
@@ -569,6 +678,11 @@
     injectStyles();
     ensureLoginModal();
     installWrappers();
+    // FIX2.8: Cache olmayan yeni/gizli tarayıcıda login listesi boş kalmasın.
+    // Personel dizinini public vardiya_data/personeller kaynağından önden yükle.
+    ensurePersonnelDirectoryLoaded(false)
+      .then(() => fillLoginNames())
+      .catch(e => console.warn('[PersonnelSecureMobile] Başlangıç personel dizini yüklenemedi:', e));
     setTimeout(fillLoginNames, 700);
     setTimeout(fillLoginNames, 1800);
     restoreOnLoad();
@@ -582,8 +696,10 @@
     refreshAll,
     render: renderSecureProgram,
     login: showLoginModal,
-    logout: () => clearSession(true),
-    getSession: () => ({ ad:session.ad, birim:session.birim, authenticated:!!session.token })
+    profileSwitch,
+    logout: personnelLogout,
+    returnToAdmin,
+    getSession: () => ({ ad:session.ad, birim:session.birim, authenticated:!!session.token, persistent:true })
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once:true });

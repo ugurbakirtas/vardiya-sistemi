@@ -5,7 +5,7 @@
 (function(global){
 'use strict';
 
-const VERSION = 'V63-SNAPSHOT-QUOTA-FIX6-20260929';
+const VERSION = 'V63-EXCEL-AUTHORITY-FIX24-20261009';
 const EXPECTED_SCHEDULER = 'V62';
 const FEATURES = Object.assign({
   requestCenterV2: true,
@@ -222,30 +222,67 @@ function formatCapacityRepair(r){
   return [...a,...b].join('\n');
 }
 
+function recoverPersistedExcelProtection(week=hKeyNow()){
+  if(!state.schedulerV2 || typeof state.schedulerV2!=='object') state.schedulerV2={};
+  const s=state.schedulerV2;
+  if(!s.externalUnitWeeks || typeof s.externalUnitWeeks!=='object') s.externalUnitWeeks={};
+  if(!s.assignmentSource) s.assignmentSource={};
+  if(!s.tempUnitSource) s.tempUnitSource={};
+  const existing=s.externalUnitWeeks[week] || {};
+  const recovered=new Set(Object.keys(existing).filter(k=>existing[k]));
+  const excelSource='EXCEL_IMPORT_V63';
+  const monday=new Date(`${week}T12:00:00`);
+  if(isNaN(monday)) return Array.from(recovered);
+
+  for(const p of (state.personeller||[])){
+    for(let d=0;d<7;d++){
+      const aKey=`${week}_${p.ad}_${d}`;
+      if(s.assignmentSource[aKey]!==excelSource) continue;
+      const dt=new Date(monday); dt.setDate(dt.getDate()+d);
+      const dk=(typeof getDateKey==='function') ? getDateKey(dt) : dt.toISOString().slice(0,10);
+      const tk=`${dk}_${p.ad}`;
+      const unit=(state.geciciGorevler&&state.geciciGorevler[tk]) || p.birim;
+      if(unit) recovered.add(unit);
+    }
+  }
+
+  if(recovered.size){
+    if(!s.externalUnitWeeks[week]) s.externalUnitWeeks[week]={};
+    recovered.forEach(u=>{ s.externalUnitWeeks[week][u]=true; });
+  }
+  return Array.from(recovered).sort((a,b)=>String(a).localeCompare(String(b),'tr'));
+}
+
 function smartAutoPreflight(options={}){
   const week=hKeyNow();
   const intentionalExcel = hasSessionExcelImport(week);
+  const persistedExcel = recoverPersistedExcelProtection(week);
   let released=[];
 
-  // Kullanıcı BU OTURUMDA Excel yüklemediyse buluttan/eski testlerden taşınmış hafta kilidi
-  // OTO'nun yalnız MCR/INGEST üretmesine neden olmamalı. Yalnız yerel state'te temizlenir;
-  // localhost'ta production'a yazma zaten kapalıdır. Bu oturumda gerçekten Excel yüklenmişse korunur.
-  if(!intentionalExcel && options.keepExcel!==true){
+  // FIX2.24 ALTIN KURAL: Excel otoritesi OTURUMA değil BULUTTAKİ STATE'e bağlıdır.
+  // Normal OTO ve 16:00 scheduled otomasyon externalUnitWeeks / EXCEL_IMPORT_V63 kayıtlarını
+  // ASLA kendiliğinden temizlemez. Yalnız kullanıcı açıkça TAM OTO seçerse temizlenebilir.
+  if(options.releaseExcel===true || options.clearExcelProtection===true){
     released=clearCurrentWeekExcelProtection();
   }
 
+  // Kayıp kapasite onarımı Excel korumasını kaldırmadan, yalnız gerçekten otomasyona açık
+  // birimler için scheduler'ın mevcut kapsam hesabına bırakılır.
   const repair=repairMissingCapacitiesFromHistory(released);
   const managed=(window.SchedulerV2 && SchedulerV2.autoManagedUnits)
     ? SchedulerV2.autoManagedUnits((state.birimler||[]).slice())
     : [];
 
-  return {week,intentionalExcel,released,repair,managed};
+  return {week,intentionalExcel,persistedExcel,released,repair,managed};
 }
 
 function reportSmartPreflight(pre){
   if(!pre) return;
+  if(pre.persistedExcel && pre.persistedExcel.length && typeof showToast==='function'){
+    showToast(`🔒 Excel otoritesi korunuyor: ${pre.persistedExcel.join(', ')}`, 'info');
+  }
   if(pre.released.length && typeof showToast==='function'){
-    showToast(`🧹 ${pre.released.length} eski Excel hafta kilidi temizlendi; tüm otomasyona açık birimler çözülecek.`, 'success');
+    showToast(`🧹 ${pre.released.length} Excel koruması kullanıcı isteğiyle kaldırıldı.`, 'success');
   }
   if(pre.repair.repaired.length && typeof showToast==='function'){
     showToast(`🧰 ${pre.repair.repaired.length} birimin kayıp kapasitesi gerçek listelerden geri kazanıldı.`, 'success');
@@ -934,7 +971,7 @@ async function renderControl(){
     <div class="v63-card"><h4>⚠️ AKILLI UYARILAR</h4><div class="v63-kpi">${warnings.length}</div><div class="v63-small">Kritik: ${hi} · Uyarı: ${med}</div></div>
     <div class="v63-card"><h4>📦 GERİ DÖNÜŞ NOKTALARI</h4><div class="v63-kpi">${snaps.length}</div><div class="v63-small">Son: ${snaps[0]?new Date(snaps[0].at).toLocaleString('tr-TR'):'yok'}</div></div>
   </div>
-  <div class="v63-card" style="margin-top:10px"><h4>🧹 EXCEL KORUMASI / TAM OTO</h4><div class="v63-small">Bu hafta Excel korumalı birimler: <b>${esc(currentExcelProtectedUnits().join(', ')||'yok')}</b><br><b>OTO VARDİYA</b> artık akıllı tam-kapsam çalışır: bu oturumda gerçekten Excel yüklediyseniz o birimleri korur; buluttan/eski testlerden taşınmış stale Excel kilitlerini temizler ve diğer tüm otomasyona açık birimleri üretir. Kayıp kapasiteyi aktif/önceki gerçek listelerden geri kazanır. Görev geçmişi olmayan sıfır-kapasiteli destek birimleri FIX10 kuralıyla mevcut haliyle korunur.</div><div class="v63-toolbar" style="margin-top:8px;margin-bottom:0"><button class="v63-btn warn" onclick="V63Addons.fullAutoGenerate()">🧹✨ TAM OTO VARDİYA</button></div></div>
+  <div class="v63-card" style="margin-top:10px"><h4>🧹 EXCEL KORUMASI / TAM OTO</h4><div class="v63-small">Bu hafta Excel korumalı birimler: <b>${esc(currentExcelProtectedUnits().join(', ')||'yok')}</b><br><b>OTO VARDİYA</b> buluta kaydedilmiş Excel korumasını her oturumda ve 16:00 otomasyonda aynen korur; yalnız Excel dışındaki otomasyona açık birimleri üretir. Kayıp kapasiteyi aktif/önceki gerçek listelerden geri kazanır. Görev geçmişi olmayan sıfır-kapasiteli destek birimleri FIX10 kuralıyla mevcut haliyle korunur.</div><div class="v63-toolbar" style="margin-top:8px;margin-bottom:0"><button class="v63-btn warn" onclick="V63Addons.fullAutoGenerate()">🧹✨ TAM OTO VARDİYA</button></div></div>
   <div class="v63-toolbar" style="margin-top:10px"><button class="v63-btn" onclick="V63Addons.takeSnapshot('manuel-kontrol')">📦 SNAPSHOT AL</button><button class="v63-btn alt" onclick="V63Addons.restoreLatestSnapshot()">↩️ SON SNAPSHOT</button><button class="v63-btn alt" onclick="V63Addons.downloadSnapshots()">⬇️ YEDEKLERİ İNDİR</button><button class="v63-btn" onclick="V63Addons.downloadWeeklyReport()">📊 HAFTA RAPORU</button><button class="v63-btn alt" onclick="V63Addons.renderControl()">🔄 YENİLE</button></div>
   <div class="v63-card"><h4>⚠️ UYARI DETAYI</h4><div class="v63-list">${warnings.length?warnings.slice(0,120).map(w=>`<div class="v63-item v63-sev-${w.sev}"><strong>${esc(w.title)}</strong><div class="v63-small">${esc(w.detail)}</div></div>`).join(''):'<div class="v63-status v63-ok">Kritik uyarı bulunmadı</div>'}</div></div>
   <div class="v63-card" style="margin-top:10px"><h4>🔐 ÖZELLİK DURUMU</h4><div class="v63-small">Talep Merkezi V2 ✅ · Audit araçları ✅ · Akıllı uyarılar ✅ · Sistem sağlığı ✅ · Haftalık rapor ✅ · Yerel snapshot ✅ · Taslak/Yayın göstergesi ✅<br><br><b>Rol bazlı Firebase güvenliği:</b> canlı kuralları değiştirmemek için bu pakette kapalı. Bu gerçek bir güvenlik değişikliğidir ve ayrı kabul testi gerektirir.<br><b>Otomatik rollback:</b> yanlış durumda production verisini otomatik geri çevirmemesi için kapalı; manuel snapshot geri dönüşü aktiftir.</div></div>`;
@@ -1004,9 +1041,9 @@ function wrapRefreshUIForSearch(){
 }
 
 function wrapCoreActions(){
-  // FINAL RESTORE: OTO tek başına bütün sistemi çözer.
-  // Bu oturumda gerçekten Excel yüklenmişse o birimler korunur; eski/stale hafta kilitleri
-  // otomatik temizlenir. Kayıp kapasite, mevcut/önceki gerçek listelerden geri kazanılır.
+  // FIX2.24: OTO tek başına bütün otomasyona açık birimleri çözer.
+  // Buluta kaydedilmiş Excel otoritesi session bağımsız korunur; NORMAL OTO ve scheduled
+  // otomasyon Excel birimlerini asla otomatik temizlemez. Yalnız TAM OTO açıkça kaldırır.
   if(typeof global.vardiyaUretVeKaydet==='function' && !global.vardiyaUretVeKaydet.__v63wrapped){
     const old=global.vardiyaUretVeKaydet;
     const w=function(){
@@ -1041,7 +1078,7 @@ function init(){
   console.log(`[V63Addons] ${VERSION} loaded. Weekly morning rotation + admin search + Taleplerim realtime UI active.`);
 }
 
-global.V63Addons={version:VERSION,features:FEATURES,renderControl,probeFirebaseHealth,installFirebaseHealthMonitor,warningScan,takeSnapshot,restoreLatestSnapshot,downloadSnapshots,downloadWeeklyReport,filterAudit,exportAudit,setRequestFilter,renderRequests,deleteRequest,deleteCompletedRequests,renderMyRequests,toggleMyRequestsHistory,watchMyRequests,syncMyRequestsSelection,ensureMyRequestsPanel,populateDesktopMyRequestsPersonel,currentExcelProtectedUnits,clearCurrentWeekExcelProtection,hasSessionExcelImport,smartAutoPreflight,fullAutoGenerate,weeklyCapacityForUnit,repairMissingCapacitiesFromHistory,historicalWeekKeys,historicalCapacityForUnit,applyAdminSearchFilters,filterAdminSelect,filterAdminCards};
+global.V63Addons={version:VERSION,features:FEATURES,renderControl,probeFirebaseHealth,installFirebaseHealthMonitor,warningScan,takeSnapshot,restoreLatestSnapshot,downloadSnapshots,downloadWeeklyReport,filterAudit,exportAudit,setRequestFilter,renderRequests,deleteRequest,deleteCompletedRequests,renderMyRequests,toggleMyRequestsHistory,watchMyRequests,syncMyRequestsSelection,ensureMyRequestsPanel,populateDesktopMyRequestsPersonel,currentExcelProtectedUnits,clearCurrentWeekExcelProtection,recoverPersistedExcelProtection,hasSessionExcelImport,smartAutoPreflight,fullAutoGenerate,weeklyCapacityForUnit,repairMissingCapacitiesFromHistory,historicalWeekKeys,historicalCapacityForUnit,applyAdminSearchFilters,filterAdminSelect,filterAdminCards};
 
 // Run immediately so talepleriYukle is replaced before window.onload invokes it.
 init();

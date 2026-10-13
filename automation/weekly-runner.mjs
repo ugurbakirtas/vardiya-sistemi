@@ -18,7 +18,10 @@ const PORT = Number(process.env.LOCAL_PORT || 8765);
 const HOST = '127.0.0.1';
 const email = process.env.VARDIYA_ADMIN_EMAIL || '';
 const password = process.env.VARDIYA_ADMIN_PASSWORD || '';
-const publish = String(process.env.AUTO_PUBLISH || '').toLowerCase() === 'true';
+// FIX2.33 GITHUB STAGING ONLY: yayınlama istenirse fail-closed; bu dosya CANLIYA YAYINLAMA İÇİN KULLANILMAZ.
+const publishRequested = String(process.env.AUTO_PUBLISH || '').toLowerCase() === 'true';
+if (publishRequested) throw new Error('STAGING SAFETY: AUTO_PUBLISH=true yasak. Firebase yayını için ayrı onaylı üretim geçişi gerekir.');
+const publish = false;
 const weeksAhead = positiveWeeksAhead(process.env.WEEKS_AHEAD, 1);
 const telegramNotify = String(process.env.AUTO_TELEGRAM_NOTIFY || '').toLowerCase() === 'true';
 const telegramToken = process.env.VARDIYA_TELEGRAM_BOT_TOKEN || '';
@@ -26,6 +29,30 @@ const telegramChatId = process.env.VARDIYA_TELEGRAM_CHAT_ID || '';
 const runTrigger = process.env.RUN_TRIGGER || '';
 const scheduledRun = runTrigger === 'schedule';
 const outPath = path.join(__dirname, 'automation-output.json');
+
+// Exact accepted FIX2.33 runtime gate: do not start against a mixed GitHub checkout.
+const ACCEPTED_RUNTIME_SHA256 = {
+  "404.html": "b77b97fe780d35d18248abd1d2f42f444afbabe43f6abcd8fa8ebb3d47825eee",
+  "app.js": "fc7d338cf745080f222f2e5f918c7ec2a9e1a979f1f633c490b3655e0e1f7c03",
+  "excel-export-worker-fix2-28.js": "1d77cf4ea97be7fc3ff9169bf5257bb975b06d7faeffc5f91b02d0e7d363335b",
+  "excel-real-xlsx-fix2-9.js": "75f07de2325efa9f70d73233eaef7b4f354103e8be2159c34e001dbb37947717",
+  "ilk_kurulum.json": "db153c0442eecf5e92c72a00326e734505489e2faf715dbf725dd80b7d45c8ee",
+  "index.html": "0d8ea46aa2ee37866d9f4bfa03a0738aaccd66dafa29cbf3801cc3aec0a00a82",
+  "logo.png": "88b9246012ee82241ec79f3ceae4b85138d320cecd1c0593e91f55f4fa189885",
+  "personel-admin-lifecycle-fix2-4.js": "dc0e2511914c2718853cd6a1d804f411d139524fd2272066e7b16154b14cf3f2",
+  "personel-admin-return-fix2-5.js": "9c127677ea1bee9eeec421de1207f3c4c4dd23ea5c61429a882600edd4c98b60",
+  "personel-email-pin-fix2-2.js": "19655926ddfdbf23f76e2d4d9f7c1372855e0c6b7144cafd6039e7705fe8a090",
+  "personel-secure-mobile.js": "b193caf406e50cab3d526f31c0306fd7cc6ccd93b6ed1868d6c7b8a180b32f3f",
+  "scheduler-v2.js": "a55352330da3f0626457f7e759a09ffe6cb7e8c1b00d1817b3a6dde9d9342047",
+  "style.css": "4f1ddef6c8c60fae0e80caef204f5e252e305c4e86a12b8c93fab3c11f1882df",
+  "v63-enhancements.js": "9c9d8fb2c9456dbed731ffc6b7e0e540bc35b3905b6741b1b3be38923715ba54"
+};
+for (const [file, expected] of Object.entries(ACCEPTED_RUNTIME_SHA256)) {
+  const candidate = path.join(ROOT, file);
+  if (!fs.existsSync(candidate) || crypto.createHash('sha256').update(fs.readFileSync(candidate)).digest('hex') !== expected) {
+    throw new Error(`FIX2.33 runtime SHA256 mismatch: ${file}. DRY-RUN baslatilmadi.`);
+  }
+}
 
 if (!email || !password) {
   throw new Error('VARDIYA_ADMIN_EMAIL ve VARDIYA_ADMIN_PASSWORD GitHub Secrets olarak tanımlanmalıdır.');

@@ -20,7 +20,7 @@
 (function (global) {
     'use strict';
 
-    const SCHEDULER_VERSION = 'V62-FINAL-6DAY-HISTORY-FAIRNESS-FIX20-20261006';
+    const SCHEDULER_VERSION = 'V62-FIX2.33-ROTATION-HISTORY-RECOVERY-20261012';
     const OFF_VALUES = new Set([null, undefined, '', SHIFTS.IZIN, SHIFTS.BOS, SHIFTS.YILLIK, SHIFTS.RAPOR]);
     const AUTO_SOURCE = 'AUTO_V62';
     const AUTO_MCR_SOURCE = 'AUTO_V62_MCR_YEDEK';
@@ -64,6 +64,7 @@
         if (!s.externalAnnualLocks) s.externalAnnualLocks = {};
         if (!s.externalUnitWeeks) s.externalUnitWeeks = {};
         if (!s.weeklyMorningAnchors) s.weeklyMorningAnchors = {};
+        if (!s.regenerationSeeds) s.regenerationSeeds = {};
         if (!state.haftaSonuYedekler) state.haftaSonuYedekler = {};
         if (!s.config) s.config = {};
         if (typeof s.config.preferredWorkDays !== 'number') s.config.preferredWorkDays = 5;
@@ -100,14 +101,23 @@
         // haftada en fazla 1 gun fazladan yazilabilir. Bu atama kapasiteyi KAPATMAZ,
         // uzmanlik yetkisi KAZANDIRMAZ ve MCR sabit dongusunun yerine gecmez.
         s.config.crossTrainingLearningEnabled = true;
+        // Learning allowed ONLY for reji core KJ/PLAYOUT employees.
+        s.config.crossTrainingEligibleHomeSpecs = ['KJ','PLAYOUT'];
         s.config.crossTrainingMaxDaysPerPerson = 1;
-        s.config.crossTrainingTargetSpecs = ['PLAYOUT','KJ','24 MCR','360 MCR'];
+        s.config.crossTrainingTargetSpecs = ['PLAYOUT','KJ','24 MCR','360 MCR','INGEST'];
         // FIX2.20: Zorunlu 6. gun yukunu haftalar arasinda ayni kisilere bindirme.
         // Once gecen hafta, sonra son 4 haftadaki 6-gun sayisi dikkate alinir.
         // Bu bir tercih/adalet katmanidir; uygun alternatif yoksa kapasite ve hard kurallar
         // icin ayni personel yeniden 6 gun calisabilir. MCR/INGEST sabit dongusune uygulanmaz.
         s.config.rotateSixDayBurden = true;
         s.config.sixDayHistoryLookbackWeeks = 4;
+        // FIX2.21: HAVUZ birimlerinde sabit personel haricindeki normal personeli
+        // tum hafta ayni vardiya ailesine (surekli sabah / surekli aksam) kilitleme.
+        // Bu HARD bir desen degildir: 2S-1A-2S, 2A-1S-2A, 3A vb. varyasyonlar serbesttir.
+        // Iki gun izin seriyi keser; izin sonrasi kisi yeniden sabahla baslayabilir.
+        // Kapasite/uzmanlik/dinlenme her zaman bu soft rotasyon tercihinden ustundur.
+        s.config.shiftDiversityEnabled = true;
+        s.config.shiftDiversityHistoryLookbackWeeks = 3;
         s.lastReport = s.lastReport || null;
         return s;
     }
@@ -138,6 +148,27 @@
 
     function normalizeName(v) {
         return String(v || '').trim().toLocaleUpperCase('tr-TR');
+    }
+
+    // FIX2.25: Buluttaki EXCEL_IMPORT kaydi gercektir; harita kayboldu diye NORMAL OTO
+    // bu birimi motor kapsamina ALMAZ. Bu islem yalniz solve basinda calisir.
+    function recoverExcelUnitAuthority(hKey = hKeyNow()) {
+        const sch = ensureSchedulerState();
+        const map = sch.externalUnitWeeks[hKey] || (sch.externalUnitWeeks[hKey] = {});
+        const srcs = sch.assignmentSource || {};
+        const monday = new Date(`${hKey}T12:00:00`);
+        if (isNaN(monday.getTime())) return;
+        state.personeller.forEach(p => {
+            for (let day=0; day<7; day++) {
+                const key = assignmentKey(p.ad,day,hKey);
+                if (srcs[key] !== 'EXCEL_IMPORT_V63') continue;
+                const dt = new Date(monday); dt.setDate(dt.getDate()+day);
+                const tk = `${getDateKey(dt)}_${p.ad}`;
+                const unit = (state.geciciGorevler || {})[tk] || p.birim;
+                if (unit) map[unit] = true;
+            }
+        });
+        if (!Object.keys(map).length) delete sch.externalUnitWeeks[hKey];
     }
 
     function isLegacyExternalUnit(unit, hKey = hKeyNow()) {
@@ -341,7 +372,13 @@
 
     function stableHash(str) {
         let h = 2166136261 >>> 0;
-        const s = String(str || '');
+        const scheduler = ensureSchedulerState();
+        const regenSeed = parseInt((scheduler.regenerationSeeds && scheduler.regenerationSeeds[hKeyNow()]) || 0, 10) || 0;
+        // Normal koşulda seed=0 olduğu için kabul edilmiş deterministik davranış aynen kalır.
+        // Yönetici "Bu Haftayı Temizle" dediğinde seed artar; yalnız eşdeğer/geçerli
+        // çözümler arasındaki tie-break değişir. Hard kurallar ve kapasite asla değişmez.
+        const base = String(str || '');
+        const s = regenSeed > 0 ? `${regenSeed}|${base}` : base;
         for (let i = 0; i < s.length; i++) {
             h ^= s.charCodeAt(i);
             h = Math.imul(h, 16777619);
@@ -493,6 +530,49 @@
         return previousWeekAssignment(name, 6);
     }
 
+    // FIX2.26 - CROSS-WEEK CONSECUTIVE WORK HARD LIMIT.
+    // A 7-day payroll week is NOT a rest boundary. Review the actual daily slots
+    // in preceding and succeeding saved weeks, not just weekly 5/6-day totals.
+    // The current week always comes from the candidate matrix, NEVER stale cloud
+    // assignments from that same week. Unknown historical days are not invented.
+    function chronologicalAssignment(work, name, relativeDay) {
+        if (relativeDay >= 0 && relativeDay <= 6) {
+            return work && work.matrix && work.matrix[name] ? work.matrix[name][relativeDay] : null;
+        }
+        const d = new Date(currentMonday);
+        d.setHours(12,0,0,0);
+        d.setDate(d.getDate() + relativeDay);
+        const monday = getMonday(new Date(d));
+        const weekday = (d.getDay() + 6) % 7;
+        const key = `${getDateKey(monday)}_${name}_${weekday}`;
+        const map = state.manuelAtamalar || {};
+        return Object.prototype.hasOwnProperty.call(map,key) ? map[key] : undefined;
+    }
+
+    function consecutiveWorkSpan(work, name, day, plannedShift) {
+        if (!isWorkShift(plannedShift)) return {days:0,start:day,end:day};
+        let start = day, end = day;
+        // Scan at most six existing workdays each direction. Seven means HARD FAIL.
+        while (start > day - 6 && isWorkShift(chronologicalAssignment(work,name,start-1))) start--;
+        while (end < day + 6 && isWorkShift(chronologicalAssignment(work,name,end+1))) end++;
+        return {days:end-start+1,start,end};
+    }
+
+    function consecutiveSixAllowed(work, name, day, shift) {
+        if (!isWorkShift(shift)) return true;
+        return consecutiveWorkSpan(work,name,day,shift).days <= 6;
+    }
+
+    function previousWeekEndStreak(name) {
+        let n=0;
+        // Stop at the first explicit day off or unknown. Read prior full weeks.
+        for (let rel=-1; rel>=-42; rel--) {
+            if (!isWorkShift(chronologicalAssignment(null,name,rel))) break;
+            n++;
+        }
+        return n;
+    }
+
     function previousWeekKnownOff(name, day) {
         const v = previousWeekAssignment(name, day);
         return v !== undefined && v !== null && isOffValue(v);
@@ -584,6 +664,354 @@
         return penalty;
     }
 
+    // FIX2.21 - SABAH / AKSAM VARDIYA CESITLILIGI
+    // Sabit personel ve sabit dongu birimleri bu kurala dahil degildir. Amaç katı bir
+    // SABAH-AKSAM-SABAH dizisi kurmak degil; ayni kisiyi haftalarca/tum hafta tek vardiyaya
+    // kilitlemeden, kapasite izin verdigi olcude farkli vardiya bloklari uretmektir.
+    function shiftDiversityBucket(shift) {
+        const b = shiftBucket(shift);
+        return (b === 'MORNING' || b === 'EVENING') ? b : null;
+    }
+
+    function isWeeklyMorningAnchorPerson(work, person) {
+        if (!work || !person) return false;
+        return Object.values(work.weeklyMorningAnchors || {}).some(a => a && a.person === person.ad);
+    }
+
+    function isShiftDiversityExempt(work, person) {
+        if (!person) return true;
+        if (isCycleUnit(person.birim)) return true;                 // MCR / INGEST kendi dongusunu kullanir.
+        if (isWeekdayFixedPerson(person)) return true;              // Yonetimden sabitlenen kisi sabit kalir.
+        if (isWeeklyMorningAnchorPerson(work,person)) return true;   // Haftalik 360TV sabahci bilincli sabittir.
+        return false;
+    }
+
+    function unitHasMorningEveningCapacity(unit) {
+        if (!unit || isCycleUnit(unit)) return false;
+        let morning = 0, evening = 0;
+        for (const shift of (state.saatler || [])) {
+            const bucket = shiftDiversityBucket(shift);
+            if (!bucket) continue;
+            for (let d=0; d<7; d++) {
+                const n = capacity(unit,shift,d);
+                if (bucket === 'MORNING') morning += n;
+                else if (bucket === 'EVENING') evening += n;
+            }
+        }
+        return morning > 0 && evening > 0;
+    }
+
+    function shiftDiversityStats(work, name) {
+        const arr = (work.matrix && work.matrix[name]) || [];
+        let morning = 0, evening = 0, workDays = 0;
+        let longestMorning = 0, longestEvening = 0;
+        let runBucket = null, runLength = 0;
+        for (let d=0; d<7; d++) {
+            const v = arr[d];
+            if (!isWorkShift(v)) {
+                // Izin/boş gun seriyi keser. Izin sonrasi tekrar sabah baslamak serbesttir.
+                runBucket = null; runLength = 0;
+                continue;
+            }
+            workDays++;
+            const b = shiftDiversityBucket(v);
+            if (b === 'MORNING') morning++;
+            if (b === 'EVENING') evening++;
+            if (!b) { runBucket = null; runLength = 0; continue; }
+            if (runBucket === b) runLength++;
+            else { runBucket = b; runLength = 1; }
+            if (b === 'MORNING') longestMorning = Math.max(longestMorning,runLength);
+            else longestEvening = Math.max(longestEvening,runLength);
+        }
+        return {morning,evening,workDays,longestMorning,longestEvening};
+    }
+
+    function historicalShiftBucketStats(name) {
+        const cfg = ensureSchedulerState().config || {};
+        const lookback = Math.max(1,Math.min(8,parseInt(cfg.shiftDiversityHistoryLookbackWeeks || 3,10) || 3));
+        const rows = [];
+        for (let w=1; w<=lookback; w++) {
+            const d = new Date(currentMonday);
+            d.setHours(12,0,0,0);
+            d.setDate(d.getDate() - 7*w);
+            const hk = getDateKey(d);
+            let known=0, workDays=0, morning=0, evening=0;
+            for (let day=0; day<7; day++) {
+                const key = `${hk}_${name}_${day}`;
+                if (!Object.prototype.hasOwnProperty.call(state.manuelAtamalar || {},key)) continue;
+                known++;
+                const v = state.manuelAtamalar[key];
+                if (!isWorkShift(v)) continue;
+                workDays++;
+                const b = shiftDiversityBucket(v);
+                if (b === 'MORNING') morning++;
+                if (b === 'EVENING') evening++;
+            }
+            rows.push({week:hk,known,complete:known===7,workDays,morning,evening,offset:w});
+        }
+        return rows;
+    }
+
+    function historicalShiftVarietyPenalty(name, bucket) {
+        if (!bucket) return 0;
+        const rows = historicalShiftBucketStats(name).filter(x=>x.complete && x.workDays >= 4);
+        if (!rows.length) return 0;
+        let penalty = 0;
+        const prev = rows[0];
+        if (prev) {
+            const same = bucket === 'MORNING' ? prev.morning : prev.evening;
+            const opp  = bucket === 'MORNING' ? prev.evening : prev.morning;
+            // Gecen hafta neredeyse tum vardiyalar ayni ailedeyse bu hafta ayni yone gitmeyi guclu azalt.
+            if (same >= 4 && opp === 0) penalty += 5200;
+            else if (same >= 4 && opp <= 1) penalty += 2800;
+        }
+        let sameTotal=0, oppTotal=0;
+        rows.forEach(r=>{
+            sameTotal += bucket === 'MORNING' ? r.morning : r.evening;
+            oppTotal  += bucket === 'MORNING' ? r.evening : r.morning;
+        });
+        const excess = sameTotal - oppTotal;
+        if (excess > 3) penalty += Math.min(2600,(excess-3)*320);
+        return penalty;
+    }
+
+    function prospectiveShiftDiversityPenalty(work, person, unit, day, shift) {
+        const cfg = ensureSchedulerState().config || {};
+        if (!cfg.shiftDiversityEnabled) return 0;
+        if (!person || person.birim !== unit) return 0; // Capraz uzman yedegi bu tercih nedeniyle kaybedilmez.
+        if (isShiftDiversityExempt(work,person)) return 0;
+        if (!unitHasMorningEveningCapacity(unit)) return 0;
+        const bucket = shiftDiversityBucket(shift);
+        if (!bucket) return 0;
+
+        const st = shiftDiversityStats(work,person.ad);
+        const same = bucket === 'MORNING' ? st.morning : st.evening;
+        const opp  = bucket === 'MORNING' ? st.evening : st.morning;
+        const projectedSame = same + 1;
+        let penalty = 0;
+
+        // Ayni blokta pes pese 2 vardiya normaldir. 3. ve sonrasi giderek pahali olur,
+        // fakat kapasite gerekiyorsa yasak degildir. Izin gunu bu seriyi zaten sifirlar.
+        let back=0;
+        for (let d=day-1; d>=0; d--) {
+            const v = work.matrix[person.ad][d];
+            if (!isWorkShift(v)) break;
+            if (shiftDiversityBucket(v) !== bucket) break;
+            back++;
+        }
+        let forward=0;
+        for (let d=day+1; d<7; d++) {
+            const v = work.matrix[person.ad][d];
+            if (!isWorkShift(v)) break;
+            if (shiftDiversityBucket(v) !== bucket) break;
+            forward++;
+        }
+        const projectedRun = back + 1 + forward;
+        if (projectedRun === 3) penalty += 700;
+        else if (projectedRun === 4) penalty += 2600;
+        else if (projectedRun >= 5) penalty += 5600 + (projectedRun-5)*1800;
+
+        // Tum hafta tek vardiya ailesine kaymayi onle. 2S-1A-2S veya 3A-1S gibi dagilimlar
+        // ceza almaz; asil hedef 4/5/6 gunun tamamini SABAH ya da tamamini AKSAM yapmamaktir.
+        if (projectedSame >= 4 && opp === 0) penalty += 6200 + (projectedSame-4)*1700;
+        else {
+            const imbalance = projectedSame - opp;
+            if (imbalance > 3) penalty += (imbalance-3)*900;
+        }
+
+        // Gecmis haftalarda da ayni vardiya ailesine kitlenmisse bu hafta diger yone sans ver.
+        penalty += historicalShiftVarietyPenalty(person.ad,bucket);
+        return penalty;
+    }
+
+    function shiftDiversityMetric(work, person) {
+        const st = shiftDiversityStats(work,person.ad);
+        const total = st.morning + st.evening;
+        if (total < 3) return 0;
+        let score = 0;
+        if (total >= 4 && (st.morning === 0 || st.evening === 0)) score += 30000 + total*1200;
+        const imbalance = Math.abs(st.morning-st.evening);
+        if (st.morning > 0 && st.evening > 0 && imbalance > 3) score += (imbalance-3)*1400;
+        if (st.longestMorning > 3) score += (st.longestMorning-3)*3600;
+        if (st.longestEvening > 3) score += (st.longestEvening-3)*3600;
+        return score;
+    }
+
+    function isShiftDiversityAutoCell(work, person, unit, day) {
+        if (!person || person.birim !== unit) return false;
+        if (isShiftDiversityExempt(work,person)) return false;
+        if (effectiveUnit(work,person,day) !== unit) return false;
+        const v = work.matrix[person.ad] && work.matrix[person.ad][day];
+        if (!isWorkShift(v) || !shiftDiversityBucket(v)) return false;
+        const src = work.source[person.ad] && work.source[person.ad][day];
+        return src === AUTO_SOURCE || src === AUTO_MIN5_EXTRA_SOURCE;
+    }
+
+    function bestShiftDiversitySwap(work, unit) {
+        if (!unitHasMorningEveningCapacity(unit) || isCycleUnit(unit)) return null;
+        const people = state.personeller.filter(p=>p && p.birim===unit && !isShiftDiversityExempt(work,p)).slice().sort(compareName);
+        const moves = [];
+
+        // Tek gunluk takas, 16:00-00:00 -> ertesi sabah dinlenme kuralina takilabilir.
+        // Bu nedenle 1-4 gunluk bitisik BLOK takaslarini da deneriz. Ornegin:
+        // A: S S IZIN S S  /  B: A A IZIN A A  => izin sonrasi iki gunluk blok yer degistirebilir.
+        for (let ai=0; ai<people.length; ai++) {
+            for (let bi=ai+1; bi<people.length; bi++) {
+                const a=people[ai], b=people[bi];
+                const before = shiftDiversityMetric(work,a) + shiftDiversityMetric(work,b);
+                if (before <= 0) continue;
+                for (let start=0; start<7; start++) {
+                    for (let len=1; len<=4 && start+len<=7; len++) {
+                        const days=[];
+                        let bucketA=null, bucketB=null, valid=true;
+                        for (let day=start; day<start+len; day++) {
+                            if (!isShiftDiversityAutoCell(work,a,unit,day) || !isShiftDiversityAutoCell(work,b,unit,day)) { valid=false; break; }
+                            const ba=shiftDiversityBucket(work.matrix[a.ad][day]);
+                            const bb=shiftDiversityBucket(work.matrix[b.ad][day]);
+                            if (!ba || !bb || ba===bb) { valid=false; break; }
+                            if (bucketA===null) { bucketA=ba; bucketB=bb; }
+                            // Blok boyunca roller ayni yone gitmeli; aksi halde takas mevcut cesitliligi bozabilir.
+                            if (ba!==bucketA || bb!==bucketB) { valid=false; break; }
+                            days.push(day);
+                        }
+                        if (!valid || !days.length) continue;
+
+                        const tmp=cloneWork(work);
+                        const swaps=[];
+                        for (const day of days) {
+                            const shiftA=work.matrix[a.ad][day], shiftB=work.matrix[b.ad][day];
+                            tmp.matrix[a.ad][day]=shiftB;
+                            tmp.matrix[b.ad][day]=shiftA;
+                            swaps.push({day,shiftA,shiftB});
+                        }
+                        // Tum blok degistikten sonra blok icini ve iki siniri dinlenme kuraliyla kontrol et.
+                        for (const x of swaps) {
+                            if (!restAllowed(tmp,a.ad,x.day,tmp.matrix[a.ad][x.day]) || !restAllowed(tmp,b.ad,x.day,tmp.matrix[b.ad][x.day])) { valid=false; break; }
+                        }
+                        if (!valid) continue;
+
+                        const after=shiftDiversityMetric(tmp,a)+shiftDiversityMetric(tmp,b);
+                        const improvement=before-after;
+                        if (improvement<=0) continue;
+                        const score=-improvement*100 + len*10 +
+                            historicalShiftVarietyPenalty(a.ad,bucketB) + historicalShiftVarietyPenalty(b.ad,bucketA) +
+                            (stableHash(`${hKeyNow()}|SHIFT-DIVERSITY|${unit}|${start}|${len}|${a.ad}|${b.ad}`)%97);
+                        moves.push({a,b,days,swaps,bucketA,bucketB,score,improvement});
+                    }
+                }
+            }
+        }
+        moves.sort((x,y)=>x.score-y.score || compareName(x.a,y.a) || compareName(x.b,y.b) || x.days[0]-y.days[0] || x.days.length-y.days.length);
+        return moves[0] || null;
+    }
+
+    function rebalanceShiftDiversity(work, units) {
+        const changes=[];
+        const unitSet=new Set((units || []).filter(Boolean));
+        for (const unit of unitSet) {
+            if (isCycleUnit(unit)) continue;
+            for (let guard=0; guard<80; guard++) {
+                const move=bestShiftDiversitySwap(work,unit);
+                if (!move) break;
+                const {a,b,days,swaps,bucketA,bucketB}=move;
+                for (const x of swaps) {
+                    const srcA=work.source[a.ad] && work.source[a.ad][x.day];
+                    const srcB=work.source[b.ad] && work.source[b.ad][x.day];
+                    work.matrix[a.ad][x.day]=x.shiftB;
+                    work.matrix[b.ad][x.day]=x.shiftA;
+                    work.reason[a.ad][x.day]=`AUTO V62 VARDIYA CESITLILIGI: ${x.shiftA} -> ${x.shiftB}`;
+                    work.reason[b.ad][x.day]=`AUTO V62 VARDIYA CESITLIGI: ${x.shiftB} -> ${x.shiftA}`;
+                    work.source[a.ad][x.day]=srcA || AUTO_SOURCE;
+                    work.source[b.ad][x.day]=srcB || AUTO_SOURCE;
+                    work.touchedKeys.add(assignmentKey(a.ad,x.day));
+                    work.touchedKeys.add(assignmentKey(b.ad,x.day));
+                }
+                changes.push({unit,days:days.slice(),a:a.ad,b:b.ad,aFromBucket:bucketA,aToBucket:bucketB,bFromBucket:bucketB,bToBucket:bucketA});
+            }
+        }
+        if (changes.length) work.notes.push(`Vardiya cesitliligi icin ${changes.length} kapasite-korumali sabah/aksam blok takasi yapildi.`);
+        return changes;
+    }
+
+    // FIX2.32: HAFTA SONU ADALETI - only post-process already VALID assignments.
+    // Do not alter candidate selection/backtracking: changing greedy costs caused
+    // solver performance regression (>4x in the October reference snapshot).
+    // Swaps require exactly one weekend duty exchanged for one weekday duty
+    // within the SAME qualified home unit, preserving coverage & 5/2 counts.
+    function rebalanceWeekendRotation(work, units) {
+        const changes=[];
+        const isAuto = s => s === AUTO_SOURCE || s === AUTO_MIN5_EXTRA_SOURCE;
+        const off = v => !isWorkShift(v);
+        const keepsConsecutiveOff = (before, after) => {
+            const had = before.some((x,d)=>d<6 && off(x) && off(before[d+1]));
+            if (!had) return true;
+            return after.some((x,d)=>d<6 && off(x) && off(after[d+1]));
+        };
+        for (const unit of units) {
+            if (isCycleUnit(unit) || isPreservedUnit(unit) || isLegacyExternalUnit(unit)) continue;
+            const people = state.personeller.filter(p => p.birim===unit &&
+                !isWeekdayFixedPerson(p) && !isWeeklyMorningAnchorPerson(work,p));
+            if (people.length < 2) continue;
+            let swaps=0, proposals=0;
+            for (let round=0;round<1;round++) {
+                let applied=false;
+                const byBurden=people.map(p=>({p,b:historicalWeekendBurden(p.ad)}))
+                    .filter(x=>x.b.known>=2).sort((a,b)=>b.b.weight-a.b.weight || compareName(a.p,b.p));
+                for(const donor of byBurden) {
+                    if (applied) break;
+                    for(const receiver of byBurden.slice().reverse()) {
+                        if (donor.p.ad===receiver.p.ad || donor.b.weight-receiver.b.weight<2) continue;
+                        if (applied) break;
+                        const dn=donor.p.ad,rn=receiver.p.ad;
+                        for(const weekend of [5,6]) {
+                            if(applied) break;
+                            const weekendShift=work.matrix[dn] && work.matrix[dn][weekend];
+                            if(!isWorkShift(weekendShift) || !off(work.matrix[rn][weekend])) continue;
+                            if(!isAuto(work.source[dn][weekend]) || !isAuto(work.source[rn][weekend])) continue;
+                            if(effectiveUnit(work,donor.p,weekend)!==unit || effectiveUnit(work,receiver.p,weekend)!==unit) continue;
+                            for(let weekday=0;weekday<5;weekday++) {
+                                const weekdayShift=work.matrix[rn][weekday];
+                                if (!off(work.matrix[dn][weekday]) || !isWorkShift(weekdayShift)) continue;
+                                if(!isAuto(work.source[dn][weekday]) || !isAuto(work.source[rn][weekday])) continue;
+                                if(effectiveUnit(work,donor.p,weekday)!==unit || effectiveUnit(work,receiver.p,weekday)!==unit) continue;
+                                if (++proposals > 3) continue;
+                                const beforeD=work.matrix[dn].slice(),beforeR=work.matrix[rn].slice();
+                                const oldWeekendOffR=work.matrix[rn][weekend],oldWeekOffD=work.matrix[dn][weekday];
+                                work.matrix[dn][weekend]=oldWeekendOffR;
+                                work.matrix[rn][weekend]=weekendShift;
+                                work.matrix[rn][weekday]=oldWeekOffD;
+                                work.matrix[dn][weekday]=weekdayShift;
+                                let safe=keepsConsecutiveOff(beforeD,work.matrix[dn]) &&
+                                         keepsConsecutiveOff(beforeR,work.matrix[rn]);
+                                if (safe) for (const name of [dn,rn]) for(let d=0;d<7;d++) {
+                                    if(isWorkShift(work.matrix[name][d]) && !restAllowed(work,name,d,work.matrix[name][d])) {safe=false;break;}
+                                }
+                                if(!safe) {
+                                    work.matrix[dn][weekend]=weekendShift;
+                                    work.matrix[rn][weekend]=oldWeekendOffR;
+                                    work.matrix[rn][weekday]=weekdayShift;
+                                    work.matrix[dn][weekday]=oldWeekOffD;
+                                    continue;
+                                }
+                                for(const name of [dn,rn]) for(const day of [weekend,weekday]) {
+                                    work.source[name][day]=AUTO_SOURCE;
+                                    work.reason[name][day]='AUTO V62 HAFTA SONU TARIHSEL ADALET DENGESI';
+                                    work.touchedKeys.add(assignmentKey(name,day));
+                                }
+                                changes.push({unit,donor:dn,receiver:rn,weekday,weekend});
+                                applied=true;swaps++;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if(!applied)break;
+            }
+            if(swaps)work.notes.push(`${unit}: gecmis hafta sonu yukune gore ${swaps} korumali gun takasi yapildi.`);
+        }
+        return changes;
+    }
+
     function restAllowed(work, name, day, shift) {
         if (!isWorkShift(shift)) return true;
         let prev = null;
@@ -591,6 +1019,8 @@
         else prev = previousWeekSundayShift(name);
 
         if (previousShiftBlocksEarly(prev) && isEarlyDayShift(shift)) return false;
+        // FIX2.26: Every candidate/swap/training must honor six-day rolling streak.
+        if (!consecutiveSixAllowed(work, name, day, shift)) return false;
 
         // Ertesi gün önceden kilitli erken vardiya varsa bugüne geç/gece yazma.
         if (day < 6) {
@@ -611,6 +1041,20 @@
     // 'mevcut liste koruma' diye dondurulursa aynı girdi ikinci kez çözülemez.
     function isSchedulerGeneratedSource(source) {
         return typeof source === 'string' && source.indexOf('AUTO_V62') === 0;
+    }
+
+    // Sadece DEGISTIRILMEMIS Excel/harici birim girdisi, otomatik motorun
+    // olusturdugu bir hard ihlal gibi reddedilmez. Mevcut ihlal kayda gecirilir;
+    // program bu vardiyayi duzeltmis veya guvenli diye ilan etmez.
+    function isUnchangedExcelWork(work, person, day) {
+        if (!person || !work.matrix[person.ad]) return false;
+        const key = assignmentKey(person.ad,day);
+        if (work.touchedKeys.has(key)) return false;
+        const value = work.matrix[person.ad][day];
+        if (!isWorkShift(value) || work.originalAssignments[key] !== value) return false;
+        const src = assignmentSourceFor(key);
+        const unit = effectiveUnit(work,person,day);
+        return src === 'EXCEL_IMPORT_V63' || isLegacyExternalUnit(unit) || isLegacyExternalUnit(person.birim);
     }
 
     function isManualLocked(key) {
@@ -843,7 +1287,10 @@
                     errors.push(`${p.ad}, ${GUNLER[day]} günü ${unit} için gerekli uzmanlığa sahip değil.`);
                 }
                 if (u === unit && !restAllowed(work, p.ad, day, v)) {
-                    errors.push(`${p.ad}, ${GUNLER[day]} ${v}: dinlenme kuralı kilitli atamalar nedeniyle ihlal ediliyor.`);
+                    // Excel korunuyorsa kaydi degistirmeyiz; asagida raporda ikaz edilir.
+                    if (!isUnchangedExcelWork(work,p,day)) {
+                        errors.push(`${p.ad}, ${GUNLER[day]} ${v}: dinlenme kuralı kilitli atamalar nedeniyle ihlal ediliyor.`);
+                    }
                 }
             }
         });
@@ -878,21 +1325,70 @@
         return Math.floor((d.getTime() - epoch.getTime()) / (7 * 24 * 60 * 60 * 1000));
     }
 
+    // FIX2.33: Eski surum / eksik bulut senkronu haftalik rol metadata'sini
+    // dusurebiliyor. Gercek onceki hafta hucreleri ve otomatik kaynaklari varsa
+    // sabahci hafizasi yalniz weeklyMorningAnchors'a bagimli OLAMAZ.
+    // Veriyi OKUR; ne Excel'i, ne manuel vardiyayi degistirir.
+    function inferRecordedMorningAnchor(weekKey, unit) {
+        const s = ensureSchedulerState();
+        const assignments = state.manuelAtamalar || {};
+        const sources = s.assignmentSource || {};
+        const roleLabels = s.assignmentRoleLabels || {};
+        const morning = weeklyMorningAnchorShift();
+        const expectedRole = requiredSpecialty(unit) === 'KJ' ? '360TV KJ' : '360TV PLAYOUT';
+        if (!morning) return null;
+        const possible = [];
+        for (const p of state.personeller || []) {
+            if (!p || p.birim !== unit) continue;
+            let valid = true, explicit = 0;
+            for (let d = 0; d < 7; d++) {
+                const key = `${weekKey}_${p.ad}_${d}`;
+                if (!Object.prototype.hasOwnProperty.call(assignments,key)) { valid=false; break; }
+                const shift = assignments[key];
+                if (d < 5) {
+                    if (!sameShiftWindow(shift,morning)) { valid=false; break; }
+                    if (sources[key] === AUTO_WEEKLY_MORNING_ANCHOR_SOURCE) explicit += 2;
+                    if (normalizeName(roleLabels[key]) === normalizeName(expectedRole)) explicit++;
+                } else if (isWorkShift(shift)) { valid=false; break; }
+            }
+            if (valid) possible.push({name:p.ad,explicit});
+        }
+        if (!possible.length) return null;
+        possible.sort((a,b)=>b.explicit-a.explicit || compareName(a.name,b.name));
+        // Farkli bes-sabah adaylari varsa kaynak isareti olmadan tahmin etme.
+        if (possible[0].explicit > 0 &&
+            (possible.length === 1 || possible[0].explicit > possible[1].explicit)) return possible[0].name;
+        return possible.length === 1 ? possible[0].name : null;
+    }
+
     function previousWeekMorningAnchor(unit) {
         const s = ensureSchedulerState();
         const prev = previousWeekHKey();
-        return s.weeklyMorningAnchors && s.weeklyMorningAnchors[prev] && s.weeklyMorningAnchors[prev][unit]
-            ? s.weeklyMorningAnchors[prev][unit].person || null
-            : null;
+        const recorded = s.weeklyMorningAnchors && s.weeklyMorningAnchors[prev] && s.weeklyMorningAnchors[prev][unit];
+        // Gercek matriste karsiligi bulunan kaynak isaretleri meta kaydindan ustundur.
+        const inferred = inferRecordedMorningAnchor(prev,unit);
+        if (inferred) return inferred;
+        return recorded && recorded.person || null;
     }
 
     function morningAnchorHistoryCount(unit, personName) {
         const all = ensureSchedulerState().weeklyMorningAnchors || {};
+        const counted = new Set();
         let count = 0;
+        // Meta ve kayitli gercek haftalar ayni kisiyi iki kere saymaz.
         Object.keys(all).forEach(w => {
+            if (w >= hKeyNow()) return;
             const rec = all[w] && all[w][unit];
-            if (rec && rec.person === personName) count++;
+            if (rec && rec.person === personName) {count++; counted.add(w);}
         });
+        // En son 8 haftada meta eksikse asil personel vardiyasindan geri kazan.
+        for (let offset=1; offset<=8; offset++) {
+            const d = new Date(currentMonday);
+            d.setHours(12,0,0,0); d.setDate(d.getDate()-offset*7);
+            const key = getDateKey(d);
+            if (counted.has(key) || (all[key] && all[key][unit] && all[key][unit].person)) continue;
+            if (inferRecordedMorningAnchor(key,unit) === personName) count++;
+        }
         return count;
     }
 
@@ -1039,8 +1535,16 @@
         const n = plans.length;
         const start = ((weekOrdinal() % n) + n) % n;
 
-        // Aynı haftayı tekrar üretirken aynı kişiyi koru; aday artık hard kayıt nedeniyle uygun değilse yeniden seç.
-        let chosen = currentSaved && currentSaved.person
+        // Yalniz GERCEKTEN kilitlenmis Excel/manual kaynak secimi tekrar koru.
+        // Otomatik sabahciyi hafta temizlendikten sonra zorla ayni kiside tutma:
+        // regenerationSeed>0 oldugunda aday havuzu gecmis haftalara gore yeniden degerlendirilir.
+        const seed = Number((scheduler.regenerationSeeds || {})[hKeyNow()] || 0) || 0;
+        const savedIsImported = !!(currentSaved && (currentSaved.importedRole ||
+            /^EXCEL_IMPORT/.test(String(currentSaved.source || ''))));
+        // FIX2.31: sadece DIS KAYNAKLI korunmus sabahci sabit kalir.
+        // Bir onceki AUTO kaydini seed=0'da dahi secim kilidi saymak,
+        // ilk uretimde ayni kisiyi ardisik haftalara tasiyordu.
+        let chosen = currentSaved && currentSaved.person && savedIsImported
             ? plans.find(x => x.person.ad === currentSaved.person)
             : null;
 
@@ -1050,8 +1554,14 @@
                 x.prevPenalty = previous && x.person.ad === previous ? 1 : 0;
                 x.rotationDistance = (idx - start + n) % n;
             });
-            plans.sort((a,b) => a.history-b.history || a.prevPenalty-b.prevPenalty || a.rotationDistance-b.rotationDistance || compareName(a.person,b.person));
-            chosen = plans[((attempt % plans.length) + plans.length) % plans.length];
+            // Bir onceki haftanin sabahcisini SADECE uygun alternatif yoksa tekrar sec.
+            // Excel/manual hard kayitlari ve uzmanlik filtresi yukarida korundu.
+            const fresh = previous ? plans.filter(x=>x.person.ad!==previous) : plans;
+            const eligible = fresh.length ? fresh : plans;
+            eligible.sort((a,b) => a.history-b.history || a.rotationDistance-b.rotationDistance || compareName(a.person,b.person));
+            const minHistory = eligible[0].history;
+            const equallyFair = eligible.filter(x=>x.history===minHistory);
+            chosen = equallyFair[((attempt + seed) % equallyFair.length + equallyFair.length) % equallyFair.length];
         }
 
         const p = chosen.person;
@@ -1098,6 +1608,16 @@
             const prevSun = previousWeekSundayShift(p.ad);
             if (prevSun !== undefined && prevSun !== null && isOffValue(prevSun) && !isWorkShift(work.matrix[p.ad][0])) {
                 result[p.ad] = [0]; // sanal çift: önceki Pazar + bu Pazartesi
+                return;
+            }
+
+            // If the previous week ends with five (or more) continuous workdays,
+            // prefer Mon-Tue off. Otherwise a new Mon-Fri anchor can yield 10 days.
+            // Do not overwrite a manually locked shift on Monday or Tuesday.
+            const priorStreak = previousWeekEndStreak(p.ad);
+            if (priorStreak >= 5 && [0,1].every(d=>!isWorkShift(work.matrix[p.ad][d]))) {
+                result[p.ad] = [0,1];
+                usage[0]++;
                 return;
             }
 
@@ -1148,12 +1668,100 @@
         return count;
     }
 
+    function historicalCrossUnitBurden(name, targetUnit) {
+        // Uzman yedek/personel transferleri de adaletlidir; yalniz gecmis 4 haftanin
+        // gercek calisma gunleri sayilir, Excel/manual kaynaklar ASLA degistirilmez.
+        // Cache yalniz haftanin snapshot'i icin gecerlidir ve solve basinda sifirlanir.
+        const cacheKey = `${hKeyNow()}|${name}|${targetUnit}`;
+        if (crossUnitHistoryCache.has(cacheKey)) return crossUnitHistoryCache.get(cacheKey);
+        let total=0, latestWeek=0, sameTarget=0;
+        const p=personByName(name);
+        if (!p) return {total:0,latestWeek:0,sameTarget:0};
+        for (let w=1; w<=4; w++) {
+            const base=new Date(currentMonday);base.setHours(12,0,0,0);base.setDate(base.getDate()-7*w);
+            const hk=getDateKey(base);
+            for (let d=0;d<7;d++) {
+                const v=(state.manuelAtamalar||{})[`${hk}_${name}_${d}`];
+                if (!isWorkShift(v)) continue;
+                const date=new Date(base);date.setDate(date.getDate()+d);
+                const dest=(state.geciciGorevler||{})[`${getDateKey(date)}_${name}`] || p.birim;
+                if (dest !== p.birim) {
+                    total++;
+                    if (w===1) latestWeek++;
+                    if (dest===targetUnit) sameTarget++;
+                }
+            }
+        }
+        const result={total,latestWeek,sameTarget};
+        crossUnitHistoryCache.set(cacheKey,result);
+        return result;
+    }
+    const crossUnitHistoryCache = new Map();
+
+    // FIX2.32: Ilk otomatik uretimde de hafta sonu adaleti dikkate alinir.
+    // Onceki 4 haftanin gercek tarihinden okur; ayni hafta tekrar OTO yapilmasi
+    // veya regeneration seed'ine bagli DEGILDIR. Excel/manual kaynaklari degistirmez.
+    // MCR/INGEST dongulerine uygulanmaz; hafta ici sabit personele uygulanmaz.
+    const historicalWeekendCache = new Map();
+    function historicalWeekendBurden(name) {
+        if (historicalWeekendCache.has(name)) return historicalWeekendCache.get(name);
+        const map = state.manuelAtamalar || {};
+        let weight = 0, known = 0;
+        for (let w=1; w<=4; w++) {
+            const date = new Date(currentMonday);
+            date.setHours(12,0,0,0);
+            date.setDate(date.getDate() - w*7);
+            const hk = getDateKey(date);
+            for (const d of [5,6]) {
+                const k = `${hk}_${name}_${d}`;
+                if (!Object.prototype.hasOwnProperty.call(map,k)) continue;
+                known++;
+                if (isWorkShift(map[k])) weight += (5-w);
+            }
+        }
+        const out = {weight,known};
+        historicalWeekendCache.set(name,out);
+        return out;
+    }
+
+    // FIX2.33: Tum otomatik HAVUZ birimlerinde sadece bir onceki hafta degil,
+    // 2-4 hafta onceki AYNI GUN / SAAT tekrarini da soft olarak puanla.
+    // MCR/INGEST katı donguleri ve yonetici sabitleri bu optimizasyondan muaftir.
+    function historicalSameDayPatternPenalty(name, day, shift) {
+        const map = state.manuelAtamalar || {};
+        const currentBucket = shiftBucket(shift);
+        let score = 0;
+        for (let w=2; w<=4; w++) {
+            const d = new Date(currentMonday);
+            d.setHours(12,0,0,0);
+            d.setDate(d.getDate()-w*7);
+            const key = `${getDateKey(d)}_${name}_${day}`;
+            if (!Object.prototype.hasOwnProperty.call(map,key)) continue;
+            const previous = map[key];
+            if (!isWorkShift(previous)) continue;
+            const importance = w===2 ? 3 : (w===3 ? 2 : 1);
+            if (previous === shift) score += importance*300;
+            else if (shiftBucket(previous)===currentBucket) score += importance*130;
+            // Hafta sonu ayni kiside kalmasin; kapasite uygun oldugunda donsun.
+            if (day >= 5) score += importance*170;
+        }
+        return score;
+    }
+
     function assignmentCost(work, person, unit, day, shift, phase, offPairs, attempt) {
         let cost = 0;
         const workDays = countWorkDays(work, person.ad);
 
         // Öncelik her zaman birimin kendi personelinde; uzman yedek yalnız eksikte devreye girer.
-        if (person.birim !== unit) cost += 10000;
+        if (person.birim !== unit) {
+            cost += 10000;
+            const burden=historicalCrossUnitBurden(person.ad,unit);
+            // Yedegin kac defa secildigi ve yakin tarih agirliklidir.
+            cost += burden.total*350 + burden.latestWeek*650 + burden.sameTarget*300;
+            // Ayni hafta icinde de uzmani ayni hedefe tekrar tekrar gonderme.
+            for (let d=0;d<7;d++) if (d!==day && isWorkShift(work.matrix[person.ad][d]) &&
+                effectiveUnit(work,person,d)===unit) cost += 450;
+        }
 
         // Hafta içi sabit + hafta sonu yedek kişi, normal havuzdan sonra SON ÇARE olsun.
         if (day >= 5 && isWeekendReservePerson(person)) {
@@ -1195,6 +1803,14 @@
         // Önceki haftanın birebir kopyasını üretme. Kapasite/hard kurallar izin verdiği ölçüde
         // aynı kişiyi aynı gün aynı saate tekrar yazmaktan kaçın.
         cost += previousWeekRotationPenalty(person.ad, day, shift);
+        if (!isCycleUnit(unit) && !isWeekdayFixedPerson(person)) {
+            cost += historicalSameDayPatternPenalty(person.ad,day,shift);
+            if (day >= 5) cost += historicalWeekendBurden(person.ad).weight * 210;
+        }
+
+        // FIX2.21: sabit personel haricinde tum haftayi tek vardiya ailesine kilitleme.
+        // Katı alternasyon yoktur; sadece uzun tek-tip seriler ve gecmis hafta tek-tip yuk soft cezalandirilir.
+        cost += prospectiveShiftDiversityPenalty(work,person,unit,day,shift);
 
         // Gelecekte daha az müsait olan kişiyi bugün kullanmak, ileriki gün kilitlenmeyi azaltır.
         cost += personFutureFlexibility(work, person, day, unit) * 10;
@@ -1406,6 +2022,7 @@
 
         if (countWorkDays(work, person.ad) >= phase.maxWorkDays) return false;
         if (!restAllowed(work, person.ad, day, shift)) return false;
+        if (!consecutiveSixAllowed(work, person.ad, day, shift)) return false;
 
         if (phase.enforceOffPair && person.birim === unit) {
             const pair = offPairs[person.ad];
@@ -3077,7 +3694,7 @@
     // 3) Iki gun ardisik izin korunur.
     // 4) Kisi TAM 4 calisma gununda kalmissa, bilmedigi alanda 1 gun OGRENME eklenebilir.
     //
-    // OGRENME hedefleri: PLAYOUT, KJ, 24TV MCR, 360TV MCR.
+    // OGRENME hedefleri: PLAYOUT, KJ, 24TV MCR, 360TV MCR ve INGEST.
     // MCR/PLAYOUT/KJ asli kapasitesini OGRENME personeli KAPATMAZ; hedef vardiyada en az
     // bir gercek uzman/mentor zaten calisiyor olmalidir. MCR sabit dongusu degismez.
     // Uzmanlik otomatik eklenmez; yonetici gercek yeterlilik olustugunda manuel isaretler.
@@ -3140,9 +3757,17 @@
     function trainingTargetCandidates(person, units) {
         if (!person) return [];
         const cfg = ensureSchedulerState().config || {};
+        const sourceSpec = requiredSpecialty(person.birim);
+        const allowedSources = ['KJ','PLAYOUT'];
+        // Target eligibility does NOT confer authority to learn from any home unit.
+        // Archives, camera, sound, decor etc. can never silently appear in reji.
+        if (!allowedSources.includes(sourceSpec)) return [];
         const allowedSpecs = Array.isArray(cfg.crossTrainingTargetSpecs) && cfg.crossTrainingTargetSpecs.length
             ? cfg.crossTrainingTargetSpecs.slice()
-            : ['PLAYOUT','KJ','24 MCR','360 MCR'];
+            : ['PLAYOUT','KJ','24 MCR','360 MCR','INGEST'];
+        // Existing cloud configs predate INGEST learning; don't omit a target
+        // the operator explicitly authorized merely due to an old default list.
+        if (!allowedSpecs.includes('INGEST')) allowedSpecs.push('INGEST');
         const seen = new Set();
         const rows = [];
         (units || []).forEach(unit => {
@@ -3152,7 +3777,8 @@
             if (trainingKnownSpec(person,spec)) return;
             // Hedef birim normal solver tarafindan yonetiliyor olmali. MCR cycle birimleri
             // kapasite tablosundan bagimsizdir ama OGRENME icin mentor vardiyasi aranir.
-            if (!isCycleUnit(unit) && isPreservedUnit(unit)) return;
+            // Excel/legacy korumasi olan birime OGRENME eklenmez; MCR/INGEST olsa da.
+            if (isPreservedUnit(unit)) return;
             const key = `${spec}|${unit}`;
             if (seen.has(key)) return;
             seen.add(key);
@@ -3181,6 +3807,7 @@
         for (const p of people) {
             if (!p || isWeekdayFixedPerson(p)) continue;
             if (isPermanentLegacyExternalUnit(p.birim) || isCycleUnit(p.birim)) continue;
+            if (!['KJ','PLAYOUT'].includes(requiredSpecialty(p.birim))) continue;
 
             const works = countWorkDays(work,p.ad);
             // Kullanici kurali: OGRENME yalnız TAM 4G kalan kisi icin 5. gun tamamlamasidir.
@@ -3370,14 +3997,48 @@
                     works++;
                     const u = effectiveUnit(work,p,d);
                     if (unitSet.has(u) && !isQualifiedForUnit(p,u) && !isTrainingAssignment(work,p.ad,d)) {
-                        errors.push(`${p.ad} / ${GUNLER[d]}: ${u} uzmanlığı yok.`);
+                        if (isUnchangedExcelWork(work,p,d)) warnings.push(`EXCEL KAYNAĞI KORUNDU - MANUEL İNCELE: ${p.ad} / ${GUNLER[d]} ${u} uzmanlığı kayıtlı değil.`);
+                        else errors.push(`${p.ad} / ${GUNLER[d]}: ${u} uzmanlığı yok.`);
+                    }
+                    if (isTrainingAssignment(work,p.ad,d) && !['KJ','PLAYOUT'].includes(requiredSpecialty(p.birim))) {
+                        errors.push(`${p.ad}: REJİ DIŞI KİŞİYE ÖĞRENME YAZILAMAZ (${p.birim} -> ${u}).`);
                     }
                     const canonicalCycle = isCycleUnit(u) && p.birim === u && v === cycleExpectedShift(p,u,d);
-                    if (!canonicalCycle && !restAllowed(work,p.ad,d,v)) errors.push(`${p.ad} / ${GUNLER[d]}: ${v} dinlenme kuralını ihlal ediyor.`);
+                    if (!canonicalCycle && !restAllowed(work,p.ad,d,v)) {
+                        if (isUnchangedExcelWork(work,p,d)) warnings.push(`EXCEL KAYNAĞI KORUNDU - MANUEL İNCELE: ${p.ad} / ${GUNLER[d]} ${v} dinlenme kuralı ihlali. Otomasyon değiştirmedi.`);
+                        else errors.push(`${p.ad} / ${GUNLER[d]}: ${v} dinlenme kuralını ihlal ediyor.`);
+                    }
                 }
                 if (d < 6 && isOffValue(work.matrix[p.ad][d]) && isOffValue(work.matrix[p.ad][d+1])) hasPair = true;
             }
-            if (works > ensureSchedulerState().config.maxWorkDays) errors.push(`${p.ad}: ${works} gün çalışma (üst sınır ${ensureSchedulerState().config.maxWorkDays}).`);
+            if (works > ensureSchedulerState().config.maxWorkDays) {
+                const allExcel = [0,1,2,3,4,5,6].every(d => !isWorkShift(work.matrix[p.ad][d]) || isUnchangedExcelWork(work,p,d));
+                if (allExcel) warnings.push(`EXCEL KAYNAĞI KORUNDU - MANUEL İNCELE: ${p.ad} ${works} gün çalışıyor; otomasyon değiştirmedi.`);
+                else errors.push(`${p.ad}: ${works} gün çalışma (üst sınır ${ensureSchedulerState().config.maxWorkDays}).`);
+            }
+            // FIX2.26: Explicit validate the entire continuous streak through
+            // prev/current/next week, including canonical MCR/INGEST and fixed days.
+            // Existing imported Excel cells remain untouched and get a MANUAL warning,
+            // but any newly scheduled automated day in the same violating streak FAILS.
+            let longestStreak = 0;
+            let harmfulDays = [];
+            let allProtected = true;
+            for (let d=0; d<7; d++) {
+                if (!isWorkShift(work.matrix[p.ad][d])) continue;
+                const span = consecutiveWorkSpan(work,p.ad,d,work.matrix[p.ad][d]);
+                if (span.days <= 6) continue;
+                if (span.days > longestStreak) {
+                    longestStreak = span.days;
+                    harmfulDays = [];
+                }
+                if (span.days === longestStreak) harmfulDays.push(d);
+                if (!isUnchangedExcelWork(work,p,d)) allProtected = false;
+            }
+            if (longestStreak > 6) {
+                const message = `${p.ad}: HAFTALAR ARASI ${longestStreak} GÜN KESİNTİSİZ ÇALIŞMA (üst sınır 6). Mevcut hafta: ${harmfulDays.map(d=>GUNLER[d]).join(', ')}.`;
+                if (allProtected) warnings.push(`EXCEL KAYNAĞI KORUNDU - MANUEL İNCELE: ${message}`);
+                else errors.push(message);
+            }
             const offCount = 7 - works;
             if (!isCycleUnit(p.birim)) {
                 if (offCount === 1) oneDayOff.push(p.ad);
@@ -3390,6 +4051,20 @@
                 }
             }
         });
+
+        // 5G hedefinin matematiksel darbogazini raporla. Bu hesap KJ/PLAYOUT
+        // bilinen ana havuz icindir; harici uzman yedek bulunursa gercek 6G sayisi
+        // daha dusuk olabilir. Ihtiyac MAX kapasite degil MINIMUMdur.
+        const sharedPair = ['KJ OPERATÖRÜ','PLAYOUT OPERATÖRÜ'];
+        if (sharedPair.every(u => unitSet.has(u))) {
+            const floor = sharedPair.reduce((n,u)=>n+weeklyCapacity(u),0);
+            const owned = state.personeller.filter(p=>sharedPair.includes(p.birim));
+            const budget = owned.reduce((n,p)=>n+Math.min(5,minimumTargetDays(work,p,p.birim)),0);
+            const workingSix = owned.filter(p=>countWorkDays(work,p.ad)>=6);
+            if (workingSix.length && floor > budget) {
+                warnings.push(`KJ+PLAYOUT 5-GÜN MATEMATİK KONTROLÜ: asgari ${floor} personel-vardiya, mevcut ana havuzun 5-gün hedefi ${budget}; açık ${floor-budget} vardiya. Uygun dış uzman yedek yoksa en az ${floor-budget} ilave çalışma günü gerekir. Kaynak Excel/yıllık izin kilitleri değiştirilmedi.`);
+            }
+        }
 
         if (oneDayOff.length) warnings.push(`Kapasite nedeniyle yalnız 1 gün izin yapanlar: ${oneDayOff.join(', ')}`);
         if (noConsecutiveOff.length) warnings.push(`2 izin günü var fakat ardışık olmayanlar: ${noConsecutiveOff.join(', ')}`);
@@ -3429,6 +4104,23 @@
             if (known) {
                 const pct = Math.round(exactRepeat*100/known);
                 if (pct >= 80) warnings.push(`${unit}: önceki haftaya benzerlik yüksek (%${pct}, ${exactRepeat}/${known} hücre birebir aynı).`);
+            }
+        }
+
+        // FIX2.21: Sabit olmayan HAVUZ personeli 4+ sabah/aksam vardiyasinin tamaminda
+        // tek vardiya ailesinde kaldiysa raporla. Bu hard hata degildir: kapasite, dinlenme,
+        // izin veya sabitler bazen tek-tip dagilimi zorunlu kilabilir.
+        if (ensureSchedulerState().config.shiftDiversityEnabled) {
+            for (const unit of unitSet) {
+                if (isCycleUnit(unit) || !unitHasMorningEveningCapacity(unit)) continue;
+                state.personeller.filter(p=>p && p.birim===unit && !isShiftDiversityExempt(work,p)).forEach(p=>{
+                    const st = shiftDiversityStats(work,p.ad);
+                    const total = st.morning + st.evening;
+                    if (total >= 4 && (st.morning === 0 || st.evening === 0)) {
+                        const only = st.morning ? 'SABAH' : 'AKSAM';
+                        warnings.push(`${unit}: ${p.ad} bu hafta ${total} vardiyanın tamamında ${only} kaldı; uygun kapasite/dinlenme takası bulunamadı.`);
+                    }
+                });
             }
         }
 
@@ -3578,8 +4270,238 @@
         if (typeof showToast === 'function') showToast(title, type || 'info');
     }
 
+    // FIX2.25: MIN5 tamamlandiktan sonra ZORUNLU OLMAYAN 6. gunu sil.
+    // Yalniz AUTO vardiyalara dokunur; Excel, manuel, izin, ogrenme,
+    // haftalik sabah sabiti ve MCR/INGEST dongusune ASLA dokunmaz.
+    function relieveAvoidableSixthDays(work, units) {
+        const managed = new Set((units || []).filter(u => !isCycleUnit(u) && !isPreservedUnit(u)));
+        const cfg = ensureSchedulerState().config;
+        const notes = [];
+        const candidates = state.personeller.filter(p =>
+            p && managed.has(p.birim) && !isWeekdayFixedPerson(p) && countWorkDays(work,p.ad) >= 6
+        ).sort((a,b) => historicalSixDayBurdenScore(b.ad)-historicalSixDayBurdenScore(a.ad) || compareName(a,b));
+        for (const donor of candidates) {
+            if (countWorkDays(work,donor.ad) !== 6) continue;
+            const moves = [];
+            for (let day=0; day<7; day++) {
+                const shift = work.matrix[donor.ad][day];
+                const src = work.source[donor.ad][day];
+                const targetUnit = effectiveUnit(work,donor,day);
+                if (!isWorkShift(shift) || (src !== AUTO_SOURCE && src !== AUTO_MIN5_EXTRA_SOURCE)) continue;
+                if (!managed.has(targetUnit)) continue;
+                const available = state.personeller.filter(p =>
+                    p.ad !== donor.ad && managed.has(p.birim) &&
+                    !isWeekdayFixedPerson(p) && countWorkDays(work,p.ad) < 5 &&
+                    isQualifiedForUnit(p,targetUnit) &&
+                    (work.matrix[p.ad][day] === null ||
+                     (work.matrix[p.ad][day] === SHIFTS.IZIN && work.source[p.ad][day] === AUTO_SOURCE && work.reason[p.ad][day] === 'AUTO İZİN')) &&
+                    (!work.tempUnits[tempKey(p.ad,day)] || work.tempUnits[tempKey(p.ad,day)] === targetUnit)
+                );
+                for (const receiver of available) {
+                    const trial = cloneWork(work);
+                    trial.matrix[donor.ad][day] = SHIFTS.IZIN;
+                    trial.source[donor.ad][day] = AUTO_SOURCE;
+                    trial.reason[donor.ad][day] = 'AUTO İZİN — GEREKSİZ 6G KALDIRILDI';
+                    trial.matrix[receiver.ad][day] = shift;
+                    trial.source[receiver.ad][day] = AUTO_SOURCE;
+                    trial.reason[receiver.ad][day] = 'AUTO V62 6G -> 5G ADALET';
+                    if (!restAllowed(trial,receiver.ad,day,shift)) continue;
+                    moves.push({day,shift,targetUnit,receiver,score: countWorkDays(work,receiver.ad)*10000 + previousWeekRotationPenalty(receiver.ad,day,shift)});
+                }
+                // Vardiya tabaninin zaten USTUNDEYSE hicbir alici olmadan da
+                // fazla 6. gunu silebiliriz. GUNLUK ALT KAPASITE degismez.
+                let actual = 0;
+                state.personeller.forEach(p => {
+                    if (work.matrix[p.ad][day] === shift && effectiveUnit(work,p,day) === targetUnit && !isTrainingAssignment(work,p.ad,day)) actual++;
+                });
+                if (actual > capacity(targetUnit,shift,day)) {
+                    moves.push({day,shift,targetUnit,receiver:null,score:-100000});
+                }
+            }
+            if (!moves.length) continue;
+            moves.sort((a,b)=>a.score-b.score || a.day-b.day ||
+                compareName(a.receiver || donor,b.receiver || donor));
+            const m = moves[0];
+            const dtk = tempKey(donor.ad,m.day);
+            work.matrix[donor.ad][m.day] = SHIFTS.IZIN;
+            work.reason[donor.ad][m.day] = 'AUTO İZİN — GEREKSİZ 6G KALDIRILDI';
+            work.source[donor.ad][m.day] = AUTO_SOURCE;
+            work.touchedKeys.add(assignmentKey(donor.ad,m.day));
+            if (work.tempUnits[dtk] && isSchedulerGeneratedSource(work.tempSource[dtk])) {
+                delete work.tempUnits[dtk]; delete work.tempSource[dtk]; work.touchedTempKeys.add(dtk);
+            }
+            if (m.receiver) {
+                const receiver = m.receiver;
+                const rtk = tempKey(receiver.ad,m.day);
+                work.matrix[receiver.ad][m.day] = m.shift;
+                work.reason[receiver.ad][m.day] = 'AUTO V62 6G -> 5G ADALET';
+                work.source[receiver.ad][m.day] = AUTO_SOURCE;
+                work.touchedKeys.add(assignmentKey(receiver.ad,m.day));
+                if (receiver.birim !== m.targetUnit) {
+                    work.tempUnits[rtk] = m.targetUnit; work.tempSource[rtk] = AUTO_SOURCE; work.touchedTempKeys.add(rtk);
+                }
+                notes.push(`${donor.ad} 6G->5G, ${receiver.ad} 4G->5G / ${GUNLER[m.day]} ${m.shift}`);
+            } else {
+                notes.push(`${donor.ad} 6G->5G, ${GUNLER[m.day]} ${m.shift}: kapasite tabaninin ustundeki GEREKSIZ fazla personel kaldirildi.`);
+            }
+        }
+        if (notes.length) work.notes.push(`FIX2.25 gereksiz 6. gun temizligi: ${notes.join(' | ')}`);
+        return notes;
+    }
+
+    // FIX2.26: The first 6-day cleanup can fail when the surplus is in ANOTHER
+    // shift than the six-day person's required slot. A safe two-hop transfer:
+    // (A) release an AUTO surplus worker's extra slot; (B) let that qualified
+    // five-day worker cover one AUTO day of the six-day worker; (C) set the
+    // six-day worker to OFF. Each affected unit/shift retains its minimum;
+    // no Excel/manual/cycle/leave record is changed. All rolling-rest guards run.
+    function relieveSixthDaysViaSurplusBridge(work, units) {
+        const managed = new Set((units || []).filter(u => !isCycleUnit(u) && !isPreservedUnit(u)));
+        const notes = [];
+        for (let round=0; round<12; round++) {
+            const donors = state.personeller.filter(p=>p && managed.has(p.birim) &&
+                !isWeekdayFixedPerson(p) && countWorkDays(work,p.ad) === 6)
+                .sort((a,b)=>historicalSixDayBurdenScore(b.ad)-historicalSixDayBurdenScore(a.ad)||compareName(a,b));
+            let selected = null;
+            for (const donor of donors) {
+                for (let donorDay=0; donorDay<7 && !selected; donorDay++) {
+                    const donorShift = work.matrix[donor.ad][donorDay];
+                    const donorSource = work.source[donor.ad][donorDay];
+                    const targetUnit = effectiveUnit(work,donor,donorDay);
+                    if (!isWorkShift(donorShift) || !managed.has(targetUnit) ||
+                        (donorSource !== AUTO_SOURCE && donorSource !== AUTO_MIN5_EXTRA_SOURCE)) continue;
+                    for (let surplusDay=0; surplusDay<7 && !selected; surplusDay++) {
+                        if (surplusDay === donorDay) continue;
+                        for (const surplusUnit of managed) {
+                            if (selected) break;
+                            for (const surplusShift of state.saatler || []) {
+                                if (!isWorkShift(surplusShift)) continue;
+                                let actual=0;
+                                state.personeller.forEach(p=>{
+                                    if (work.matrix[p.ad][surplusDay]===surplusShift &&
+                                        effectiveUnit(work,p,surplusDay)===surplusUnit &&
+                                        !isTrainingAssignment(work,p.ad,surplusDay)) actual++;
+                                });
+                                if (actual <= capacity(surplusUnit,surplusShift,surplusDay)) continue;
+                                const bridges = state.personeller.filter(p=>p && p.ad!==donor.ad &&
+                                    !isCycleUnit(p.birim) && !isWeekdayFixedPerson(p) &&
+                                    countWorkDays(work,p.ad)===5 &&
+                                    work.matrix[p.ad][surplusDay]===surplusShift &&
+                                    effectiveUnit(work,p,surplusDay)===surplusUnit &&
+                                    (work.source[p.ad][surplusDay]===AUTO_SOURCE ||
+                                     work.source[p.ad][surplusDay]===AUTO_MIN5_EXTRA_SOURCE) &&
+                                    isQualifiedForUnit(p,targetUnit) &&
+                                    (work.matrix[p.ad][donorDay]===null ||
+                                     (work.matrix[p.ad][donorDay]===SHIFTS.IZIN &&
+                                      work.source[p.ad][donorDay]===AUTO_SOURCE &&
+                                      String(work.reason[p.ad][donorDay]||'').indexOf('AUTO İZİN')===0)) &&
+                                    !isManualUnitLocked(tempKey(p.ad,donorDay)) &&
+                                    !isManualUnitLocked(tempKey(p.ad,surplusDay)))
+                                    .sort(compareName);
+                                for (const bridge of bridges) {
+                                    const forced = work.tempUnits[tempKey(bridge.ad,donorDay)];
+                                    if (forced && forced!==targetUnit) continue;
+                                    const trial = cloneWork(work);
+                                    // Donor goes 6 -> 5. Bridge stays at 5; old surplus
+                                    // goes OFF and bridge fills donor slot on another day.
+                                    trial.matrix[donor.ad][donorDay]=SHIFTS.IZIN;
+                                    trial.source[donor.ad][donorDay]=AUTO_SOURCE;
+                                    trial.matrix[bridge.ad][surplusDay]=SHIFTS.IZIN;
+                                    trial.source[bridge.ad][surplusDay]=AUTO_SOURCE;
+                                    trial.matrix[bridge.ad][donorDay]=donorShift;
+                                    trial.source[bridge.ad][donorDay]=AUTO_SOURCE;
+                                    const tOld=tempKey(bridge.ad,surplusDay);
+                                    if (trial.tempUnits[tOld] && isSchedulerGeneratedSource(trial.tempSource[tOld])) {
+                                        delete trial.tempUnits[tOld]; delete trial.tempSource[tOld];
+                                    }
+                                    const tDonor=tempKey(donor.ad,donorDay);
+                                    if (trial.tempUnits[tDonor] && isSchedulerGeneratedSource(trial.tempSource[tDonor])) {
+                                        delete trial.tempUnits[tDonor]; delete trial.tempSource[tDonor];
+                                    }
+                                    const tNew=tempKey(bridge.ad,donorDay);
+                                    if (bridge.birim!==targetUnit) {
+                                        trial.tempUnits[tNew]=targetUnit; trial.tempSource[tNew]=AUTO_SOURCE;
+                                    }
+                                    if (!restAllowed(trial,bridge.ad,donorDay,donorShift)) continue;
+                                    if (!consecutiveSixAllowed(trial,donor.ad,donorDay,SHIFTS.IZIN)) continue;
+                                    selected={donor,bridge,donorDay,donorShift,targetUnit,surplusDay,surplusShift,surplusUnit};
+                                    break;
+                                }
+                                if (selected) break;
+                            }
+                        }
+                    }
+                }
+                if (selected) break;
+            }
+            if (!selected) break;
+            const a=selected,{donor,bridge,donorDay,donorShift,targetUnit,surplusDay,surplusUnit}=a;
+            const dtk=tempKey(donor.ad,donorDay);
+            work.matrix[donor.ad][donorDay]=SHIFTS.IZIN;
+            work.reason[donor.ad][donorDay]='AUTO İZİN — 6G KÖPRÜ DEVİR';
+            work.source[donor.ad][donorDay]=AUTO_SOURCE;
+            work.touchedKeys.add(assignmentKey(donor.ad,donorDay));
+            if (work.tempUnits[dtk] && isSchedulerGeneratedSource(work.tempSource[dtk])) {
+                delete work.tempUnits[dtk];delete work.tempSource[dtk];work.touchedTempKeys.add(dtk);
+            }
+            const bOld=tempKey(bridge.ad,surplusDay), bNew=tempKey(bridge.ad,donorDay);
+            work.matrix[bridge.ad][surplusDay]=SHIFTS.IZIN;
+            work.reason[bridge.ad][surplusDay]='AUTO İZİN — FAZLA SLOT BOŞALTILDI';
+            work.source[bridge.ad][surplusDay]=AUTO_SOURCE;
+            work.touchedKeys.add(assignmentKey(bridge.ad,surplusDay));
+            if (work.tempUnits[bOld] && isSchedulerGeneratedSource(work.tempSource[bOld])) {
+                delete work.tempUnits[bOld];delete work.tempSource[bOld];work.touchedTempKeys.add(bOld);
+            }
+            work.matrix[bridge.ad][donorDay]=donorShift;
+            work.reason[bridge.ad][donorDay]='AUTO V62 6G KÖPRÜ ADALET';
+            work.source[bridge.ad][donorDay]=AUTO_SOURCE;
+            work.touchedKeys.add(assignmentKey(bridge.ad,donorDay));
+            if (bridge.birim!==targetUnit) {
+                work.tempUnits[bNew]=targetUnit;work.tempSource[bNew]=AUTO_SOURCE;work.touchedTempKeys.add(bNew);
+            }
+            notes.push(`${donor.ad} 6G->5G; ${bridge.ad} 5G korundu; ${GUNLER[surplusDay]} ${surplusUnit} fazla slotu bosaltildi; ${GUNLER[donorDay]} ${targetUnit} vardiyasina yetkin kisi devredildi.`);
+        }
+        if (notes.length) work.notes.push(...notes.map(t=>`FIX2.26 6G adalet: ${t}`));
+        return notes;
+    }
+
+    // FIX2.27 - KJ ve PLAYOUT kendi haftalik 360TV sabahcisini AYRI AYRI korur.
+    // Sirali solver ilk birim icin diger birimin sabahcisini odunc alabilir.
+    // Bu nedenle kapasite/adalet PASS olmasi tek basina kabul degildir:
+    // iki birimin de pazartesi-cuma sabit sabah + cumartesi-pazar izin plani
+    // gercek matrix icinde bulunmali; imkansizsa sessizce sabahcisiz publish YASAK.
+    // Onceden Excel ile korunmus birim bu kontrolde hic degistirilmez.
+    function missingWeeklyMorningAnchors(work, units) {
+        const cfg = ensureSchedulerState().config;
+        if (!cfg.weeklyMorningAnchorRotation) return [];
+        const morning = weeklyMorningAnchorShift();
+        const errors=[];
+        for (const unit of units) {
+            if (!isWeeklyMorningAnchorUnit(unit) || isLegacyExternalUnit(unit) || isNoCapacityPreservedUnit(unit)) continue;
+            const rec=work.weeklyMorningAnchors && work.weeklyMorningAnchors[unit];
+            const candidates=rec && rec.person ? [rec.person] :
+                (rec && rec.manualOverride && Array.isArray(rec.persons) ? rec.persons : []);
+            const valid=candidates.some(name=>{
+                const p=personByName(name);
+                if (!p || p.birim!==unit || !work.matrix[name]) return false;
+                for (let d=0; d<5; d++) {
+                    if (!sameShiftWindow(work.matrix[name][d],morning) || effectiveUnit(work,p,d)!==unit) return false;
+                }
+                return !isWorkShift(work.matrix[name][5]) && !isWorkShift(work.matrix[name][6]);
+            });
+            if (!valid) {
+                errors.push(`${unit}: HAFTALIK 360TV SABAHCI EKSİK. Pzt-Cum 06:30–16:00 sabit + Cmt-Paz izin sağlanmadı. ${rec && rec.reason || 'Sabit personel seçilemedi.'}`);
+            }
+        }
+        return errors;
+    }
+
     function solveSchedule(options) {
+        // Yeni bulut/snapshot ile ayni hafta tekrar cozulurse gecmis-yedek cache'i yenilensin.
+        crossUnitHistoryCache.clear();
+        historicalWeekendCache.clear();
         ensureSchedulerState();
+        recoverExcelUnitAuthority();
         const requestedUnits = (options.units && options.units.length ? options.units : state.birimler).filter(Boolean);
         const units = autoManagedUnits(requestedUnits);
         const full = !!options.full;
@@ -3617,20 +4539,44 @@
                     continue;
                 }
 
+                // Zorunlu olmayan 6. gunu kapasiteyi bozmadan azalt; kalan zorunlu
+                // 6. gunleri eski FIX2.20 tarihsel adalet mekanizmasi yonetsin.
+                const sixthDayRelief = relieveAvoidableSixthDays(work,units);
+                const sixthDayBridgeRelief = relieveSixthDaysViaSurplusBridge(work,units);
+
                 // FIX2.20: Once zorunlu 6. gun yukunu gecmis haftalara bakarak rotasyona sok.
                 // Kapasite ayni vardiya icinde birebir devredilir; MCR/INGEST dongusune dokunulmaz.
                 const sixDayFairnessTransfers = rebalanceHistoricalSixDayFairness(work,units);
 
+                // FIX2.21: Haftalik yuk ve 6G rotasyonu cozulduktan sonra, sabit olmayan HAVUZ
+                // personelinde tum hafta ayni vardiyaya yigilma varsa ayni gun kapasiteyi degistirmeden
+                // sabah/aksam takasi yap. Bu bir soft son-duzeltmedir; hard kurallari asla ezmez.
+                const shiftDiversityTransfers = rebalanceShiftDiversity(work,units);
+                // FIX2.32: First-generation weekend fairness across all eligible units.
+                const weekendFairnessTransfers = rebalanceWeekendRotation(work,units);
+
                 // FIX2.19: Normal kapasite cozulduktan ve 2 gun izin korunduktan sonra
-                // TAM 4G kalan uygun personele PLAYOUT/KJ/24TV MCR/360TV MCR hedeflerinden
+                // TAM 4G kalan uygun personele PLAYOUT/KJ/24TV MCR/360TV MCR/INGEST hedeflerinden
                 // bilmedigi birinde 1 gun OGRENME ekle. Kapasiteyi kapatmaz.
                 const trainingAssignments = addCrossTrainingLearningAssignments(work,units);
                 finalizeWork(work,{full,units});
                 const validation = validateFinal(work,units);
+                validation.sixthDayRelief = sixthDayRelief.concat(sixthDayBridgeRelief);
                 validation.trainingAssignments = trainingAssignments;
                 validation.sixDayFairnessTransfers = sixDayFairnessTransfers;
+                validation.shiftDiversityTransfers = shiftDiversityTransfers;
+                validation.weekendFairnessTransfers = weekendFairnessTransfers;
                 if (!validation.ok) {
                     bestFailures = validation.errors;
+                    continue;
+                }
+                const anchorErrors = missingWeeklyMorningAnchors(work, units);
+                if (anchorErrors.length) {
+                    bestFailures = anchorErrors;
+                    // Ana sirada kapsitesi gecen ama haftalik sabahciyi kaybeden cozumu
+                    // aday diye kabul etme. Ayni gunleri tekrar denemek yerine
+                    // KJ/PLAYOUT ters sirada gercek alternatifle cozulsun.
+                    if (orderVariant === 0 && orders.length > 1) break;
                     continue;
                 }
                 if (orderVariant > 0) {
@@ -3675,15 +4621,16 @@
                 'Dinlenme kontrolü: PASS',
                 'Haftalık iş yükü adaleti: PASS / mümkün olan en dengeli dağılım',
                 `6 gün yük rotasyonu: AKTİF — geçen hafta + son ${ensureSchedulerState().config.sixDayHistoryLookbackWeeks || 4} hafta dikkate alınır; uygun alternatif varsa aynı kişi peş peşe 6G seçilmez`,
+                `Vardiya çeşitliliği: AKTİF — sabit personel ve MCR/INGEST hariç; uzun tek-tip sabah/akşam serileri soft rotasyonla kırılır, izin seriyi sıfırlar`,
                 'Minimum çalışma hedefi: önce 5 gün zorlanır; hard kapasite/izin/dinlenme nedeniyle mümkün değilse FIX2.17 soft fallback uygulanır',
-                `Öğrenme/cross-training: ${(result.validation.trainingAssignments || []).length} atama — yalnız 4G kalan uygun personel, PLAYOUT/KJ/24TV MCR/360TV MCR hedeflerinde haftada en fazla 1 gün; kapasiteyi kapatmaz`,
+                `Öğrenme/cross-training: ${(result.validation.trainingAssignments || []).length} atama — yalnız 4G kalan uygun personel, PLAYOUT/KJ/24TV MCR/360TV MCR/INGEST hedeflerinde haftada en fazla 1 gün; kapasiteyi kapatmaz`,
                 'Hafta içi sabitler: Cmt-Paz HARD İZİN; yalnız seçili kapasite yedekleri son çare olarak kullanılabilir',
                 'Yıllık izin: yerel veya harici yönetici onayı HARD LOCK; kapasite için geri alınmaz',
                 'Haftalar arası rotasyon: HAVUZ birimlerinde AKTİF; MCR sabit döngü, INGEST özel haftalık rol rotasyonu kullanır',
                 '4 günlük personel tamamlama: önce kapasite-içi devir; gerekirse Cmt-Paz sabah MIN5 EK PERSONEL',
                 preservedExcelUnits.length ? `Excel/legacy koruma: ${preservedExcelUnits.join(', ')} V62 tarafından değiştirilmedi` : 'Excel/legacy koruma: bu hafta işaretli birim yok',
                 preservedNoCapacityUnits.length ? `Kapasite tanımsız koruma: ${preservedNoCapacityUnits.join(', ')} mevcut haliyle bırakıldı` : 'Kapasite tanımsız koruma: yok',
-                'Aynı girdide aynı sonuç: AKTİF',
+                `Deterministik çözüm: AKTİF — normalde aynı girdi aynı sonucu verir; yönetici haftayı temizlerse alternatif seed=${(ensureSchedulerState().regenerationSeeds || {})[hKeyNow()] || 0} ile eşdeğer geçerli çözüm aranır`,
                 '',
                 ...Object.keys(result.unitPhases).map(u => `${u}: ${result.unitPhases[u]}`)
             ];
@@ -3701,6 +4648,11 @@
             if (sixDayFairnessTransfers.length) {
                 lines.push('', '6 gün yük rotasyonu (geçmiş haftalara göre):');
                 sixDayFairnessTransfers.forEach(x => lines.push(`• ${x.homeUnit}: ${x.donor} → ${x.receiver} | ${GUNLER[x.day]} ${x.shift}${x.targetUnit !== x.homeUnit ? ` | görev: ${x.targetUnit}` : ''} | geçen hafta ${x.donorPrev == null ? '?' : x.donorPrev}G → ${x.receiverPrev == null ? '?' : x.receiverPrev}G`));
+            }
+            const shiftDiversityTransfers = result.validation.shiftDiversityTransfers || [];
+            if (shiftDiversityTransfers.length) {
+                lines.push('', 'Vardiya çeşitliliği düzeltmeleri:');
+                shiftDiversityTransfers.forEach(x => lines.push(`• ${x.unit}: ${x.days.map(d=>GUNLER[d]).join('-')} | ${x.a} ${x.aFromBucket} → ${x.aToBucket} / ${x.b} ${x.bFromBucket} → ${x.bToBucket}`));
             }
             const trainingAssignments = result.validation.trainingAssignments || [];
             if (trainingAssignments.length) {
@@ -3792,6 +4744,21 @@
         delete state.manuelAtamalar[key];
     }
 
+    // FIX2.26: An operator's explicit manual reassignment must not create a
+    // seventh continuous working day across the previous/next week's stored data.
+    // Excel-imported cells are NEVER silently rewritten by this guard.
+    function manualContinuousWorkAllowed(name,day,shift) {
+        if (!isWorkShift(shift)) return true;
+        const row = Array(7).fill(null);
+        const map = state.manuelAtamalar || {};
+        for (let d=0; d<7; d++) {
+            const key = assignmentKey(name,d);
+            row[d] = Object.prototype.hasOwnProperty.call(map,key) ? map[key] : null;
+        }
+        row[day] = shift;
+        return consecutiveSixAllowed({matrix:{[name]:row}},name,day,shift);
+    }
+
     // app.js V61'de eksik olan isim için uyumluluk; yeni V62 akışında asıl validasyon solver içindedir.
     global.cakismaKontrol = function(name,day,shift) {
         const p = personByName(name);
@@ -3800,6 +4767,7 @@
         if (isWorkShift(shift) && !isQualifiedForUnit(p,unit)) {
             throw new Error(`${name}, ${unit} için gerekli uzmanlığa sahip değil.`);
         }
+        if (!manualContinuousWorkAllowed(name,day,shift)) throw new Error(`${name}: haftalar arası 6 kesintisiz gün sınırı aşılıyor.`);
         return true;
     };
 
@@ -3821,6 +4789,7 @@
             if (!p) throw new Error('Personel bulunamadı.');
             if (isAnnualHardLocked(pAd,gIdx) && vardiya !== SHIFTS.YILLIK) throw new Error(`${pAd} / ${GUNLER[gIdx]}: yönetici onaylı YILLIK İZİN hard lock; vardiya ile ezilemez.`);
             if (isWorkShift(vardiya) && !isQualifiedForUnit(p,unit)) throw new Error(`${pAd}, ${unit} için uzman değil.`);
+            if (!manualContinuousWorkAllowed(pAd,gIdx,vardiya)) throw new Error(`${pAd}: haftalar arası 6 kesintisiz gün sınırı aşılıyor.`);
             markManualAssignment(pAd,gIdx,vardiya,MANUAL_SOURCE);
             save();
             try { tabloyuOlustur(); if (isAdmin) refreshUI(); } catch(e) {}
@@ -3873,6 +4842,7 @@
             if (!p) throw new Error('Personel bulunamadı.');
             if (isAnnualHardLocked(pAd,ng) && value !== SHIFTS.YILLIK) throw new Error(`${pAd} / ${GUNLER[ng]}: yönetici onaylı YILLIK İZİN hard lock; sürükle-bırak ile ezilemez.`);
             if (isWorkShift(value) && !isQualifiedForUnit(p,unit)) throw new Error(`${pAd}, ${unit} için uzman değil.`);
+            if (!manualContinuousWorkAllowed(pAd,ng,value)) throw new Error(`${pAd}: haftalar arası 6 kesintisiz gün sınırı aşılıyor.`);
             markManualAssignment(pAd,ng,value,MANUAL_SOURCE);
             save();
             try { tabloyuOlustur(); if (isAdmin) refreshUI(); } catch(e) {}
@@ -4008,6 +4978,26 @@
         return state.personeller.find(p => annualIdentityName(p.ad) === wanted) || null;
     }
 
+    function annualRecordsFingerprint(records) {
+        const parts = (records || []).map(rawRec => {
+            const rec = normalizedAnnualRecord(rawRec);
+            return [
+                annualIdentityName(rec.personel_adi),
+                formatTarih(rec.baslangic_tarihi),
+                annualReturnDate(rec),
+                isApprovedAnnualLeaveRecord(rec) ? '1' : '0',
+                String(rec.tarih_semantigi || '').trim().toLowerCase()
+            ].join('|');
+        }).sort();
+        return `${stableHash(parts.join('||')).toString(16)}-${parts.length}`;
+    }
+
+    function sameAnnualLockMeta(a,b) {
+        if (!a || !b) return false;
+        return a.person === b.person && a.hKey === b.hKey && Number(a.day) === Number(b.day) &&
+               a.date === b.date && a.unit === b.unit;
+    }
+
     function unitForAbsoluteDate(person,dateObj) {
         const dateKey = getDateKey(dateObj);
         return (state.geciciGorevler || {})[`${dateKey}_${person.ad}`] || person.birim;
@@ -4020,6 +5010,7 @@
         const next = {};
         const affectedCurrentUnits = new Set();
         const currentH = hKeyNow();
+        let changed = 0;
 
         (records || []).forEach(rawRec => {
             const rec = normalizedAnnualRecord(rawRec);
@@ -4036,7 +5027,7 @@
             });
         });
 
-        // Artık onaylı olmayan eski harici kilitleri yalnız kendi kaynağımızsa kaldır.
+        // Artik onayli olmayan eski harici kilitleri yalniz kendi kaynagimizsa kaldir.
         Object.keys(scheduler.externalAnnualLocks || {}).forEach(key => {
             if (next[key]) return;
             const old = scheduler.externalAnnualLocks[key];
@@ -4044,25 +5035,38 @@
                 delete state.manuelAtamalar[key];
                 delete scheduler.manualLocks[key];
                 delete scheduler.assignmentSource[key];
+                changed++;
                 if (old && old.hKey === currentH && old.unit) affectedCurrentUnits.add(old.unit);
             }
         });
 
         Object.keys(next).forEach(key => {
             const meta = next[key];
+            const old = scheduler.externalAnnualLocks && scheduler.externalAnnualLocks[key];
+            const alreadyOwned = scheduler.assignmentSource[key] === ANNUAL_EXTERNAL_SOURCE &&
+                                 state.manuelAtamalar[key] === SHIFTS.YILLIK &&
+                                 scheduler.manualLocks[key] === true;
+            const metaSame = sameAnnualLockMeta(old,meta);
+            if (!alreadyOwned || !metaSame) {
+                changed++;
+                if (meta.hKey === currentH && meta.unit) affectedCurrentUnits.add(meta.unit);
+            }
             state.manuelAtamalar[key] = SHIFTS.YILLIK;
             scheduler.manualLocks[key] = true;
             scheduler.assignmentSource[key] = ANNUAL_EXTERNAL_SOURCE;
-            if (meta.hKey === currentH && meta.unit) affectedCurrentUnits.add(meta.unit);
         });
         scheduler.externalAnnualLocks = next;
-        save();
-        try { tabloyuOlustur(); } catch(e) {}
 
-        if (options.reoptimize !== false && isAdmin && affectedCurrentUnits.size) {
+        // Ayni snapshot tekrar geldiyse localStorage, tablo renderi ve reoptimize YAPMA.
+        if (changed > 0) {
+            save();
+            if (options.render !== false) { try { tabloyuOlustur(); } catch(e) {} }
+        }
+
+        if (changed > 0 && options.reoptimize !== false && isAdmin && affectedCurrentUnits.size) {
             const units = autoManagedUnits(Array.from(affectedCurrentUnits));
             const ok = units.length ? reoptimizeUnits(units,'Harici yönetici onaylı yıllık izin güncellendi',{silentFailure:true}) : true;
-            if (!ok) {
+            if (!ok && options.reportFailure !== false) {
                 showSchedulerReport('⚠️ YILLIK İZİN KORUNDU / KAPASİTE ÇÖZÜLEMEDİ',[
                     'Harici uygulamadaki yönetici onayı HARD LOCK olarak uygulandı ve geri alınmadı.',
                     `Etkilenen birim(ler): ${units.join(', ')}`,
@@ -4070,7 +5074,7 @@
                 ],'error');
             }
         }
-        return {count:Object.keys(next).length,affectedUnits:Array.from(affectedCurrentUnits)};
+        return {count:Object.keys(next).length,changed,affectedUnits:Array.from(affectedCurrentUnits)};
     }
 
     function startExternalAnnualRealtimeSync() {
@@ -4083,12 +5087,30 @@
                     const raw = doc.data();
                     records.push(normalizedAnnualRecord(raw));
                 });
+                const fingerprint = annualRecordsFingerprint(records);
                 hariciIzinler = records;
+                global.__V62_ANNUAL_DATA_READY = true;
                 try { renderLeaveCalendar(); } catch(e) {}
-                const r = applyExternalAnnualLocks(records,{reoptimize:true});
+
+                // Firestore onSnapshot ilk abone olunca mevcut veriyi tekrar yollar.
+                // Startup GET ile ayni fingerprint ise ikinci kez hard-lock/reoptimize calistirma.
+                if (!global.__V62_ANNUAL_REALTIME_FIRST_SEEN) {
+                    global.__V62_ANNUAL_REALTIME_FIRST_SEEN = true;
+                    if (global.__V62_ANNUAL_INITIAL_FINGERPRINT && global.__V62_ANNUAL_INITIAL_FINGERPRINT === fingerprint) {
+                        global.__V62_ANNUAL_LAST_REALTIME_FINGERPRINT = fingerprint;
+                        console.log('[V62 FAST START] Yıllık izin realtime ilk snapshot startup verisiyle aynı; tekrar işlenmedi.');
+                        return;
+                    }
+                }
+                if (global.__V62_ANNUAL_LAST_REALTIME_FINGERPRINT === fingerprint) return;
+                global.__V62_ANNUAL_LAST_REALTIME_FINGERPRINT = fingerprint;
+
+                const r = applyExternalAnnualLocks(records,{reoptimize:true,source:'realtime'});
                 const approved = records.filter(isApprovedAnnualLeaveRecord).length;
                 const matched = records.filter(x => isApprovedAnnualLeaveRecord(x) && actualPersonByExternalName(x.personel_adi)).length;
-                if (typeof showToast === 'function') showToast(`🏖️ Yıllık izin senkronu: ${records.length} kayıt / ${approved} onaylı / ${matched} personel / ${r.count} gün hard lock.`,'info');
+                if (r.changed > 0 && typeof showToast === 'function') {
+                    showToast(`🏖️ Yıllık izin değişikliği: ${records.length} kayıt / ${approved} onaylı / ${matched} personel / ${r.changed} hard lock değişti.`,'info');
+                }
             }, err => console.error('V62 yıllık izin realtime listener:',err));
             return true;
         } catch(err) {
@@ -4168,22 +5190,20 @@
         return ok;
     };
 
-    // Eski manuel çekme butonu çalıştığında da aynı hard-lock kaynağını uygula.
-    const oldIzinleriGuncelleVeCek = global.izinleriGuncelleVeCek;
-    if (typeof oldIzinleriGuncelleVeCek === 'function') {
-        global.izinleriGuncelleVeCek = async function() {
-            const r = await oldIzinleriGuncelleVeCek.apply(this,arguments);
-            applyExternalAnnualLocks(hariciIzinler,{reoptimize:true});
-            return r;
-        };
-    }
+    // FAST START FIX2.23: app.js manuel/startup izin cekme fonksiyonu hard-lock uygulamasini
+    // dogrudan SchedulerV2 uzerinden yapar. Burada tekrar wrapper kurup ikinci kez calistirma.
 
     // Bulut vardiya_data state'i yeniden yüklendiğinde harici izin hard lock'larını tekrar uygula.
     const oldCloudLoad = global.veriyiBuluttanYukleVeCiz;
     if (typeof oldCloudLoad === 'function') {
         global.veriyiBuluttanYukleVeCiz = function() {
             const r = oldCloudLoad.apply(this,arguments);
-            return Promise.resolve(r).then(v => { applyExternalAnnualLocks(hariciIzinler,{reoptimize:false}); return v; });
+            return Promise.resolve(r).then(v => {
+                if (global.__V62_ANNUAL_DATA_READY) {
+                    applyExternalAnnualLocks(hariciIzinler,{reoptimize:false,render:false,source:'cloud-load'});
+                }
+                return v;
+            });
         };
     }
 
@@ -4214,6 +5234,7 @@
         isWeekendReservePerson,
         isAnnualHardLocked,
         applyExternalAnnualLocks,
+        annualRecordsFingerprint,
         startExternalAnnualRealtimeSync,
         isLegacyExternalUnit,
         isPermanentLegacyExternalUnit,
@@ -4236,7 +5257,14 @@
         unitOwnWeeklyPotential,
         unitRequiredCrossRemaining,
         unitOwnStaffingSlack,
-        unitSolveOrderVariants
+        unitSolveOrderVariants,
+        historicalWeekWorkload,
+        historicalSixDayStats,
+        historicalSixDayBurdenScore,
+        shiftDiversityStats,
+        historicalShiftVarietyPenalty,
+        prospectiveShiftDiversityPenalty,
+        rebalanceShiftDiversity
     };
 
     ensureSchedulerState();

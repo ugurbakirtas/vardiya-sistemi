@@ -355,28 +355,57 @@ function otomatikIzinleriTabloyaIsle() {
 }
 
 // MANUEL TETİKLENEN GÜNCELLEME FONKSİYONU
-async function izinleriGuncelleVeCek() {
-    showLoading();
+async function izinleriGuncelleVeCek(options = {}) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const silent = !!opts.silent;
+    const reoptimize = opts.reoptimize !== false;
+    if (!silent) showLoading();
     try {
         const snapshot = await dbIzin.collection('izinler').get();
-        hariciIzinler = [];
+        const records = [];
         snapshot.forEach(doc => {
-            hariciIzinler.push(normalizeExternalLeaveRecord(doc.data()));
+            records.push(normalizeExternalLeaveRecord(doc.data()));
         });
+        hariciIzinler = records;
+        window.__V62_ANNUAL_DATA_READY = true;
         renderLeaveCalendar();
-        otomatikIzinleriTabloyaIsle();
-        tabloyuOlustur();
+
+        let lockResult = null;
+        if (window.SchedulerV2 && typeof window.SchedulerV2.applyExternalAnnualLocks === 'function') {
+            lockResult = window.SchedulerV2.applyExternalAnnualLocks(hariciIzinler, {
+                reoptimize,
+                render: !silent,
+                source: silent ? 'startup' : 'manual'
+            });
+            if (typeof window.SchedulerV2.annualRecordsFingerprint === 'function') {
+                window.__V62_ANNUAL_INITIAL_FINGERPRINT = window.SchedulerV2.annualRecordsFingerprint(hariciIzinler);
+                window.__V62_ANNUAL_LAST_REALTIME_FINGERPRINT = window.__V62_ANNUAL_INITIAL_FINGERPRINT;
+            }
+        } else {
+            // Eski/fallback yol: SchedulerV2 yuklenememisse mevcut hard-lock davranisini koru.
+            otomatikIzinleriTabloyaIsle();
+            if (!silent) tabloyuOlustur();
+        }
+
         const approved = hariciIzinler.filter(x => x.__approved).length;
         const matched = hariciIzinler.filter(x => x.__approved && state.personeller.some(p => izinKimlikNormalize(p.ad) === izinKimlikNormalize(x.personel_adi))).length;
-        showToast(`✅ İzinler güncellendi: ${snapshot.size} kayıt / ${approved} onaylı / ${matched} personel eşleşti.`, "success");
-        logKoy(`İzinler manuel çekildi: ${snapshot.size} kayıt, ${approved} onaylı, ${matched} personel eşleşti.`);
+        if (!silent) {
+            const changedText = lockResult && Number.isFinite(lockResult.changed) ? ` / ${lockResult.changed} yeni-degisen hard lock` : '';
+            showToast(`✅ İzinler güncellendi: ${snapshot.size} kayıt / ${approved} onaylı / ${matched} personel eşleşti${changedText}.`, "success");
+            logKoy(`İzinler manuel çekildi: ${snapshot.size} kayıt, ${approved} onaylı, ${matched} personel eşleşti.`);
+        } else {
+            console.log(`[V62 FAST START] Yıllık izin ilk yükleme: ${snapshot.size} kayıt / ${approved} onaylı / ${matched} personel; otomatik reoptimize yok.`);
+        }
+        return { size:snapshot.size, approved, matched, lockResult };
     } catch (error) {
         console.error("Yıllık izinler çekilirken hata oluştu:", error);
-        showToast("Hata: İzinler çekilemedi!", "error");
+        if (!silent) showToast("Hata: İzinler çekilemedi!", "error");
+        return null;
     } finally {
-        hideLoading();
+        if (!silent) hideLoading();
     }
 }
+window.izinleriGuncelleVeCek = izinleriGuncelleVeCek;
 
 function renderLeaveCalendar() {
     const activeList = document.getElementById('activeLeavesList');
@@ -860,7 +889,20 @@ function tabloyuOlustur() {
     
     let getSanalBirim = (b) => (b && (b.includes("PLAYOUT") || b.includes("KJ"))) ? UNITS.REJI : b;
 
-    document.getElementById("tableBody").innerHTML = state.saatler.map((s, sIdx) => { 
+    // FIX2.30: Saatleri GORSEL olarak duzenle. Gercek vardiya kimliklerini degistirme.
+    // 00:00-07:00 bir "en erken" vardiya degildir: Izin/Bos satirindan hemen once gorunur.
+    // 18:00-02:00, 16:00-00:00 sonrasinda ve gece vardiyasindan ONCE kalir.
+    const displayShifts = [...state.saatler].sort((a, b) => {
+        const rank = v => {
+            const raw = String(v || '');
+            if (/^(?:0?0):00\s*[-–—]\s*0?7:00/.test(raw)) return 1440;
+            const m = raw.match(/^(\d{1,2}):\d{2}/);
+            if (m) { const minutes=Number(m[1])*60; return minutes===0 ? 1440 : minutes; }
+            return 2000;
+        };
+        return rank(a) - rank(b);
+    });
+    document.getElementById("tableBody").innerHTML = displayShifts.map((s, sIdx) => { 
         const ozelRenk = (state.saatAyarlari && state.saatAyarlari[s]) ? state.saatAyarlari[s].renk : null;
         const rowStyle = ozelRenk ? `style="background-color:${ozelRenk}"` : ""; 
         
@@ -2244,7 +2286,74 @@ function vardiyaAta(pAd, gIdx, vardiya) {
 }
 
 function toggleTheme() { const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"; document.documentElement.setAttribute("data-theme", t); localStorage.setItem(PREFIX + "theme", t); gorunumAyarlariYukle(); }
-function vardiyaSifirla() { if(confirm("Haftayı temizle?")) { saveStateToHistory(); const hKey = getDateKey(currentMonday); Object.keys(state.manuelAtamalar).forEach(k => { if(k.startsWith(hKey)) delete state.manuelAtamalar[k]; }); save(); tabloyuOlustur(); logKoy("Bu haftanın vardiyası sıfırlandı."); showToast("Hafta temizlendi.", "info"); } }
+function vardiyaSifirla() {
+    if(!confirm("Bu haftanın OTOMATİK üretilen vardiyaları temizlensin mi?\n\nExcel'den yüklenen birimler, yıllık izinler ve yönetici manuel kilitleri KORUNACAK.\nBir sonraki OTO üretimde farklı geçerli alternatifler denenecek.")) return;
+    saveStateToHistory();
+    const hKey = getDateKey(currentMonday);
+    if (!state.schedulerV2 || typeof state.schedulerV2 !== 'object') state.schedulerV2 = {};
+    const sch = state.schedulerV2;
+    if (!sch.assignmentSource) sch.assignmentSource = {};
+    if (!sch.manualLocks) sch.manualLocks = {};
+    if (!sch.tempUnitSource) sch.tempUnitSource = {};
+    if (!sch.manualUnitLocks) sch.manualUnitLocks = {};
+    if (!sch.regenerationSeeds) sch.regenerationSeeds = {};
+    if (!sch.assignmentRoleLabels) sch.assignmentRoleLabels = {};
+
+    const preserveSources = new Set(['EXCEL_IMPORT_V63','MANUAL_V62','REQUEST_V62','ANNUAL_EXTERNAL','ANNUAL_LOCAL','ANNUAL_LEAVE','REPORT']);
+    let clearedAssignments = 0;
+    let preservedAssignments = 0;
+
+    Object.keys(state.manuelAtamalar || {}).forEach(k => {
+        if (!String(k).startsWith(hKey + '_')) return;
+        const src = sch.assignmentSource[k] || '';
+        const matchingPerson = (state.personeller || []).find(p => k.startsWith(hKey + '_' + p.ad + '_'));
+        const keepUnit = matchingPerson && sch.externalUnitWeeks && sch.externalUnitWeeks[hKey] && sch.externalUnitWeeks[hKey][matchingPerson.birim];
+        const preserve = !!keepUnit || preserveSources.has(src) || (sch.manualLocks[k] === true && !String(src).startsWith('AUTO_V62'));
+        if (preserve) { preservedAssignments++; return; }
+        delete state.manuelAtamalar[k];
+        delete sch.assignmentSource[k];
+        delete sch.manualLocks[k];
+        delete sch.assignmentRoleLabels[k];
+        clearedAssignments++;
+    });
+
+    // Bu haftadaki yalnız AUTO geçici görevleri kaldır; Excel ve yönetici görev yerleri korunur.
+    const monday = new Date(currentMonday); monday.setHours(12,0,0,0);
+    for (let d=0; d<7; d++) {
+        const dt = new Date(monday); dt.setDate(dt.getDate()+d);
+        const dk = getDateKey(dt);
+        (state.personeller || []).forEach(p => {
+            const tk = `${dk}_${p.ad}`;
+            const src = sch.tempUnitSource[tk] || '';
+            if (src === 'EXCEL_IMPORT_V63' || src === 'MANUAL_V62') return;
+            if (String(src).startsWith('AUTO_V62')) {
+                delete state.geciciGorevler[tk];
+                delete sch.tempUnitSource[tk];
+                delete sch.manualUnitLocks[tk];
+            }
+        });
+    }
+
+    if (sch.mcrReplacements) delete sch.mcrReplacements[hKey];
+    if (sch.weeklyMorningAnchors && sch.weeklyMorningAnchors[hKey]) {
+        const keep = {};
+        Object.entries(sch.weeklyMorningAnchors[hKey]).forEach(([unit, rec]) => {
+            if (rec && (rec.importedRole === true || rec.source === 'EXCEL_IMPORT_V63')) keep[unit] = rec;
+        });
+        if (Object.keys(keep).length) sch.weeklyMorningAnchors[hKey] = keep;
+        else delete sch.weeklyMorningAnchors[hKey];
+    }
+    if (sch.lastReport && sch.lastReport.week === hKey) sch.lastReport = null;
+
+    const prevSeed = parseInt(sch.regenerationSeeds[hKey] || 0, 10) || 0;
+    sch.regenerationSeeds[hKey] = prevSeed + 1;
+
+    save();
+    tabloyuOlustur();
+    if (isAdmin) refreshUI();
+    logKoy(`Bu haftanın otomatik vardiyası temizlendi. Excel/manual/yıllık izin korundu. Alternatif seed=${sch.regenerationSeeds[hKey]}.`);
+    showToast(`Hafta temizlendi: ${clearedAssignments} otomatik hücre kaldırıldı, ${preservedAssignments} korumalı hücre saklandı. Alternatif #${sch.regenerationSeeds[hKey]}.`, "info");
+}
 function tamSifirla() { if(confirm("Sıfırla?")) { localStorage.clear(); location.reload(); } }
 function jsonYedekAl() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "Yedek.json"); dl.click(); showToast("Yedek indirildi.", "success"); }
 async function githubdanYedekYukle() {
@@ -2318,8 +2427,8 @@ function anlikSenkronizasyonBaslat() {
                 });
                 sabitGorevYeriIlkSenkronMigrasyonuYapildi = true;
             }
-            if (window.SchedulerV2 && typeof window.SchedulerV2.applyExternalAnnualLocks === 'function') {
-                window.SchedulerV2.applyExternalAnnualLocks(hariciIzinler, {reoptimize:false});
+            if (window.__V62_ANNUAL_DATA_READY && window.SchedulerV2 && typeof window.SchedulerV2.applyExternalAnnualLocks === 'function') {
+                window.SchedulerV2.applyExternalAnnualLocks(hariciIzinler, {reoptimize:false, render:false, source:'rtdb-sync'});
             }
             tumArayuzuCiz();
             save();
@@ -2451,10 +2560,19 @@ function v63ExcelNormalizeText(value) {
         .trim();
 }
 
-function v63ExcelKey(value) {
+function v63ExcelFold(value) {
     return v63ExcelNormalizeText(value)
         .toLocaleUpperCase('tr-TR')
-        .replace(/[^0-9A-ZÇĞİÖŞÜ]/g, '');
+        .replace(/Ç/g, 'C')
+        .replace(/Ğ/g, 'G')
+        .replace(/[İI]/g, 'I')
+        .replace(/Ö/g, 'O')
+        .replace(/Ş/g, 'S')
+        .replace(/Ü/g, 'U');
+}
+
+function v63ExcelKey(value) {
+    return v63ExcelFold(value).replace(/[^0-9A-Z]/g, '');
 }
 
 function v63ExcelUnitFromText(value) {
@@ -2470,9 +2588,9 @@ function v63ExcelUnitFromText(value) {
     });
     if (direct) return direct;
 
-    // Kurumsal Excel başlıkları için toleranslı alias'lar.
-    if (k.includes('TEKNIKYONETMEN')) return UNITS.YONETMEN;
-    if (k.includes('SESOPERATOR')) return UNITS.SES;
+    // Kurumsal Excel başlıkları / dosya adları için toleranslı alias'lar.
+    if (k.includes('TEKNIKYONETMEN') || k.includes('TYEKIBI') || k.includes('TYLISTESI')) return UNITS.YONETMEN;
+    if (k.includes('SESOPERATOR') || k.includes('SESEKIBI') || k.includes('SESLISTESI')) return UNITS.SES;
     if (k.includes('PLAYOUT') && !k.includes('KJ')) return UNITS.PLAYOUT;
     if (k.includes('KJ') && !k.includes('PLAYOUT')) return UNITS.KJ;
     if (k.includes('INGEST')) return UNITS.INGEST;
@@ -2510,39 +2628,115 @@ function v63ExcelLooksLikeSectionHeader(row) {
     return /[A-ZÇĞİÖŞÜa-zçğıöşü]/.test(a);
 }
 
-function v63ExcelShiftFromText(value) {
+function v63ExcelParseTimeRange(value) {
+    const raw = v63ExcelNormalizeText(value);
+    if (!raw) return null;
+
+    // 18:00 - 02:00 / 18.00-02.00 / 18-00 - 02-00 / 06:00- 16:00 gibi
+    // kurumsal Excel varyasyonlarının tamamını tek parser ile kabul et.
+    const times = [];
+    const re = /(\d{1,2})\s*[:.\-]\s*(\d{2})/g;
+    let m;
+    while ((m = re.exec(raw)) !== null && times.length < 2) {
+        let h = Number(m[1]);
+        const min = Number(m[2]);
+        if (!Number.isFinite(h) || !Number.isFinite(min) || min < 0 || min > 59 || h < 0 || h > 24) continue;
+        if (h === 24 && min === 0) h = 0;
+        else if (h === 24) continue;
+        times.push(h * 60 + min);
+    }
+    if (times.length < 2) return null;
+    return { start: times[0], end: times[1] };
+}
+
+function v63ExcelClockDiff(a, b) {
+    const d = Math.abs(Number(a) - Number(b));
+    return Math.min(d, 1440 - d);
+}
+
+function v63ExcelShiftMatch(value) {
     const raw = v63ExcelNormalizeText(value);
     if (!raw) return null;
     const tr = raw.toLocaleUpperCase('tr-TR');
     const compact = tr.replace(/\s+/g, '');
     const en = raw.toUpperCase().replace(/\s+/g, '');
 
-    if (compact.includes('YILLIK')) return SHIFTS.YILLIK;
-    if (compact.includes('RAPOR')) return SHIFTS.RAPOR;
-    if (compact.includes('İZİN') || en.includes('IZIN') || en.includes('OFF')) return SHIFTS.IZIN;
+    if (compact.includes('YILLIK')) return { shift: SHIFTS.YILLIK, method: 'status' };
+    if (compact.includes('RAPOR')) return { shift: SHIFTS.RAPOR, method: 'status' };
+    if (compact.includes('İZİN') || en.includes('IZIN') || en.includes('OFF')) return { shift: SHIFTS.IZIN, method: 'status' };
 
+    // Önce mevcut sistem saatleriyle metinsel tam eşleşme.
     const canon = raw.replace(/[‐‑‒–—―]/g, '-').replace(/\s+/g, '');
-    const exact = (state.saatler || []).find(s => String(s).replace(/[‐‑‒–—―]/g, '-').replace(/\s+/g, '') === canon);
-    if (exact) return exact;
+    const exact = (state.saatler || []).find(s =>
+        String(s).replace(/[‐‑‒–—―]/g, '-').replace(/\s+/g, '') === canon
+    );
+    if (exact) return { shift: exact, method: 'exact' };
 
-    const m = canon.match(/(\d{1,2})[:.](\d{2})-(\d{1,2})[:.](\d{2})/);
-    if (!m) return null;
-    const sh = Number(m[1]), eh = Number(m[3]);
+    const parsed = v63ExcelParseTimeRange(raw);
+    if (!parsed) {
+        // Kurum dosyalarinda vardiya etiketi bazen yalniz BASLANGIC saatidir.
+        // 07:00 -> 06:30 ve 10:00 -> 09:00 mevcut vardiya SATIRINA alinabilir.
+        // Burada uydurma bitis saati olusturulmaz; sadece tanimli hedef satir secilir.
+        const single = raw.match(/^(\d{1,2})\s*[:.]\s*(\d{2})$/);
+        if (!single) return null;
+        const h=Number(single[1]), min=Number(single[2]);
+        if (h>23 || min>59) return null;
+        const startMinutes=h*60+min;
+        const choices=(state.saatler || []).map(shift=>{
+            const p=v63ExcelParseTimeRange(shift);
+            return p ? {shift,diff:v63ExcelClockDiff(startMinutes,p.start)} : null;
+        }).filter(x=>x && x.diff<=90).sort((a,b)=>a.diff-b.diff);
+        if (choices.length && (choices.length===1 || choices[0].diff<choices[1].diff)) {
+            return {shift:choices[0].shift,method:'start-only',originalStart:startMinutes};
+        }
+        return null; // Belirsiz vardiyayi tahmin etme.
+    }
 
-    // Gece: 00:00 başlangıç veya akşam başlayıp ertesi sabah biten vardiya.
-    if (sh === 0 || (sh >= 18 && eh <= 8)) return SHIFTS.GECE;
-    if (sh >= 6 && sh <= 8) return SHIFTS.SABAH;
-    if (sh >= 9 && sh <= 11) return SHIFTS.GUNDUZ;
-    if (sh >= 12 && sh <= 14) return SHIFTS.OGLEN;
-    if (sh >= 15 && sh <= 23) return SHIFTS.AKSAM;
+    // Sonra sistemde tanımlı gerçek saatlere sayısal olarak eşleştir.
+    // Bu katman 18:00-01:00 -> 18:00-02:00 gibi küçük kurum farklarını da tolere eder.
+    const local = (state.saatler || []).map(shift => {
+        const p = v63ExcelParseTimeRange(shift);
+        if (!p) return null;
+        const startDiff = v63ExcelClockDiff(parsed.start, p.start);
+        const endDiff = v63ExcelClockDiff(parsed.end, p.end);
+        // Başlangıç saati operasyonel kimlik için daha güçlüdür.
+        const score = startDiff * 4 + endDiff;
+        return { shift, p, startDiff, endDiff, score };
+    }).filter(Boolean);
+
+    const numericExact = local.find(x => x.startDiff === 0 && x.endDiff === 0);
+    if (numericExact) return { shift: numericExact.shift, method: 'numeric-exact', parsed };
+
+    const close = local
+        .filter(x => x.startDiff <= 60 && x.endDiff <= 120)
+        .sort((a,b) => a.score - b.score || String(a.shift).localeCompare(String(b.shift),'tr'));
+    if (close.length && (close.length === 1 || close[0].score < close[1].score)) {
+        return { shift: close[0].shift, method: 'near-time', parsed, startDiff: close[0].startDiff, endDiff: close[0].endDiff };
+    }
+
+    // Tanımlı özel saat bulunamazsa eski kategori davranışı korunur.
+    const sh = Math.floor(parsed.start / 60);
+    const eh = Math.floor(parsed.end / 60);
+    // FIX2.28: Vardiyanin KIMLIGI baslangic saatidir.
+    // 18:00–02:00, gece yarisi sonlanmasina ragmen 00:00–07:00 gece vardiyasi DEGILDIR.
+    if (sh === 0) return { shift: SHIFTS.GECE, method: 'category', parsed };
+    if (sh >= 6 && sh <= 8) return { shift: SHIFTS.SABAH, method: 'category', parsed };
+    if (sh >= 9 && sh <= 11) return { shift: SHIFTS.GUNDUZ, method: 'category', parsed };
+    if (sh >= 12 && sh <= 14) return { shift: SHIFTS.OGLEN, method: 'category', parsed };
+    if (sh >= 15 && sh <= 23) return { shift: SHIFTS.AKSAM, method: 'category', parsed };
     return null;
+}
+
+function v63ExcelShiftFromText(value) {
+    const m = v63ExcelShiftMatch(value);
+    return m ? m.shift : null;
 }
 
 function v63ExcelCleanPersonName(value) {
     let s = v63ExcelNormalizeText(value).toLocaleUpperCase('tr-TR');
     if (!s) return '';
     s = s
-        .replace(/\(?\s*\d{1,2}[:.]\d{2}\s*[-–—]\s*\d{1,2}[:.]\d{2}\s*\)?/g, ' ')
+        .replace(/\(?\s*\d{1,2}\s*[:.\-]\s*\d{2}\s*[-–—]\s*\d{1,2}\s*[:.\-]\s*\d{2}\s*\)?/g, ' ')
         .replace(/Y\s*I\s*L\s*L\s*I\s*K\s*İ?\s*Z\s*İ\s*N/gi, ' ')
         .replace(/İ\s*Z\s*İ\s*N\s*L\s*İ/gi, ' ')
         .replace(/İ\s*Z\s*İ\s*N/gi, ' ')
@@ -2556,19 +2750,116 @@ function v63ExcelCleanPersonName(value) {
     return s;
 }
 
-function v63ExcelFindPerson(value) {
+function v63ExcelNameTokens(value) {
+    const cleaned = v63ExcelCleanPersonName(value);
+    if (!cleaned) return [];
+    return v63ExcelFold(cleaned)
+        .replace(/[^0-9A-Z]+/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+}
+
+function v63ExcelLevenshtein(a, b) {
+    a = String(a || '');
+    b = String(b || '');
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+    let prev = Array.from({length:b.length+1}, (_,i)=>i);
+    for (let i=1; i<=a.length; i++) {
+        const cur = [i];
+        for (let j=1; j<=b.length; j++) {
+            const cost = a[i-1] === b[j-1] ? 0 : 1;
+            cur[j] = Math.min(cur[j-1] + 1, prev[j] + 1, prev[j-1] + cost);
+        }
+        prev = cur;
+    }
+    return prev[b.length];
+}
+
+function v63ExcelInitialSequenceScore(inputTokens, personTokens) {
+    if (!inputTokens.length || !personTokens.length || inputTokens.length > personTokens.length) return null;
+    // Soyad / son token güvenlik çıpasıdır.
+    const inLast = inputTokens[inputTokens.length - 1];
+    const pLast = personTokens[personTokens.length - 1];
+    const lastDist = v63ExcelLevenshtein(inLast, pLast);
+    if (!(inLast === pLast || (inLast.length >= 5 && pLast.length >= 5 && lastDist <= 1))) return null;
+
+    let pi = 0, exactCount = 0, initialCount = 0, typoCount = 0;
+    for (const token of inputTokens) {
+        let found = false;
+        while (pi < personTokens.length) {
+            const pt = personTokens[pi++];
+            if (token.length === 1 && pt.startsWith(token)) {
+                initialCount++; found = true; break;
+            }
+            if (token === pt) {
+                exactCount++; found = true; break;
+            }
+            if (token.length >= 5 && pt.length >= 5 && v63ExcelLevenshtein(token, pt) <= 1) {
+                typoCount++; found = true; break;
+            }
+        }
+        if (!found) return null;
+    }
+    return 900 + exactCount * 8 + initialCount * 4 - typoCount * 6 - (personTokens.length - inputTokens.length) * 2;
+}
+
+function v63ExcelFindPersonMatch(value) {
     const cleaned = v63ExcelCleanPersonName(value);
     if (!cleaned) return null;
+    const people = state.personeller || [];
     const ck = v63ExcelKey(cleaned);
-    let p = (state.personeller || []).find(x => v63ExcelKey(x.ad) === ck);
-    if (p) return p;
 
-    // Kontrollü tolerans: yalnız tek bir aday kapsama eşleşiyorsa kabul edilir.
-    const candidates = (state.personeller || []).filter(x => {
-        const pk = v63ExcelKey(x.ad);
-        return pk.length >= 5 && ck.length >= 5 && (pk.includes(ck) || ck.includes(pk));
+    const exact = people.find(x => v63ExcelKey(x.ad) === ck);
+    if (exact) return { person: exact, method: 'exact', score: 1000, input: cleaned };
+
+    const inputTokens = v63ExcelNameTokens(cleaned);
+    const scored = [];
+
+    people.forEach(person => {
+        const personTokens = v63ExcelNameTokens(person.ad);
+        const pk = v63ExcelKey(person.ad);
+
+        const seq = v63ExcelInitialSequenceScore(inputTokens, personTokens);
+        if (seq !== null) scored.push({ person, method: 'initial', score: seq, input: cleaned });
+
+        // Yazım hatası toleransı: yalnız güçlü soyad çıpasıyla ve kısa mesafeyle.
+        if (ck.length >= 8 && pk.length >= 8 && inputTokens.length && personTokens.length) {
+            const surnameA = inputTokens[inputTokens.length - 1];
+            const surnameB = personTokens[personTokens.length - 1];
+            const surnameDist = v63ExcelLevenshtein(surnameA, surnameB);
+            const surnameOk = surnameA === surnameB || (surnameA.length >= 5 && surnameB.length >= 5 && surnameDist <= 1);
+            if (surnameOk) {
+                const d = v63ExcelLevenshtein(ck, pk);
+                const maxLen = Math.max(ck.length, pk.length);
+                const ratio = 1 - (d / Math.max(1,maxLen));
+                const maxDist = maxLen >= 18 ? 3 : 2;
+                if (d <= maxDist && ratio >= 0.82) {
+                    scored.push({ person, method: 'typo', score: 840 + Math.round(ratio * 40) - d * 4, input: cleaned });
+                }
+            }
+        }
+
+        // Eski kontrollü kapsama davranışı son güvenli fallback olarak korunur.
+        if (pk.length >= 5 && ck.length >= 5 && (pk.includes(ck) || ck.includes(pk))) {
+            scored.push({ person, method: 'contains', score: 820 - Math.abs(pk.length-ck.length), input: cleaned });
+        }
     });
-    return candidates.length === 1 ? candidates[0] : null;
+
+    if (!scored.length) return null;
+    scored.sort((a,b) => b.score - a.score || String(a.person.ad).localeCompare(String(b.person.ad),'tr'));
+    const best = scored[0];
+    const second = scored.find(x => x.person.ad !== best.person.ad);
+    // Belirsiz isimde otomatik tahmin yapma; kullanıcıya unmatched olarak göster.
+    if (second && (best.score - second.score) < 18) return null;
+    return best;
+}
+
+function v63ExcelFindPerson(value) {
+    const m = v63ExcelFindPersonMatch(value);
+    return m ? m.person : null;
 }
 
 function v63ExcelDateFromCell(value) {
@@ -2580,11 +2871,20 @@ function v63ExcelDateFromCell(value) {
         if (p && p.y && p.m && p.d) return new Date(p.y, p.m - 1, p.d, 12, 0, 0, 0);
     }
     if (typeof value === 'string') {
-        const s = value.trim();
+        const s = v63ExcelNormalizeText(value);
         let m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/);
         if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), 12, 0, 0, 0);
         m = s.match(/^(\d{4})[.\/-](\d{1,2})[.\/-](\d{1,2})$/);
         if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0, 0);
+
+        // "1 Eylül 2014" gibi eski kurumsal şablonları da tarih olarak okuyabiliriz.
+        const monthMap = {
+            OCAK:0, SUBAT:1, MART:2, NISAN:3, MAYIS:4, HAZIRAN:5,
+            TEMMUZ:6, AGUSTOS:7, EYLUL:8, EKIM:9, KASIM:10, ARALIK:11
+        };
+        const folded = v63ExcelFold(s);
+        m = folded.match(/^(\d{1,2})\s+(OCAK|SUBAT|MART|NISAN|MAYIS|HAZIRAN|TEMMUZ|AGUSTOS|EYLUL|EKIM|KASIM|ARALIK)\s+(\d{4})$/);
+        if (m) return new Date(Number(m[3]), monthMap[m[2]], Number(m[1]), 12, 0, 0, 0);
     }
     return null;
 }
@@ -2601,22 +2901,80 @@ function v63ExcelDetectDateColumns(rows) {
     return best;
 }
 
+function v63ExcelFileWeekFromName(fileName) {
+    const s = v63ExcelFold(fileName || '');
+    const monthMap = {
+        OCAK:0, SUBAT:1, MART:2, NISAN:3, MAYIS:4, HAZIRAN:5,
+        TEMMUZ:6, AGUSTOS:7, EYLUL:8, EKIM:9, KASIM:10, ARALIK:11
+    };
+    const m = s.match(/(\d{1,2})\s*[-–—]\s*(\d{1,2})\s+(OCAK|SUBAT|MART|NISAN|MAYIS|HAZIRAN|TEMMUZ|AGUSTOS|EYLUL|EKIM|KASIM|ARALIK)(?:\s+(\d{4}))?/);
+    if (!m) return null;
+    const year = m[4] ? Number(m[4]) : (currentMonday instanceof Date && !isNaN(currentMonday) ? currentMonday.getFullYear() : new Date().getFullYear());
+    const d = new Date(year, monthMap[m[3]], Number(m[1]), 12,0,0,0);
+    if (isNaN(d)) return null;
+    return getMonday(d);
+}
+
+function v63ExcelSheetWeek(rows) {
+    const info = v63ExcelDetectDateColumns(rows);
+    if (!info) return null;
+    const first = info.dates.find(Boolean);
+    if (!first) return null;
+    return getMonday(new Date(first));
+}
+
 function v63ExcelSheetScore(sheetName, rows, fileName) {
     const nameKey = v63ExcelKey(sheetName);
     let score = 0;
     if (nameKey.includes('HAFTASI') || nameKey.includes('HAFTA')) score += 30;
-    if (nameKey.includes('ULASTIRMA')) score -= 40;
-    if (nameKey === 'DATA') score -= 60;
-    if (v63ExcelDetectDateColumns(rows)) score += 40;
+    if (nameKey.includes('ULASTIRMA')) score -= 200;
+    if (nameKey === 'DATA') score -= 300;
+
+    const dateInfo = v63ExcelDetectDateColumns(rows);
+    if (dateInfo) {
+        // Gerçek 7 günlük tarih satırı eski bol başlıklı şablondan çok daha güçlü sinyaldir.
+        score += 500 + dateInfo.valid * 20;
+
+        const sheetWeek = v63ExcelSheetWeek(rows);
+        const fileWeek = v63ExcelFileWeekFromName(fileName);
+        if (sheetWeek && fileWeek) {
+            const diffWeeks = Math.abs(Math.round((sheetWeek - fileWeek) / (7 * 86400000)));
+            if (diffWeeks === 0) score += 300;
+            else if (diffWeeks <= 1) score += 120;
+            else if (diffWeeks <= 4) score += 30;
+            else if (diffWeeks > 52) score -= 300;
+            else if (diffWeeks > 12) score -= 120;
+        } else if (sheetWeek && currentMonday instanceof Date && !isNaN(currentMonday)) {
+            const cur = getMonday(new Date(currentMonday));
+            const diffWeeks = Math.abs(Math.round((sheetWeek - cur) / (7 * 86400000)));
+            if (diffWeeks === 0) score += 80;
+            else if (diffWeeks <= 4) score += 30;
+        }
+    } else {
+        score -= 250;
+    }
+
     let headers = 0;
     rows.forEach(row => {
         const u = v63ExcelUnitFromText((row || [])[0]);
         if (u) headers++;
     });
-    score += headers * 12;
+    // Çok eski tam kurum sayfalarının yalnız başlık sayısıyla yeni sayfayı ezmesini engelle.
+    score += Math.min(headers, 6) * 12;
     if (rows.length > 30) score += 8;
-    if (v63ExcelUnitFromText(fileName)) score += 5;
+    if (v63ExcelUnitFromText(fileName)) score += 15;
     return score;
+}
+
+function v63ExcelSheetIsHidden(workbook, sheetName) {
+    try {
+        const meta = workbook && workbook.Workbook && Array.isArray(workbook.Workbook.Sheets)
+            ? workbook.Workbook.Sheets.find(x => (x.name || x.Name) === sheetName)
+            : null;
+        return !!(meta && Number(meta.Hidden || 0) !== 0);
+    } catch(e) {
+        return false;
+    }
 }
 
 function v63ExcelMarkExternalUnitWeek(unit, hKey) {
@@ -2884,11 +3242,17 @@ function exceldenVardiyaYukle() {
             const workbook = XLSX.read(data, { type: 'array', cellDates: false });
             if (!workbook.SheetNames || !workbook.SheetNames.length) throw new Error('Excel içinde çalışma sayfası bulunamadı.');
 
-            const candidates = workbook.SheetNames.map(name => {
+            const allCandidates = workbook.SheetNames.map(name => {
                 const ws = workbook.Sheets[name];
                 const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
-                return { name, ws, rows, score: v63ExcelSheetScore(name, rows, file.name) };
-            }).sort((a,b) => b.score - a.score);
+                const hidden = v63ExcelSheetIsHidden(workbook, name);
+                return { name, ws, rows, hidden, score: v63ExcelSheetScore(name, rows, file.name) };
+            });
+            // Hidden "data" / eski yıllara ait arşiv sayfaları import kaynağı OLAMAZ.
+            // Hiç görünür sayfa yoksa yalnız emniyet fallback'i olarak tüm sayfalara dön.
+            const visibleCandidates = allCandidates.filter(x => !x.hidden);
+            const candidates = (visibleCandidates.length ? visibleCandidates : allCandidates)
+                .sort((a,b) => b.score - a.score || a.name.localeCompare(b.name,'tr'));
 
             const chosen = candidates[0];
             const jsonData = chosen.rows;
@@ -2906,6 +3270,8 @@ function exceldenVardiyaYukle() {
             const excelBirimleri = new Set();
             const importedWeeks = new Set();
             const unmatched = new Set();
+            const smartNameMatches = new Map();
+            const smartShiftMatches = new Map();
             const skippedSections = new Set();
             const ignoredRows = new Set();
 
@@ -2932,20 +3298,35 @@ function exceldenVardiyaYukle() {
                     return;
                 }
 
-                const rowShift = v63ExcelShiftFromText(first);
+                const rowShiftMatch = v63ExcelShiftMatch(first);
+                const rowShift = rowShiftMatch ? rowShiftMatch.shift : null;
                 if (!rowShift) {
                     if (row.slice(1,8).some(v => v63ExcelNormalizeText(v))) ignoredRows.add(first);
                     return;
+                }
+                if (rowShiftMatch && rowShiftMatch.method !== 'exact' && rowShiftMatch.method !== 'status') {
+                    const from = v63ExcelNormalizeText(first);
+                    const to = rowShift;
+                    if (from && to && v63ExcelKey(from) !== v63ExcelKey(to)) {
+                        smartShiftMatches.set(`${from}|||${to}`, `${from} → ${to}`);
+                    }
                 }
 
                 for (let c = 1; c <= 7; c++) {
                     const cell = row[c];
                     if (cell === null || cell === undefined || v63ExcelNormalizeText(cell) === '') continue;
-                    const personel = v63ExcelFindPerson(cell);
+                    const personMatch = v63ExcelFindPersonMatch(cell);
+                    const personel = personMatch ? personMatch.person : null;
                     if (!personel) {
                         const cleaned = v63ExcelCleanPersonName(cell);
-                        if (cleaned) unmatched.add(cleaned);
+                        // Tek harf / dipnot gibi artefaktları personel hatası diye raporlama.
+                        if (cleaned && v63ExcelKey(cleaned).length >= 4) unmatched.add(cleaned);
                         continue;
+                    }
+                    if (personMatch.method !== 'exact') {
+                        const from = v63ExcelCleanPersonName(cell);
+                        const to = personel.ad;
+                        smartNameMatches.set(`${from}|||${to}`, `${from} → ${to} (${personMatch.method})`);
                     }
 
                     let cellShift = rowShift;
@@ -3030,13 +3411,17 @@ function exceldenVardiyaYukle() {
 
             const unitLines = Array.from(excelBirimleri).sort((a,b)=>a.localeCompare(b,'tr'));
             const unmatchedList = Array.from(unmatched).slice(0,12);
+            const smartNameList = Array.from(smartNameMatches.values()).slice(0,12);
+            const smartShiftList = Array.from(smartShiftMatches.values()).slice(0,12);
             const skippedList = Array.from(skippedSections).slice(0,8);
             const ignoredList = Array.from(ignoredRows).slice(0,8);
+            const hiddenIgnored = allCandidates.filter(x => x.hidden).map(x => x.name);
             const summary = [
                 '✅ Excel başarıyla işlendi.',
                 '',
                 `Mod: ${fullWorkbook ? 'TAM HAFTA — Excel birebir otorite' : 'TEK / SINIRLI BİRİM'}`,
                 `Sayfa: ${chosen.name}`,
+                hiddenIgnored.length ? `Gizli sayfa yok sayıldı: ${hiddenIgnored.join(', ')}` : 'Gizli sayfa: yok',
                 `Aktarılan hücre: ${appliedResult.applied}`,
                 `Hafta: ${Array.from(importedWeeks).sort().join(', ')}`,
                 '',
@@ -3049,7 +3434,9 @@ function exceldenVardiyaYukle() {
                 'Gelecek hafta otomasyonu bu haftayı baz alacaksa, kontrolden sonra BULUTA KAYDET ile bu haftayı yayınlayın.'
             ];
             if (appliedResult.hardAnnualConflicts.length) summary.push('', `Yıllık izin HARD LOCK nedeniyle Excel'den çalışmaya çevrilmeyen hücre (${appliedResult.hardAnnualConflicts.length}):`, ...appliedResult.hardAnnualConflicts.slice(0,12).map(x=>`• ${x}`));
-            if (unmatchedList.length) summary.push('', `Eşleşmeyen personel (${unmatched.size}):`, ...unmatchedList.map(x=>`• ${x}`));
+            if (smartNameList.length) summary.push('', `Akıllı ad eşleşmesi (${smartNameMatches.size}):`, ...smartNameList.map(x=>`• ${x}`));
+            if (smartShiftList.length) summary.push('', `Akıllı saat eşleşmesi (${smartShiftMatches.size}):`, ...smartShiftList.map(x=>`• ${x}`));
+            if (unmatchedList.length) summary.push('', `Aktif personel listesinde bulunamadığı için ATLANAN ad (${unmatched.size}):`, ...unmatchedList.map(x=>`• ${x}`));
             if (skippedList.length) summary.push('', `Programda tanımlı olmadığı için atlanan bölüm (${skippedSections.size}):`, ...skippedList.map(x=>`• ${x}`));
             if (ignoredList.length) summary.push('', `Karşılığı olmayan satır (${ignoredRows.size}):`, ...ignoredList.map(x=>`• ${x}`));
 
@@ -3180,7 +3567,9 @@ window.onload = async () => {
                 // Sonra yıllık izin hard-locklarını uygula.
                 // Böylece localhost'taki yarış durumu MCR yedeğini yanlışlıkla kaybetmez.
                 await veriyiBuluttanYukleVeCiz();
-                await izinleriGuncelleVeCek();
+                // FAST START: Yillik izinler ilk acilista bir kez cekilir ve HARD LOCK olarak uygulanir.
+                // Ilk acilista otomatik reoptimize/uyari penceresi calistirilmaz; gercek sonraki degisiklikler realtime listener ile ele alinir.
+                await izinleriGuncelleVeCek({silent:true, reoptimize:false, source:'startup'});
 
                 if (!LOCAL_SAFE_TEST) {
                     anlikSenkronizasyonBaslat();
